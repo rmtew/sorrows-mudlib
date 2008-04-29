@@ -1,0 +1,36 @@
+class User:
+    def __init__(self, connection, name):
+        self.connection = connection
+        self.name = name
+
+        from mudlib import InputStack
+        self.inputstack = InputStack()
+        self.inputstack.Setup(self)
+        self.inputstack.WritePrompt()
+
+        self.worldServiceName = None
+        self.body = None
+
+    def __nonzero__(self):
+        "The user object is still valid if its connection is."
+        return not self.connection.released
+
+    def ReceiveInput(self, s):
+        self.inputstack.ReceiveInput(s)
+
+    def Write(self, message):
+        self.connection.send(message)
+
+    def WriteLine(self, message):
+        self.connection.send(message+"\r\n")
+
+    Tell = WriteLine
+
+    def SetBody(self, body):
+        self.body = body
+
+    def GetBody(self):
+        return self.body
+
+    def ManualDisconnection(self):
+        self.connection.close()

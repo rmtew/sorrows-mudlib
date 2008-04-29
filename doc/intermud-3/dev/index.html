@@ -1,0 +1,89 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html>
+  <head>
+    <title>I3 Router Development Info</title>
+  </head>
+
+  <body bgcolor=white>
+    <h1>I3 Router Development Info</h1>
+
+    <p>
+      <font color=red><b>This is a private page for the I3 Router Dev
+          Team. Do not publicize.</b></font>
+    </p>
+
+    <p>
+      Until we get some better ideas of what is needed, this page will
+      be relatively barren. Suggestions welcome...
+    </p>
+
+    <p>TODO list</p>
+    <ul>
+      <li>V4 protocol (see below)</li>
+      <li>multi-router</li>
+      <li>find ways to get people to upgrade so we can drop V1..V3
+        support</li>
+      <li>timeout connections that don't send a startup-req</li>
+      <li>
+        block "bad" IPs before too much processing occurs. where "bad"
+        is defined as banned or currently-spamming IPs.
+      </li>
+      <li>review I3 emails to collect features/concerns/etc</li>
+      <li>work on the www.intermud.org web site</li>
+      <li>
+        revise protocol spec: core specification plus OOB specs. The
+        OOB specs are simply layered on top of the core spec.
+      </li>
+    </ul>
+
+    <p>V4 Protocol items</p>
+    <ul>
+      <li>partial mudlists and chanlists on startup</li>
+      <li>enforcement of passwords</li>
+      <li>There are also channel queries to add.</li>
+      <li>I'd also like to revamp OOB (make it unidirectional)</li>
+      <li>
+        toss out news altogether. (the current news spec is a
+        partially-completed abomination by Rust and should have been
+        tossed or completed long ago).
+        <p>
+          Johan says:<br>
+
+          There have been a few nice suggestions for a
+          better news spec., but I doubt if this would be used much
+          even when it is implemented... Hmmm well, we can add it
+          anyway: as this is OOB traffic, it won't compromise the
+          router. Then just let the MUDs decide whether they like to
+          implement this. (I can imagine this being used for
+          mudlib/driver development.)
+        </p>
+      </li>
+
+      <li>
+        V4 would also be hard-nosed about filtering based on the services
+        list.
+      </li>
+      <li>
+        We also want to spec two new services: no-spoof, and "www":
+        base_url.
+        <br>
+        Probably some more, IIRC other services have been
+        suggested along the road.
+      </li>
+      <li>
+        admin_email requirements for one: format, valid domain name
+      </li>
+      <li>come up with a spec for the V4 changes</li>
+      <li>put router hostnames into the startup-reply</li>
+      <li>add ping (with appropriate limiter)</li>
+    </ul>
+
+
+    <hr>
+    <address><a href="mailto:gstein@lyra.org">Greg Stein</a></address>
+<!-- Created: Thu Mar  4 03:52:17 PST 1999 -->
+<!-- hhmts start -->
+Last modified: Thu Mar  4 04:05:08 PST 1999
+<!-- hhmts end -->
+  </body>
+</html>

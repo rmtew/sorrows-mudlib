@@ -1,0 +1,138 @@
+
+======================= SORROWS MUDLIB =======================
+
+This is the third version of the Sorrows mudlib.  The first was a modified
+version of the Discworld LP mudlib.  The second was a version of the original
+mudlib rewritten from the ground up (still including parts of the Discworld
+mudlib, but much cleaner).  This is the currect implementation.
+
+It was originally written for a mud called Nameless Sorrows.
+
+-- QUICK ADDITIONS -------------------------------------------
+
+The Intermud service is not fully working and needs some fixes still.
+
+The OpenCyc suuport sill requires fixes.
+
+-- GETTING STARTED -------------------------------------------
+
+In order to run this, it should be sufficient to have installed:
+
+	Python 2.5.2
+		http://www.python.org
+	Stackless Python dll and lib replacements for Python 2.5.2
+		http://www.stackless.com
+
+Running this for the first time:
+
+	1. Copy "config.ini.base" to "config.ini"
+	2. Edit "config.ini" and modify the relevant lines.
+
+	   If you are running it with an active internet connection then
+	   making sure you have a unique mud name might be a good idea
+	   given the default intermud3 running behaviour.
+
+Open a console in this directory and type:
+
+	python bootstrap.py
+	
+Or if python is not in your path, something like:
+
+	"PATH TO PYTHON\python" bootstrap.py
+	e.g. "c:\program files\python23\python" bootstrap.py
+
+Then, given a successful start-up, you should see something like:
+
+    D:\SVN\_personal\sorrows\trunk>c:\Python25\python.exe bootstrap.py
+    STARTING sorrows.services
+    Starting sorrows.net
+    Starting sorrows.rules
+    Starting sorrows.commands
+    Starting sorrows.data
+    Starting sorrows.users
+    Starting sorrows.world
+    Starting sorrows.worldVoid
+    Starting sorrows.worldMap2D
+    WorldMap2D: Read map "map.txt", 40x40
+    Starting sorrows.entity2
+    Starting sorrows.entityVoid
+    (held off 2 starts due to dependencies in the process, tries left 20 )
+    STARTED sorrows.services
+
+The next step is to log in.
+
+    Start -> Run (presuming you are using Windows)
+    telnet localhost 3000
+
+Now you should have a telnet window in which you are greeted by
+output from the MUD server.  Enter a name and a password to get
+to the command prompt:
+
+    Nameless Sorrows 4.0
+    Enter 'quit' or 'q' at any time during the login process to disconnect.
+    
+    Login name: richard
+    Creating a new account with the name 'richard'.
+    Password: <censored>
+    Password (again): <censored>
+    You are logged in as "richard".
+    > commands
+    Available commands:
+      shutdown
+      rehash
+      commands
+      e
+      look
+      exec
+      python
+      l
+      who
+      sw
+      ne
+      n
+      start
+      s
+      cheight
+      w
+      world
+      say
+      se
+      nw
+    >
+
+To shutdown the MUD server, you can either enter 'shutdown' at the
+telnet command prompt or you can press control-c in the MUD server
+console window.
+
+See doc/PASTE-SCRIPTS for some additional information.
+
+-- EXPERIMENTAL ----------------------------------------------
+
+Simulation:
+
+    There is a simple simulation involving a baker, a miller
+    and a farmer.  This is based in the world model provided
+    by the 'worldVoid' service which is an infinite 2D void.
+    To get this working paste the contents of the PASTE-SCRIPTS
+    file in the telnet window after you have logged in with a
+    user name and password.  But note that the simulation
+    output is written to the server console window, not the
+    telnet window.
+
+Inference engine:
+
+    The Python bindings to the OpenCyc inference engine are
+    included in the source code and are linked into the MUD
+    server.  If a version of the OpenCyc engine is running
+    on the local host, it will be connected to and can be
+    used if you know what you are doing.
+
+-- LOST AND FOUND  -------------------------------------------
+
+The original world model gave the player a ANSI coloured view
+of a 2D map from some included text files.  However, some of
+the files have gone missing breaking this world model which
+is (was) provided by the 'worldMap2D' service.
+
+--------------------------------------------------------------
+

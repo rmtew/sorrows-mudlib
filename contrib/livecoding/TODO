@@ -1,0 +1,26 @@
+
+- Documentation.
+
+Need to flesh out the README file.
+Need to update the wiki.
+
+- The 'livecoding' library.
+
+Should have a clearer distinction between automatic and user driven updates.
+
+  Which gives the following two categories:
+
+  - Automatic updating (have to be using threads).
+  - User driven updates.
+ 
+  The user can also choose how updates are detected.
+ 
+  - Inline when polling.
+  - Accrued in a thread.  These would be acquired from a queue.
+
+  This is still quite confused.  But it would all be hidden away in filechanges.
+
+- The 'filechanges' library.
+
+Only the continually polling method works.  The other two are either not ready
+or require work to solve problems which make them unsuitable for use.

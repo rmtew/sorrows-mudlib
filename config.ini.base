@@ -1,0 +1,20 @@
+[services]
+i3=0
+
+[identity]
+name=Nameless Sorrows - Clone
+mudlib=Sorrows 3.0
+driver=Python
+mudtype=LP
+status=mudlib development
+email=unconfigured@example.com
+
+[net]
+host=localhost
+port=3000
+localecho=0
+
+[intermud3]
+routerName=*gjs
+host=198.144.203.194
+port=9000
