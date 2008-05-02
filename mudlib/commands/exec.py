@@ -6,6 +6,10 @@ class ExecCommand(Command):
     __verbs__ = [ 'exec' ]
 
     def Run(self, verb, arg):
+        if self.shell.user.name != "richard":
+            self.shell.user.Tell('Access denied.')
+            return
+
         raw = arg.strip()
         s = "return "
         if raw.startswith(s):

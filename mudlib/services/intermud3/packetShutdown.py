@@ -2,9 +2,12 @@ from mudlib.services.intermud3 import Packet
 
 class ShutdownPacket(Packet):
     __packet_type__ = "shutdown"
+    
+    # restartDelay:
+    # 0: Unknown
 
-    def __init__(self, packetType, ttl, mudfrom, userfrom, mudto, userto, restartDelay):
-        Packet.__init__(self, packetType, ttl, mudfrom, userfrom, mudto, userto)
+    def __init__(self, restartDelay=0):
+        Packet.__init__(self)
 
         self.restartDelay = restartDelay
 

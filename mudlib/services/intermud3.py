@@ -14,8 +14,6 @@ class Intermud3Service(Service):
     # Run - Event indicating the service is being started
     # -----------------------------------------------------------------------
     def Run(self):
-        self.tablesSavePath = sorrows.services.gameDataPath +"tables.db"
-
         # Locate all the packet classes and index them by their official packet name.
         packetClassesByType = {}
         for each in dir(intermud3):
@@ -37,6 +35,11 @@ class Intermud3Service(Service):
     # -----------------------------------------------------------------------
     def OnStop(self):
         if self.connection is not None:
+            # Notify the router that we are going down.
+            print self.__sorrows__ +": Sending shutdown packet to router '%s'." % sorrows.data.config.intermud3.routername
+            p = intermud3.ShutdownPacket()
+            self.connection.SendPacket(p)
+
             self.connection.close()
             self.connection = None
 
@@ -48,7 +51,7 @@ class Intermud3Service(Service):
         self.connection = MudConnection(currentSocket)
         self.connection.Setup(self)
         config = sorrows.data.config.intermud3
-        print "Service intermud3: Connecting to", config.host, config.getint("port")
+        print self.__sorrows__ +": Connecting to", config.host, config.getint("port")
         currentSocket.connect((config.host, config.getint("port")))
         uthread.new(self.ManageConnection)
 
@@ -56,7 +59,7 @@ class Intermud3Service(Service):
     # OnDisconnection - A socket disconnected.
     # -----------------------------------------------------------------------
     def OnDisconnection(self, connection):
-        print "Intermud disconnection"
+        print self.__sorrows__ +": Disconnected"
         self.connection.Release()
         self.connection = None
 
@@ -83,25 +86,24 @@ class Intermud3Service(Service):
 
             if self.packetClassesByType.has_key(packetType):
                 try:
-                    print "i3-packet", packetType
                     packet = self.packetClassesByType[packetType](*rawPacket)
                 except:
                     print "BROKEN PACKET", packetType, len(rawPacket), rawPacket[:6]
                     continue
 
                 if packet.__class__ is intermud3.StartupReplyPacket:
-                    print "i3-packet", packet.__class__, packet.password, packet.routerList
+                    print "i3-packet", packetType, packet.password, packet.routerList
                     config.routerName, routerAddress = packet.routerList[0]
                     host, port = routerAddress.strip().split(" ")
                     config.host = host
                     config.port = int(port)
                     config.password = packet.password
                 elif packet.__class__ is intermud3.MudlistPacket:
-                    print "i3-packet", packet.__class__, packet.mudlistID, len(packet.infoByName)
+                    print "i3-packet", packetType, packet.mudlistID, len(packet.infoByName)
                     config.mudlistID = packet.mudlistID
                     self.mudInfoByName.update(packet.infoByName)
                 elif packet.__class__ is intermud3.ChanlistReplyPacket:
-                    print "i3-packet", packet.__class__, packet.chanlistID, len(packet.infoByName)
+                    print "i3-packet", packetType, packet.chanlistID, len(packet.infoByName)
                     config.chanlistID = packet.chanlistID
                     self.channelInfoByName.update(packet.infoByName)
                 else:
