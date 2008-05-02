@@ -3,13 +3,13 @@ from mudlib.services.intermud3 import Packet
 class StartupPacket(Packet):
     __packet_type__ = "startup-req-3"
 
-    def __init__(self, mudto, password, mudlistID, chanlistID, driver, mudlib, mudtype, status, emailAddress):
+    def __init__(self, mudto, password, mudlistID, chanlistID, loginPort, driver, mudlib, mudtype, status, emailAddress):
         Packet.__init__(self, mudto=mudto)
 
         self.password = password
         self.mudlistID = mudlistID
         self.chanlistID = chanlistID
-        self.port = 666
+        self.port = loginPort
         self.port_tcp = 0
         self.port_udp = 0
         self.mudlib = mudlib

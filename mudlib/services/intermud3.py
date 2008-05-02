@@ -76,7 +76,7 @@ class Intermud3Service(Service):
         mudlistID = config.getint("mudlistID", 0)
         chanlistID = config.getint("chanlistID", 0)
 
-        p = intermud3.StartupPacket(config.routerName, password, mudlistID, chanlistID, identity.driver, identity.mudlib, identity.mudtype, identity.status, identity.email)
+        p = intermud3.StartupPacket(config.routerName, password, mudlistID, chanlistID, int(sorrows.data.config.net.port), identity.driver, identity.mudlib, identity.mudtype, identity.status, identity.email)
         self.connection.SendPacket(p)
         while True:
             rawPacket = self.connection.ReadPacket()

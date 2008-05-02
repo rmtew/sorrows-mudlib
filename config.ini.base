@@ -15,6 +15,6 @@ port=3000
 localecho=0
 
 [intermud3]
-routerName=*gjs
-host=198.144.203.194
-port=9000
+routername = *i4
+host = 204.209.44.3
+port = 8080
