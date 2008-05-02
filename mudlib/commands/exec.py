@@ -6,9 +6,10 @@ class ExecCommand(Command):
     __verbs__ = [ 'exec' ]
 
     def Run(self, verb, arg):
-        if self.shell.user.name != "richard":
-            self.shell.user.Tell('Access denied.')
-            return
+        # if self.shell.user.name != "richard":
+        # If you enable this, you might want to make sure your MUD is not on the net.
+        self.shell.user.Tell('Access denied.')
+        return
 
         raw = arg.strip()
         s = "return "
