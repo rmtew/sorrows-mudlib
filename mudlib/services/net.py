@@ -5,7 +5,7 @@
 
 import uthread, asyncore, socket
 from mudlib.services.net import TelnetConnection, MudConnection, Connection
-from mudlib import Room, User
+from mudlib import User
 from mudlib import Service
 
 
