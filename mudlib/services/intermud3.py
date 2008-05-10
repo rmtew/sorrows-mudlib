@@ -27,6 +27,8 @@ class Intermud3Service(Service):
         # Chanlist data.
         self.mudInfoByName = {}
         self.channelInfoByName = {}
+        
+        self.desiredListenChannels = [ "imud_gossip", "discworld-chat" ]
 
         uthread.new(self.ConnectToRouter)
 
@@ -76,8 +78,11 @@ class Intermud3Service(Service):
         mudlistID = config.getint("mudlistID", 0)
         chanlistID = config.getint("chanlistID", 0)
 
+        print self.__sorrows__ +": Sending the startup packet"
         p = intermud3.StartupPacket(config.routerName, password, mudlistID, chanlistID, int(sorrows.data.config.net.port), identity.driver, identity.mudlib, identity.mudtype, identity.status, identity.email)
         self.connection.SendPacket(p)
+        print self.__sorrows__ +": Sent the startup packet"
+
         while True:
             rawPacket = self.connection.ReadPacket()
             if rawPacket is None:
@@ -93,19 +98,29 @@ class Intermud3Service(Service):
 
                 if packet.__class__ is intermud3.StartupReplyPacket:
                     print "i3-packet", packetType, packet.password, packet.routerList
+                    # In the future, use the router name from the reply packet.
                     config.routerName, routerAddress = packet.routerList[0]
                     host, port = routerAddress.strip().split(" ")
+                    # In the future, use the router host and port from the reply packet.
                     config.host = host
                     config.port = int(port)
+                    # Save the password the router has allocated us.
                     config.password = packet.password
+                    # Store the name of the router we are connected to for use in outgoing packets.
+                    self.routerName = packet.mudfrom
+                    
+                    # Tell the router we want to listen to specific channels.
+                    uthread.new(self.SendChannelListenPackets, self.desiredListenChannels)
                 elif packet.__class__ is intermud3.MudlistPacket:
-                    print "i3-packet", packetType, packet.mudlistID, len(packet.infoByName)
                     config.mudlistID = packet.mudlistID
                     self.mudInfoByName.update(packet.infoByName)
                 elif packet.__class__ is intermud3.ChanlistReplyPacket:
-                    print "i3-packet", packetType, packet.chanlistID, len(packet.infoByName)
                     config.chanlistID = packet.chanlistID
                     self.channelInfoByName.update(packet.infoByName)
+                elif packet.__class__ is intermud3.ChannelMessagePacket:
+                    s = "[%s] %s@%s: %s" % (packet.channelName, packet.userfrom, packet.mudfrom, packet.message)
+                    for conn in sorrows.net.telnetConnections:
+                        conn.user.Tell(s)
                 else:
                     print "i3-packet-raw", rawPacket
             else:
@@ -115,7 +130,9 @@ class Intermud3Service(Service):
     # =======================================================================
 
     # -----------------------------------------------------------------------
-    # Something
-    # -----------------------------------------------------------------------
-    def Something(self):
-        pass
+    def SendChannelListenPackets(self, channelList):
+        for channelName in channelList:
+            print self.__sorrows__ +": Sending channel listen packet for '%s'" % channelName
+            p = intermud3.ChannelListenPacket(channelName, True)
+            self.connection.SendPacket(p)
+

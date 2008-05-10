@@ -148,7 +148,9 @@ class ServiceService(Service):
             self.listenersByEvent[eventName].remove(ob)
 
     def SendEvent(self, eventName, *args):
-        uthread.new(self.DeliverEvent, eventName, args)
+        # No point in sending, if there are no listeners.
+        if eventName in self.listenersByEvent:
+            uthread.new(self.DeliverEvent, eventName, args)
 
     def SendEventNow(self, eventName, *args):
         self.DeliverEvent(eventName, args)
