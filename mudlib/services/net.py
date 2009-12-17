@@ -17,9 +17,7 @@ class NetworkService(Service):
         self.telnetConnections = []
         self.nextConnectionID = 1
 
-    def OnServicesStarted(self):
-        uthread.new(self.ManagePump)
-        
+    def OnServicesStarted(self):        
         config = sorrows.data.config.net
         host, port = config.host, config.getint("port")
 
@@ -57,11 +55,6 @@ class NetworkService(Service):
         self.telnetConnections.append(connection)
         self.nextConnectionID += 1
         
-    def ManagePump(self):
-        while self.IsRunning():
-            asyncore.poll(0.05)
-            uthread.BeNice()
-
     def OnServerDisconnection(self, connection):
         self.LogInfo("OnServerDisconnection", connection)
 

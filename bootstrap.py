@@ -20,14 +20,9 @@ def Run():
 
     # Monkey-patch in the stackless-compatible sockets.
     import stacklesssocket
-    # Disable the built-in socket polling.
-    stacklesssocket.managerRunning = True
-    stacklesssocket.install()
-
-    # Monkey-patch in the BeNice function as 'stackless.schedule' for the
-    # 'stacklesssocket' module to use.
     import uthread
     stacklesssocket._schedule = uthread.BeNice
+    stacklesssocket.install()
 
     # Add the "livecoding" contrib directory to the path.
     livecodingDirPath = os.path.join(dirPath, "contrib", "livecoding")

@@ -86,12 +86,8 @@ def StartManager():
         managerRunning = True
         stackless.tasklet(ManageSockets)()
 
-def CreateFakeSocket(*args):
-    return _fakesocket(*args)
-
 _schedule = stackless.schedule
 _manage_sockets_func = StartManager
-_create_fakesocket_func = CreateFakeSocket
 
 def stacklesssocket_manager(mgr):
     global _manage_sockets_func
@@ -110,7 +106,7 @@ class _socketobject_new(_socketobject_old):
         # We need to do this here.
         if _sock is None:
             _sock = _realsocket_old(family, type, proto)
-            _sock = _create_fakesocket_func(_sock)
+            _sock = _fakesocket(_sock)
             _manage_sockets_func()
         _socketobject_old.__init__(self, family, type, proto, _sock)
         if not isinstance(self._sock, _fakesocket):
@@ -118,7 +114,7 @@ class _socketobject_new(_socketobject_old):
 
     def accept(self):
         sock, addr = self._sock.accept()
-        sock = _create_fakesocket_func(sock)
+        sock = _fakesocket(sock)
         sock.wasConnected = True
         return _socketobject_new(_sock=sock), addr
         

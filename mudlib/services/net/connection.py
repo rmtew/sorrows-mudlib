@@ -1,5 +1,3 @@
-import stacklesssocket
-
 class Connection:
     released = False
 
