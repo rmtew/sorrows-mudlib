@@ -3,8 +3,8 @@ from mudlib.services.intermud3 import Packet
 class MudlistPacket(Packet):
     __packet_type__ = "mudlist"
 
-    def __init__(self, packetType, ttl, mudfrom, userfrom, mudto, userto, mudlistID, infoByName):
-        Packet.__init__(self, packetType, ttl, mudfrom, userfrom, mudto, userto)
+    def __init__(self, ttl, mudfrom, userfrom, mudto, userto, mudlistID, infoByName):
+        Packet.__init__(self, ttl, mudfrom, userfrom, mudto, userto)
 
         self.mudlistID = mudlistID
         self.infoByName = infoByName

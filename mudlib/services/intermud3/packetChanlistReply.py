@@ -3,8 +3,8 @@ from mudlib.services.intermud3 import Packet
 class ChanlistReplyPacket(Packet):
     __packet_type__ = "chanlist-reply"
 
-    def __init__(self, packetType, ttl, mudfrom, userfrom, mudto, userto, chanlistID, infoByName):
-        Packet.__init__(self, packetType, ttl, mudfrom, userfrom, mudto, userto)
+    def __init__(self, ttl, mudfrom, userfrom, mudto, userto, chanlistID, infoByName):
+        Packet.__init__(self, ttl, mudfrom, userfrom, mudto, userto)
 
         self.chanlistID = chanlistID
         self.infoByName = infoByName

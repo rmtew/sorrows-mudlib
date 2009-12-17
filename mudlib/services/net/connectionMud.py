@@ -118,7 +118,7 @@ def MUD2Python(text):
                 i = i + 2
                 info.append((state, []))
                 state = LPC_ARRAY
-            elif text[i] == '"':
+            elif text[i] == '"' or text[i] == "'":
                 # The start of a string.
                 i = i + 1
                 findingEnd = 1
@@ -154,8 +154,13 @@ def MUD2Python(text):
                 else:
                     current = float(s)
                 i = j
-    except:
+    except Exception:
         print 'ERROR in MUD2Python', i, text[i-5:i] +']]'+ text[i] +'[['+ text[i+1:i+5]
+        print "TEXT STARTS"
+        print text
+        print "TEXT ENDS"
+        import traceback
+        traceback.print_exc()
     return current
 
 # -----------------------------------------------------------------------

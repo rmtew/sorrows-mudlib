@@ -18,7 +18,11 @@ class StartupPacket(Packet):
         self.mudtype = mudtype
         self.status = status
         self.email = emailAddress
-        self.services = { "ucache": 0, "channel": 1 }
+        self.services = {
+            "ucache": 0,
+            "channel": 1,
+            "who": 1,
+        }
         self.other = 0
 
     def List(self):

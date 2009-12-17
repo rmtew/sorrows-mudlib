@@ -85,48 +85,75 @@ class Intermud3Service(Service):
         self.LogInfo("Sent the startup packet")
 
         while True:
-            rawPacket = self.connection.ReadPacket()
-            if rawPacket is None:
+            if not self.HandlePacket(config):
                 break
-            packetType = rawPacket[0]
 
-            if self.packetClassesByType.has_key(packetType):
-                try:
-                    packet = self.packetClassesByType[packetType](*rawPacket)
-                except:
-                    self.LogError("BROKEN PACKET", packetType, len(rawPacket), rawPacket[:6])
-                    continue
-
-                if packet.__class__ is intermud3.StartupReplyPacket:
-                    self.LogInfo("i3-packet", packetType, packet.password, packet.routerList)
-                    # In the future, use the router name from the reply packet.
-                    config.routerName, routerAddress = packet.routerList[0]
-                    host, port = routerAddress.strip().split(" ")
-                    # In the future, use the router host and port from the reply packet.
-                    config.host = host
-                    config.port = int(port)
-                    # Save the password the router has allocated us.
-                    config.password = packet.password
-                    # Store the name of the router we are connected to for use in outgoing packets.
-                    self.routerName = packet.mudfrom
-                    
-                    # Tell the router we want to listen to specific channels.
-                    uthread.new(self.SendChannelListenPackets, self.desiredListenChannels)
-                elif packet.__class__ is intermud3.MudlistPacket:
-                    config.mudlistID = packet.mudlistID
-                    self.mudInfoByName.update(packet.infoByName)
-                elif packet.__class__ is intermud3.ChanlistReplyPacket:
-                    config.chanlistID = packet.chanlistID
-                    self.channelInfoByName.update(packet.infoByName)
-                elif packet.__class__ is intermud3.ChannelMessagePacket:
-                    s = "[%s] %s@%s: %s" % (packet.channelName, packet.userfrom, packet.mudfrom, packet.message)
-                    for conn in sorrows.net.telnetConnections:
-                        conn.user.Tell(s)
-                else:
-                    self.LogWarning("i3-packet-raw", rawPacket)
-            else:
-                self.LogWarning("UNRECOGNISED PACKET", rawPacket)
         self.LogInfo("Intermud3.ManageConnection.Exit")
+
+    def HandlePacket(self, config):        
+        rawPacket = self.connection.ReadPacket()
+        if rawPacket is None:
+            return False
+
+        packetType = rawPacket[0]
+
+        if self.packetClassesByType.has_key(packetType):
+            try:
+                packet = self.packetClassesByType[packetType](*rawPacket[1:])
+            except:
+                self.LogError("BROKEN PACKET", packetType, len(rawPacket), rawPacket[:6])
+                return True
+
+            self.LogInfo("packet", packetType)
+
+            if packet.__class__ is intermud3.StartupReplyPacket:
+                self.LogInfo("packet", packetType, packet.password, packet.routerList)
+                # In the future, use the router name from the reply packet.
+                config.routerName, routerAddress = packet.routerList[0]
+                host, port = routerAddress.strip().split(" ")
+                # In the future, use the router host and port from the reply packet.
+                config.host = host
+                config.port = int(port)
+                # Save the password the router has allocated us.
+                config.password = packet.password
+                # Store the name of the router we are connected to for use in outgoing packets.
+                self.routerName = packet.mudfrom
+
+                # Tell the router we want to listen to specific channels.
+                uthread.new(self.SendChannelListenPackets, self.desiredListenChannels)
+
+            elif packet.__class__ is intermud3.MudlistPacket:
+                config.mudlistID = packet.mudlistID
+                self.mudInfoByName.update(packet.infoByName)
+
+            elif packet.__class__ is intermud3.ChanlistReplyPacket:
+                config.chanlistID = packet.chanlistID
+                self.channelInfoByName.update(packet.infoByName)
+                self.LogInfo("channel list", packet.infoByName.keys())
+
+            elif packet.packetType.endswith("-req"):
+                self.LogInfo(packet.LogEntry())
+
+                if packet.__reply_type__ not in self.packetClassesByType:
+                    self.LogError("Unable to find reply packet class", packet.__reply_type__)
+                    return True
+
+                replyPacket = self.packetClassesByType[packet.__reply_type__]()
+                replyPacket.ProcessRequestPacket(packet)
+                self.connection.SendPacket(replyPacket)
+
+            else:
+                if packet.__reply_type__ not in self.packetClassesByType:
+                    self.LogWarning("Packet handling not implemented yet", packet.LogEntry())
+                    return True
+
+                self.LogInfo(packet.LogEntry())
+                packet.ProcessPayload()
+
+        else:
+            self.LogWarning("Packet unrecognised", rawPacket)
+
+        return True
 
     # =======================================================================
 
