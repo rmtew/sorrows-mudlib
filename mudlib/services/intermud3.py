@@ -8,7 +8,7 @@ from mudlib.services.net import MudConnection
 class Intermud3Service(Service):
     __sorrows__ = 'i3'
     __dependencies__ = [ 'net' ]
-    __optional__ = 1
+    __optional__ = True
 
     # -----------------------------------------------------------------------
     # Run - Event indicating the service is being started
@@ -38,8 +38,8 @@ class Intermud3Service(Service):
     def OnStop(self):
         if self.connection is not None:
             # Notify the router that we are going down.
-            print self.__sorrows__ +": Sending shutdown packet to router '%s'." % sorrows.data.config.intermud3.routername
-            p = intermud3.ShutdownPacket()
+            self.LogInfo("Sending shutdown packet to router '%s'." % sorrows.data.config.intermud3.routername)
+            p = intermud3.ShutdownPacket(1)
             self.connection.SendPacket(p)
 
             self.connection.close()
@@ -53,7 +53,8 @@ class Intermud3Service(Service):
         self.connection = MudConnection(currentSocket)
         self.connection.Setup(self)
         config = sorrows.data.config.intermud3
-        print self.__sorrows__ +": Connecting to", config.host, config.getint("port")
+
+        self.LogInfo("Connecting to", config.host, config.getint("port"))
         currentSocket.connect((config.host, config.getint("port")))
         uthread.new(self.ManageConnection)
 
@@ -61,7 +62,7 @@ class Intermud3Service(Service):
     # OnDisconnection - A socket disconnected.
     # -----------------------------------------------------------------------
     def OnDisconnection(self, connection):
-        print self.__sorrows__ +": Disconnected"
+        self.LogInfo("Disconnected")
         self.connection.Release()
         self.connection = None
 
@@ -78,10 +79,10 @@ class Intermud3Service(Service):
         mudlistID = config.getint("mudlistID", 0)
         chanlistID = config.getint("chanlistID", 0)
 
-        print self.__sorrows__ +": Sending the startup packet"
+        self.LogInfo("Sending the startup packet")
         p = intermud3.StartupPacket(config.routerName, password, mudlistID, chanlistID, int(sorrows.data.config.net.port), identity.driver, identity.mudlib, identity.mudtype, identity.status, identity.email)
         self.connection.SendPacket(p)
-        print self.__sorrows__ +": Sent the startup packet"
+        self.LogInfo("Sent the startup packet")
 
         while True:
             rawPacket = self.connection.ReadPacket()
@@ -93,11 +94,11 @@ class Intermud3Service(Service):
                 try:
                     packet = self.packetClassesByType[packetType](*rawPacket)
                 except:
-                    print "BROKEN PACKET", packetType, len(rawPacket), rawPacket[:6]
+                    self.LogError("BROKEN PACKET", packetType, len(rawPacket), rawPacket[:6])
                     continue
 
                 if packet.__class__ is intermud3.StartupReplyPacket:
-                    print "i3-packet", packetType, packet.password, packet.routerList
+                    self.LogInfo("i3-packet", packetType, packet.password, packet.routerList)
                     # In the future, use the router name from the reply packet.
                     config.routerName, routerAddress = packet.routerList[0]
                     host, port = routerAddress.strip().split(" ")
@@ -122,17 +123,17 @@ class Intermud3Service(Service):
                     for conn in sorrows.net.telnetConnections:
                         conn.user.Tell(s)
                 else:
-                    print "i3-packet-raw", rawPacket
+                    self.LogWarning("i3-packet-raw", rawPacket)
             else:
-                print "UNRECOGNISED PACKET", rawPacket
-        print "Intermud3.ManageConnection.Exit"
+                self.LogWarning("UNRECOGNISED PACKET", rawPacket)
+        self.LogInfo("Intermud3.ManageConnection.Exit")
 
     # =======================================================================
 
     # -----------------------------------------------------------------------
     def SendChannelListenPackets(self, channelList):
         for channelName in channelList:
-            print self.__sorrows__ +": Sending channel listen packet for '%s'" % channelName
+            self.LogInfo("Sending channel listen packet for '%s'" % channelName)
             p = intermud3.ChannelListenPacket(channelName, True)
             self.connection.SendPacket(p)
 

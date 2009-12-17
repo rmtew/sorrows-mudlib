@@ -77,9 +77,9 @@ class ServiceService(Service):
                     skips += 1
             pendingList = stillPendingList
         if not cnt:
-            print "Unable to start services:", [ x.__sorrows__ for x in pendingList ]
+            self.LogError("Unable to start services:", ", ".join([ x.__sorrows__ for x in pendingList ]))
         else:
-            print "(held off", skips, "starts due to dependencies in the process, tries left", cnt,")"
+            self.LogInfo("(held off", skips, "starts due to dependencies in the process, tries left", cnt, ")")
 
     def OnStop(self):
         cnt = 20
@@ -102,13 +102,13 @@ class ServiceService(Service):
                 uthread.BeNice()
             cnt -= 1
         if not cnt:
-            print "Unable to stop services:", self.runningServices.keys()
+            self.LogError("Unable to stop services:", ", ".join(self.runningServices.iterkeys()))
         else:
-            print "(held off", skips, "stops due to dependencies in the process, tries left", cnt,")"
+            self.LogInfo("(held off", skips, "stops due to dependencies in the process, tries left", cnt, ")")
 
     def StartService(self, svc):
         svcName = svc.__sorrows__
-        print 'Starting sorrows.'+ svcName
+        self.LogInfo("Starting sorrows."+ svcName)
 
         svc.Register()
         svc.Start()
@@ -123,7 +123,7 @@ class ServiceService(Service):
 
     def StopService(self, svc):
         svcName = svc.__sorrows__
-        print 'Stopping sorrows.'+ svcName
+        self.LogInfo("Stopping sorrows."+ svcName)
 
         for svcName2 in getattr(svc, '__dependencies__', []):
             if self.dependenciesByService.has_key(svcName2):
@@ -136,6 +136,9 @@ class ServiceService(Service):
 
         svc.Stop()
         svc.Unregister()
+
+    # ------------------------------------------------------------------------
+    # Event support.
 
     def AddEventListener(self, ob):
         for eventName in getattr(ob, '__listenevents__', []):

@@ -23,7 +23,7 @@ if False: # not skip:
         __sorrows__ = 'opencyc'
 
         def Run(self):
-            print "OPENCYC: Connecting to host 'localhost' port 3600"
+            self.LogInfo("Connecting to localhost:3600")
             self.connection = None
             self.cycConnection = MudCycConnection('127.0.0.1', 3600)
 
@@ -33,13 +33,13 @@ if False: # not skip:
         def OnStop(self):
             if self.connection is not None:
                 sorrows.net.DeregisterConnection(self.connection)
-            print "OPENCYC: Disconnected."
+            self.LogInfo("Disconnected.")
 
         # -----------------------------------------------------------------------
         # OnConnected - A socket connected
         # -----------------------------------------------------------------------
         def OnConnected(self, connection):
-            print "OPENCYC: Connected."
+            self.LogInfo("Connected.")
             self.connection = connection
 
             uthread.new(self.ManageConnection)
@@ -48,16 +48,16 @@ if False: # not skip:
         # OnDisconnection - A socket disconnected.
         # -----------------------------------------------------------------------
         def OnDisconnection(self, connection):
-            print "OnDisconnection", connection
+            self.LogInfo("OnDisconnection")
             self.connection = None
             if self.IsStopping():
-                print "OpenCyc.OnDisconnection", connection
+                self.LogInfo("OnDisconnection/stopping", connection)
             sorrows.net.DeregisterConnection(connection)
 
         def ManageConnection(self):
             s = "(fi-ask '(#$isa #$Person ?WHAT) '#$InferencePSC)\r\n"
             ret = self.cycConnection.converse(s)
-            print "RCVD", ret
+            self.LogInfo("RCVD", ret)
 
 #            while self.connection.connected:
                 #print "OPENCYC: ManageConnection - reading"

@@ -155,7 +155,7 @@ def MUD2Python(text):
                     current = float(s)
                 i = j
     except:
-        print 'ERROR', i, text[i-5:i] +']]'+ text[i] +'[['+ text[i+1:i+5]
+        print 'ERROR in MUD2Python', i, text[i-5:i] +']]'+ text[i] +'[['+ text[i+1:i+5]
     return current
 
 # -----------------------------------------------------------------------

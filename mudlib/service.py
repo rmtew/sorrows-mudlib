@@ -16,7 +16,7 @@ class Service:
     # The current state of the service as managed by us, ideally.
     state = None
     # Whether the service should be automatically run when loaded.
-    __optional__ = 0
+    __optional__ = False
 
     def Release(self):
         pass
@@ -98,3 +98,19 @@ class Service:
         f = open(path, 'wb')
         cPickle.dump(d, f, 1)
         f.close()
+
+
+    # ------------------------------------------------------------------------
+    # Logging support.
+
+    def LogInfo(self, *args):
+        self.Log(args, info=True)
+
+    def LogWarning(self, *args):
+        self.Log(args, warning=True)
+
+    def LogError(self, *args):
+        self.Log(args, error=True)
+
+    def Log(self, args, info=False, warning=False, error=False):
+        print self.__sorrows__ +": "+ " ".join([ str(value) for value in args])

@@ -16,7 +16,7 @@ class NetworkService(Service):
     def Run(self):
         self.telnetConnections = []
         self.nextConnectionID = 1
-        
+
     def OnServicesStarted(self):
         uthread.new(self.ManagePump)
         
@@ -28,25 +28,34 @@ class NetworkService(Service):
         listenSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         listenSocket.bind((host, port))
         listenSocket.listen(5)
+        self.LogInfo("Listening on address %s:%s" % (host, port))
         uthread.new(self.AcceptTelnetConnections, listenSocket)
 
     def WrapSocket(self, newSocket):
         return TelnetConnection(newSocket)
 
     def AcceptTelnetConnections(self, listenSocket):
-        while self.IsRunning():
-            import stackless
-            currentSocket, clientAddress = listenSocket.accept()
-            currentSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        acceptNonLocal = int(sorrows.data.config.net.acceptnonlocal)
 
-            from mudlib.services.net import TelnetConnection
-            connection = TelnetConnection(currentSocket)
-            connection.Setup(self, self.nextConnectionID, echo=False)
-            connection.clientAddress = clientAddress
-            print "Telnet connection: #%s Address=%s" % (self.nextConnectionID, clientAddress)
-            # Store this for our printing convenience.
-            self.telnetConnections.append(connection)
-            self.nextConnectionID += 1
+        while self.IsRunning():
+            currentSocket, clientAddress = listenSocket.accept()
+            self.AcceptTelnetConnection(currentSocket, clientAddress, acceptNonLocal)
+
+    def AcceptTelnetConnection(self, currentSocket, clientAddress, acceptNonLocal):
+        currentSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+        if not acceptNonLocal and clientAddress[0] != "127.0.0.1":
+            currentSocket.sendall("This MUD does not accept non-local connections at this time.\r\n")
+            currentSocket.close()
+            return
+
+        connection = TelnetConnection(currentSocket)
+        connection.Setup(self, self.nextConnectionID, echo=False)
+        connection.clientAddress = clientAddress
+        self.LogInfo("Telnet connection #%s Address=%s" % (self.nextConnectionID, clientAddress))
+        # Store this for our printing convenience.
+        self.telnetConnections.append(connection)
+        self.nextConnectionID += 1
         
     def ManagePump(self):
         while self.IsRunning():
@@ -54,9 +63,9 @@ class NetworkService(Service):
             uthread.BeNice()
 
     def OnServerDisconnection(self, connection):
-        print "OnServerDisconnection", connection
+        self.LogInfo("OnServerDisconnection", connection)
 
     def OnTelnetDisconnection(self, connection):
-        print "Telnet disconnection: #%s Address=%s" % (connection.connectionID, connection.clientAddress)
+        self.LogInfo("Telnet disconnection #%s Address=%s" % (connection.connectionID, connection.clientAddress))
         self.telnetConnections.remove(connection)
         connection.Release()

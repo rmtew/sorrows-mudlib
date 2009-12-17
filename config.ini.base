@@ -13,6 +13,7 @@ email=unconfigured@example.com
 host=localhost
 port=3000
 localecho=0
+acceptnonlocal=0
 
 [intermud3]
 routername = *i4
