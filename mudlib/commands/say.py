@@ -5,10 +5,10 @@ class Say(Command):
 
     def Run(self, verb, argString):
         if len(argString):
-            for user in self.shell.user.connection.manager.room.players:
+            for conn in sorrows.net.telnetConnections:
                 prefix = self.shell.user.name +' says: '
-                if user == self.shell.user:
+                if conn.user is self.shell.user:
                     prefix = 'You say: '
-                user.Tell(prefix + argString +'.')
+                conn.user.Tell(prefix + argString +'.')
         else:
-            self.shell.user.Tell('Say what?.')
+            self.shell.user.Tell('Say what?')
