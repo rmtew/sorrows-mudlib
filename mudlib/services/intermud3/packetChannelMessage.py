@@ -4,7 +4,7 @@ class ChannelMessagePacket(MessagePacket):
     __packet_type__ = "channel-m"
 
     def __init__(self, ttl, mudfrom, userfrom, mudto, userto, channelName, visName, message):
-        Packet.__init__(self, ttl, mudfrom, userfrom, mudto, userto)
+        MessagePacket.__init__(self, ttl, mudfrom, userfrom, mudto, userto)
 
         self.channelName = channelName
         self.visName = visName

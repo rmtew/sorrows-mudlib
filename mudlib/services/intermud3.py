@@ -39,7 +39,7 @@ class Intermud3Service(Service):
         if self.connection is not None:
             # Notify the router that we are going down.
             self.LogInfo("Sending shutdown packet to router '%s'." % sorrows.data.config.intermud3.routername)
-            p = intermud3.ShutdownPacket(1)
+            p = intermud3.ShutdownPacket()
             self.connection.SendPacket(p)
 
             self.connection.close()
@@ -100,11 +100,11 @@ class Intermud3Service(Service):
         if self.packetClassesByType.has_key(packetType):
             try:
                 packet = self.packetClassesByType[packetType](*rawPacket[1:])
-            except:
+            except Exception:
                 self.LogError("BROKEN PACKET", packetType, len(rawPacket), rawPacket[:6])
+                import traceback
+                traceback.print_exc()
                 return True
-
-            self.LogInfo("packet", packetType)
 
             if packet.__class__ is intermud3.StartupReplyPacket:
                 self.LogInfo("packet", packetType, packet.password, packet.routerList)
@@ -123,6 +123,8 @@ class Intermud3Service(Service):
                 uthread.new(self.SendChannelListenPackets, self.desiredListenChannels)
 
             elif packet.__class__ is intermud3.MudlistPacket:
+                self.LogInfo("packet", packetType, packet.mudlistID, len(packet.infoByName))
+
                 config.mudlistID = packet.mudlistID
                 self.mudInfoByName.update(packet.infoByName)
 
@@ -131,7 +133,7 @@ class Intermud3Service(Service):
                 self.channelInfoByName.update(packet.infoByName)
                 self.LogInfo("channel list", packet.infoByName.keys())
 
-            elif packet.packetType.endswith("-req"):
+            elif packet.__packet_type__.endswith("-req"):
                 self.LogInfo(packet.LogEntry())
 
                 if packet.__reply_type__ not in self.packetClassesByType:
@@ -143,11 +145,8 @@ class Intermud3Service(Service):
                 self.connection.SendPacket(replyPacket)
 
             else:
-                if packet.__reply_type__ not in self.packetClassesByType:
-                    self.LogWarning("Packet handling not implemented yet", packet.LogEntry())
-                    return True
-
                 self.LogInfo(packet.LogEntry())
+
                 packet.ProcessPayload()
 
         else:

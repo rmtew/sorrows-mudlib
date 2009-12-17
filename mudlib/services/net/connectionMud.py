@@ -45,7 +45,7 @@ class MudConnection(Connection):
     # -----------------------------------------------------------------------
     #  SendPacket
     # -----------------------------------------------------------------------
-    def SendPacket(self, packet):
+    def SendPacket(self, packet, wait=False):
         p = Python2MUD(packet.List())
         i = len(p)
         s2 = chr(i % 256)
