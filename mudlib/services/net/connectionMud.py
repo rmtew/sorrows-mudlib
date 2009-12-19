@@ -120,20 +120,21 @@ def MUD2Python(text):
                 state = LPC_ARRAY
             elif text[i] == '"' or text[i] == "'":
                 # The start of a string.
-                i = i + 1
-                findingEnd = 1
-                while findingEnd:
-                    j = text.find('"', i)
-                    k = j - 1
-                    count = 0
+                char = text[i]
+                j = i
+                while True:
+                    j = text.find(char, j+1)
+                    # The found character is relevant if it is not escaped.
+                    k = j-1
+                    escapes = 0
                     while text[k] == '\\':
-                        count = count + 1
-                        k = k - 1
+                        escapes = escapes + 1
+                        k = k-1
                     # If its an even number, then its a valid end of string.
-                    if count % 2 == 0:
-                        findingEnd = 0
-                s = text[i:j]
-                s = s.replace('\"', '"')
+                    if escapes % 2 == 0:
+                        break
+                s = text[i+1:j]
+                s = s.replace('\\"', '"')
                 current = s.replace('\\\\', '\\')
                 i = j + 1
             else:

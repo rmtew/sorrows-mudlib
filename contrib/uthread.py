@@ -228,6 +228,9 @@ def RunNiceTasklets():
 
 # Scheduling related logic.
 
+class TimeoutException(Exception):
+    pass
+
 def Run():
     '''
     Use instead of stackless.run() in order.to allow Sleep and BeNice
@@ -243,9 +246,10 @@ def Run():
         RunNiceTasklets()
         t = stackless.run(500000)
         if t is not None:
-            # Need better standard handling of this case.
-            # Could StackTrace I guess?
-            raise RuntimeError("Runaway tasklet", t)
+            print "*** Uncooperative tasklet", t, "detected ***"
+            traceback.print_stack(t.frame)
+            print "*** Uncooperative tasklet", t, "being sent exception ***"
+            t.raise_exception(TimeoutException)
         CheckSleepingTasklets()
 
 semaphores               = weakref.WeakKeyDictionary({})

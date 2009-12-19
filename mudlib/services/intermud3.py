@@ -123,7 +123,10 @@ class Intermud3Service(Service):
                 uthread.new(self.SendChannelListenPackets, self.desiredListenChannels)
 
             elif packet.__class__ is intermud3.MudlistPacket:
-                self.LogInfo("packet", packetType, packet.mudlistID, len(packet.infoByName))
+                if len(packet.infoByName) < 10:
+                    self.LogInfo("packet", packetType, packet.mudlistID, len(packet.infoByName), packet.infoByName.keys())
+                else:
+                    self.LogInfo("packet", packetType, packet.mudlistID, len(packet.infoByName))
 
                 config.mudlistID = packet.mudlistID
                 self.mudInfoByName.update(packet.infoByName)

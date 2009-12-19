@@ -1,4 +1,9 @@
-import cPickle
+import logging, cPickle
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s\t%(levelname)s\t%(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S')
 
 STATE_STARTING = 1
 STATE_STARTED = 2
@@ -104,13 +109,18 @@ class Service:
     # Logging support.
 
     def LogInfo(self, *args):
-        self.Log(args, info=True)
+        self.Log(args, level=logging.INFO)
 
     def LogWarning(self, *args):
-        self.Log(args, warning=True)
+        self.Log(args, level=logging.WARNING)
 
     def LogError(self, *args):
-        self.Log(args, error=True)
+        self.Log(args, level=logging.ERROR)
 
-    def Log(self, args, info=False, warning=False, error=False):
-        print self.__sorrows__ +": "+ " ".join([ str(value) for value in args])
+    def Log(self, args, level=logging.INFO):
+        svc = self.__sorrows__
+        if len(svc) < 8:
+            svc += "\t"
+        msg = svc +"\t"+ " ".join([ str(value) for value in args])
+        logging.log(level, msg)
+
