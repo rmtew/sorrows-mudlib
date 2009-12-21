@@ -6,7 +6,7 @@ class WhoRequestPacket(RequestPacket):
     __reply_type__ = "who-reply"
 
     def LogEntry(self):
-        return "Who request from %s@%s" % (self.userfrom, self.mudfrom)
+        return [ "Who request from %s@%s", self.userfrom, self.mudfrom ]
 
     def List(self):
         raise RuntimeError("Unsupported operation")

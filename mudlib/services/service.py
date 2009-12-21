@@ -77,9 +77,9 @@ class ServiceService(Service):
                     skips += 1
             pendingList = stillPendingList
         if not cnt:
-            self.LogError("Unable to start services:", ", ".join([ x.__sorrows__ for x in pendingList ]))
+            self.LogError("Unable to start services: %s", [ x.__sorrows__ for x in pendingList ])
         else:
-            self.LogInfo("(held off", skips, "starts due to dependencies in the process, tries left", cnt, ")")
+            self.LogInfo("(held off %d starts due to dependencies in the process, tries left %d)", skips, cnt)
 
     def OnStop(self):
         cnt = 20
@@ -102,9 +102,9 @@ class ServiceService(Service):
                 uthread.BeNice()
             cnt -= 1
         if not cnt:
-            self.LogError("Unable to stop services:", ", ".join(self.runningServices.iterkeys()))
+            self.LogError("Unable to stop services: %s", self.runningServices.keys())
         else:
-            self.LogInfo("(held off", skips, "stops due to dependencies in the process, tries left", cnt, ")")
+            self.LogInfo("(held off %d stops due to dependencies in the process, tries left %d)", skips, cnt)
 
     def StartService(self, svc):
         svcName = svc.__sorrows__

@@ -26,7 +26,7 @@ class NetworkService(Service):
         listenSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         listenSocket.bind((host, port))
         listenSocket.listen(5)
-        self.LogInfo("Listening on address %s:%s" % (host, port))
+        self.LogInfo("Listening on address %s:%s", host, port)
         uthread.new(self.AcceptTelnetConnections, listenSocket)
 
     def WrapSocket(self, newSocket):
@@ -50,15 +50,15 @@ class NetworkService(Service):
         connection = TelnetConnection(currentSocket)
         connection.Setup(self, self.nextConnectionID, echo=False)
         connection.clientAddress = clientAddress
-        self.LogInfo("Telnet connection #%s Address=%s" % (self.nextConnectionID, clientAddress))
+        self.LogInfo("Telnet connection #%s Address=%s", self.nextConnectionID, clientAddress)
         # Store this for our printing convenience.
         self.telnetConnections.append(connection)
         self.nextConnectionID += 1
         
     def OnServerDisconnection(self, connection):
-        self.LogInfo("OnServerDisconnection", connection)
+        self.LogInfo("OnServerDisconnection %s", connection)
 
     def OnTelnetDisconnection(self, connection):
-        self.LogInfo("Telnet disconnection #%s Address=%s" % (connection.connectionID, connection.clientAddress))
+        self.LogInfo("Telnet disconnection #%s Address=%s", connection.connectionID, connection.clientAddress)
         self.telnetConnections.remove(connection)
         connection.Release()

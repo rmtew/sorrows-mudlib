@@ -38,7 +38,7 @@ class Intermud3Service(Service):
     def OnStop(self):
         if self.connection is not None:
             # Notify the router that we are going down.
-            self.LogInfo("Sending shutdown packet to router '%s'." % sorrows.data.config.intermud3.routername)
+            self.LogInfo("Sending shutdown packet to router '%s'", sorrows.data.config.intermud3.routername)
             p = intermud3.ShutdownPacket()
             self.connection.SendPacket(p)
 
@@ -54,7 +54,7 @@ class Intermud3Service(Service):
         self.connection.Setup(self)
         config = sorrows.data.config.intermud3
 
-        self.LogInfo("Connecting to", config.host, config.getint("port"))
+        self.LogInfo("Connecting to %s %s", config.host, config.getint("port"))
         currentSocket.connect((config.host, config.getint("port")))
         uthread.new(self.ManageConnection)
 
@@ -101,13 +101,13 @@ class Intermud3Service(Service):
             try:
                 packet = self.packetClassesByType[packetType](*rawPacket[1:])
             except Exception:
-                self.LogError("BROKEN PACKET", packetType, len(rawPacket), rawPacket[:6])
+                self.LogError("BROKEN PACKET %s %s %s", packetType, len(rawPacket), rawPacket[:6])
                 import traceback
                 traceback.print_exc()
                 return True
 
             if packet.__class__ is intermud3.StartupReplyPacket:
-                self.LogInfo("packet", packetType, packet.password, packet.routerList)
+                self.LogInfo("packet %s %s %s", packetType, packet.password, packet.routerList)
                 # In the future, use the router name from the reply packet.
                 config.routerName, routerAddress = packet.routerList[0]
                 host, port = routerAddress.strip().split(" ")
@@ -124,9 +124,9 @@ class Intermud3Service(Service):
 
             elif packet.__class__ is intermud3.MudlistPacket:
                 if len(packet.infoByName) < 10:
-                    self.LogInfo("packet", packetType, packet.mudlistID, len(packet.infoByName), packet.infoByName.keys())
+                    self.LogInfo("packet %s %s %s %s", packetType, packet.mudlistID, len(packet.infoByName), packet.infoByName.keys())
                 else:
-                    self.LogInfo("packet", packetType, packet.mudlistID, len(packet.infoByName))
+                    self.LogInfo("packet %s %s %s", packetType, packet.mudlistID, len(packet.infoByName))
 
                 config.mudlistID = packet.mudlistID
                 self.mudInfoByName.update(packet.infoByName)
@@ -134,13 +134,13 @@ class Intermud3Service(Service):
             elif packet.__class__ is intermud3.ChanlistReplyPacket:
                 config.chanlistID = packet.chanlistID
                 self.channelInfoByName.update(packet.infoByName)
-                self.LogInfo("channel list", packet.infoByName.keys())
+                self.LogInfo("channel list %s", packet.infoByName.keys())
 
             elif packet.__packet_type__.endswith("-req"):
                 self.LogInfo(packet.LogEntry())
 
                 if packet.__reply_type__ not in self.packetClassesByType:
-                    self.LogError("Unable to find reply packet class", packet.__reply_type__)
+                    self.LogError("Unable to find reply packet class %s", packet.__reply_type__)
                     return True
 
                 replyPacket = self.packetClassesByType[packet.__reply_type__]()
@@ -153,7 +153,7 @@ class Intermud3Service(Service):
                 packet.ProcessPayload()
 
         else:
-            self.LogWarning("Packet unrecognised", rawPacket)
+            self.LogWarning("Packet unrecognised %s", rawPacket)
 
         return True
 
@@ -162,10 +162,10 @@ class Intermud3Service(Service):
     # -----------------------------------------------------------------------
     def SendChannelListenPackets(self, channelList):
         for channelName in channelList:
-            self.LogInfo("Sending channel listen packet for '%s'" % channelName)
+            self.LogInfo("Sending channel listen packet for '%s'", channelName)
             p = intermud3.ChannelListenPacket(channelName, True)
             self.connection.SendPacket(p)
             
-            self.LogInfo("Registering dynamic channel command:", channelName)
+            self.LogInfo("Registering dynamic channel command: %s", channelName)
             sorrows.commands.RegisterDynamicCommand(channelName, intermud3.DynamicChannelCommand)
 

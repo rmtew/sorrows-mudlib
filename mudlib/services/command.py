@@ -13,7 +13,7 @@ class CommandService(Service):
                 continue
             for verb in getattr(v, '__verbs__', []):
                 if self.verbs.has_key(verb):
-                    self.LogWarning('Duplicate command', verb)
+                    self.LogWarning('Duplicate command %s', verb)
                     continue
                 self.verbs[verb] = v
 

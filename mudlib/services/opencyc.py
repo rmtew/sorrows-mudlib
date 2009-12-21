@@ -51,13 +51,13 @@ if False: # not skip:
             self.LogInfo("OnDisconnection")
             self.connection = None
             if self.IsStopping():
-                self.LogInfo("OnDisconnection/stopping", connection)
+                self.LogInfo("OnDisconnection/stopping %s", connection)
             sorrows.net.DeregisterConnection(connection)
 
         def ManageConnection(self):
             s = "(fi-ask '(#$isa #$Person ?WHAT) '#$InferencePSC)\r\n"
             ret = self.cycConnection.converse(s)
-            self.LogInfo("RCVD", ret)
+            self.LogInfo("RCVD %s", ret)
 
 #            while self.connection.connected:
                 #print "OPENCYC: ManageConnection - reading"

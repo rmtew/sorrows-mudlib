@@ -17,6 +17,8 @@ class Service:
     state = None
     # Whether the service should be automatically run when loaded.
     __optional__ = False
+    # The custom logger object.
+    logger = None
 
     def Release(self):
         pass
@@ -103,19 +105,18 @@ class Service:
     # ------------------------------------------------------------------------
     # Logging support.
 
-    def LogInfo(self, *args):
-        self.Log(args, level=logging.INFO)
+    def LogInfo(self, *args, **kwargs):
+        self.Log(logging.INFO, *args, **kwargs)
 
-    def LogWarning(self, *args):
-        self.Log(args, level=logging.WARNING)
+    def LogWarning(self, *args, **kwargs):
+        self.Log(logging.WARNING, *args, **kwargs)
 
-    def LogError(self, *args):
-        self.Log(args, level=logging.ERROR)
+    def LogError(self, *args, **kwargs):
+        self.Log(logging.ERROR, *args, **kwargs)
 
-    def Log(self, args, level=logging.INFO):
-        svc = self.__sorrows__
-        if len(svc) < 8:
-            svc += "\t"
-        msg = svc +"\t"+ " ".join([ str(value) for value in args])
-        logging.log(level, msg)
+    def Log(self, level, *args, **kwargs):
+        if self.logger is None:
+            self.logger = logging.getLogger(self.__sorrows__)
+
+        self.logger.log(level, *args, **kwargs)
 

@@ -4,8 +4,12 @@ import sys, os, stackless, gc, logging
 def Run():
     logging.basicConfig(
         level=logging.DEBUG,
-        format='%(asctime)s\t%(levelname)s\t%(message)s',
+        format='%(asctime)s;%(name)s;%(levelname)s;%(message)s',
         datefmt='%Y-%m-%d %H:%M:%S')
+
+    logging.getLogger().name = "default"
+    logging.getLogger("namespace").setLevel(logging.INFO)
+    logging.getLogger("reloader").setLevel(logging.INFO)
 
     stackless.getcurrent().block_trap = True
 

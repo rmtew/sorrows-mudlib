@@ -31,7 +31,7 @@ class Packet:
 
 class MessagePacket(Packet):
     def LogEntry(self):
-        return str(Packet.List(self))
+        return [ "%s", Packet.List(self) ]
 
     def ProcessPayload(self):
         pass
