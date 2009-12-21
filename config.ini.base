@@ -19,3 +19,4 @@ acceptnonlocal=0
 routername = *i4
 host = 204.209.44.3
 port = 8080
+reconnectiondelay = 60.0

@@ -30,6 +30,7 @@ class Intermud3Service(Service):
         
         self.desiredListenChannels = [ "imud_gossip", "discworld-chat" ]
 
+        self.connection = None
         uthread.new(self.ConnectToRouter)
 
     # -----------------------------------------------------------------------
@@ -50,21 +51,42 @@ class Intermud3Service(Service):
     # -----------------------------------------------------------------------
     def ConnectToRouter(self):
         currentSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.connection = MudConnection(currentSocket)
-        self.connection.Setup(self)
+        connection = MudConnection(currentSocket)
+        connection.Setup(self)
         config = sorrows.data.config.intermud3
 
         self.LogInfo("Connecting to %s %s", config.host, config.getint("port"))
-        currentSocket.connect((config.host, config.getint("port")))
-        uthread.new(self.ManageConnection)
+
+        try:
+            currentSocket.connect((config.host, config.getint("port")))
+        except socket.error:
+            uthread.new(self.ReconnectToRouter)
+            return
+
+        self.LogInfo("Connected")
+        self.connection = connection
+
+        self.ManageConnection()
+
+    # -----------------------------------------------------------------------
+    # ReconnectToRouter
+    # -----------------------------------------------------------------------
+    def ReconnectToRouter(self):
+        delay = float(sorrows.data.config.intermud3.reconnectiondelay)
+
+        self.LogInfo("Retrying router connection in %d seconds", delay)
+        uthread.Sleep(delay)
+
+        self.LogInfo("Reconnecting")
+        self.ConnectToRouter()
 
     # -----------------------------------------------------------------------
     # OnDisconnection - A socket disconnected.
     # -----------------------------------------------------------------------
     def OnDisconnection(self, connection):
         self.LogInfo("Disconnected")
-        self.connection.Release()
-        self.connection = None
+        #self.connection.Release()
+        #self.connection = None
 
     # -----------------------------------------------------------------------
     # ManageConnection
@@ -88,7 +110,12 @@ class Intermud3Service(Service):
             if not self.HandlePacket(config):
                 break
 
-        self.LogInfo("Intermud3.ManageConnection.Exit")
+        self.LogInfo("Lost connection to router")
+
+        self.connection.Release()
+        self.connection = None
+        
+        uthread.new(self.ReconnectToRouter)
 
     def HandlePacket(self, config):        
         rawPacket = self.connection.ReadPacket()
