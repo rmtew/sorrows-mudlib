@@ -12,8 +12,11 @@ class ChannelMessagePacket(MessagePacket):
 
     def ProcessPayload(self):
         s = "[%s] %s@%s: %s" % (self.channelName, self.userfrom, self.mudfrom, self.message)
+
+        offProperty = self.channelName +"-off"
         for conn in sorrows.net.telnetConnections:
-            conn.user.Tell(s)
+            if offProperty not in conn.user.properties:
+                conn.user.Tell(s)
 
     def List(self):
         return Packet.List(self)

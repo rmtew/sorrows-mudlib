@@ -114,6 +114,9 @@ class Service:
     def LogError(self, *args, **kwargs):
         self.Log(logging.ERROR, *args, **kwargs)
 
+    def LogDebug(self, *args, **kwargs):
+        self.Log(logging.DEBUG, *args, **kwargs)
+
     def Log(self, level, *args, **kwargs):
         if self.logger is None:
             self.logger = logging.getLogger(self.__sorrows__)

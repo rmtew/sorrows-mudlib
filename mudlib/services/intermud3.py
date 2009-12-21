@@ -79,10 +79,10 @@ class Intermud3Service(Service):
         mudlistID = config.getint("mudlistID", 0)
         chanlistID = config.getint("chanlistID", 0)
 
-        self.LogInfo("Sending the startup packet")
+        self.LogDebug("Sending the startup packet")
         p = intermud3.StartupPacket(config.routerName, password, mudlistID, chanlistID, int(sorrows.data.config.net.port), identity.driver, identity.mudlib, identity.mudtype, identity.status, identity.email)
         self.connection.SendPacket(p)
-        self.LogInfo("Sent the startup packet")
+        self.LogDebug("Sent the startup packet")
 
         while True:
             if not self.HandlePacket(config):
@@ -107,7 +107,7 @@ class Intermud3Service(Service):
                 return True
 
             if packet.__class__ is intermud3.StartupReplyPacket:
-                self.LogInfo("packet %s %s %s", packetType, packet.password, packet.routerList)
+                self.LogDebug("packet %s %s %s", packetType, packet.password, packet.routerList)
                 # In the future, use the router name from the reply packet.
                 config.routerName, routerAddress = packet.routerList[0]
                 host, port = routerAddress.strip().split(" ")
@@ -124,9 +124,9 @@ class Intermud3Service(Service):
 
             elif packet.__class__ is intermud3.MudlistPacket:
                 if len(packet.infoByName) < 10:
-                    self.LogInfo("packet %s %s %s %s", packetType, packet.mudlistID, len(packet.infoByName), packet.infoByName.keys())
+                    self.LogDebug("packet %s %s %s %s", packetType, packet.mudlistID, len(packet.infoByName), packet.infoByName.keys())
                 else:
-                    self.LogInfo("packet %s %s %s", packetType, packet.mudlistID, len(packet.infoByName))
+                    self.LogDebug("packet %s %s %s", packetType, packet.mudlistID, len(packet.infoByName))
 
                 config.mudlistID = packet.mudlistID
                 self.mudInfoByName.update(packet.infoByName)
@@ -134,10 +134,10 @@ class Intermud3Service(Service):
             elif packet.__class__ is intermud3.ChanlistReplyPacket:
                 config.chanlistID = packet.chanlistID
                 self.channelInfoByName.update(packet.infoByName)
-                self.LogInfo("channel list %s", packet.infoByName.keys())
+                self.LogDebug("channel list %s", packet.infoByName.keys())
 
             elif packet.__packet_type__.endswith("-req"):
-                self.LogInfo(packet.LogEntry())
+                self.LogDebug(*packet.LogEntry())
 
                 if packet.__reply_type__ not in self.packetClassesByType:
                     self.LogError("Unable to find reply packet class %s", packet.__reply_type__)
@@ -148,7 +148,7 @@ class Intermud3Service(Service):
                 self.connection.SendPacket(replyPacket)
 
             else:
-                self.LogInfo(packet.LogEntry())
+                self.LogDebug(*packet.LogEntry())
 
                 packet.ProcessPayload()
 

@@ -10,6 +10,7 @@ class User:
 
         self.worldServiceName = None
         self.body = None
+        self.properties = {}
 
     def __nonzero__(self):
         "The user object is still valid if its connection is."
