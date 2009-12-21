@@ -188,7 +188,7 @@ class ScriptDirectory(object):
         scriptFilesToLoad = set(self.filesByPath.itervalues())
         attemptsLeft = self.dependencyResolutionPasses
         while len(scriptFilesToLoad) and attemptsLeft > 0:
-            logger.info("ScriptDirectory.Load dependency resolution attempts left %d", attemptsLeft)
+            logger.debug("ScriptDirectory.Load dependency resolution attempts left %d", attemptsLeft)
 
             scriptFilesLoaded = set()
             for scriptFile in scriptFilesToLoad:
@@ -270,7 +270,7 @@ class ScriptDirectory(object):
             baseNamespaceName, moduleName = None, parts[0]
             baseNamespace = None
 
-        logger.debug("CreateNamespace %s", namespaceName)
+        logger.info("Creating namespace '%s'", namespaceName)
 
         module = imp.new_module(namespaceName)
         # module.__name__ = moduleName
@@ -378,6 +378,8 @@ class ScriptDirectory(object):
 
             setattr(namespace, k, v)
             contributedAttributes.add(k)
+
+            logger.info("Added '%s.%s'", moduleName, k)
 
         scriptFile.SetContributedAttributes(contributedAttributes)
 

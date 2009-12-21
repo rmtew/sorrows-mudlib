@@ -53,8 +53,10 @@ class CodeReloader:
         handler = self.scriptDirectoryClass(baseDirPath, baseNamespace)
         if handler.Load():
             self.directoriesByPath[baseDirPath] = handler
+            logger.info("Added '%s' into '%s'", baseDirPath, baseNamespace)
 
             if self.monitorFileChanges:
+                logger.info("Monitoring file changes for '%s'", baseDirPath)
                 self.internalFileMonitor.AddDirectory(baseDirPath)
 
             return handler
