@@ -1,0 +1,8 @@
+Changelist
+==========
+
+Version 2.01
+------------
+
+* Scripts are now read in universal line ending mode before being executed.  This prevents SyntaxErrors from happening on platforms other than Windows when scripts being read contain \r\n line endings.
+* Adjusted the unit tests to handle the fact that file modification timestamps are limited to a per-second resolution on Linux-like platforms.  The tests were passing on Windows because it has a higher resolution for these timestamps.

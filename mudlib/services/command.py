@@ -17,6 +17,9 @@ class CommandService(Service):
                     continue
                 self.verbs[verb] = v
 
+    def RegisterDynamicCommand(self, verb, handler):
+        self.verbs[verb] = handler
+
     def Execute(self, shell, verb, argString):
         if self.verbs.has_key(verb):
             cmd = self.verbs[verb](shell)

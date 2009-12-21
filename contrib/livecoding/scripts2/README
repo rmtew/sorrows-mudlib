@@ -1,0 +1,3 @@
+This directory contains a variety of different replacement scripts for use by
+the unit tests.  These are substituted as faked changes to script files during
+unit test operation.

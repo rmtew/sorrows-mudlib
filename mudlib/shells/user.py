@@ -36,7 +36,7 @@ class UserShell(Shell):
                 self.user.ManualDisconnection()
             elif not sorrows.commands.Execute(self, verb, self.arg):
                 self.user.Tell('What?')
-        except:
+        except Exception:
             self.user.Tell("An exception occured.")
             import sys,traceback
             tbList = traceback.format_exception(sys.exc_type, sys.exc_value, sys.exc_traceback)

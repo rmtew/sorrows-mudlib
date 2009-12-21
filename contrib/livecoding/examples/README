@@ -1,0 +1,6 @@
+
+These directories are intended to illustrate how to use this library.
+
+You will need to ensure that the 'livecoding' library is present in a
+location which the Python import system can find.  Like the
+'site-packages' directory of your Python installation.

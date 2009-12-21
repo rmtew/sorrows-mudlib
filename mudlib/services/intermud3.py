@@ -165,4 +165,7 @@ class Intermud3Service(Service):
             self.LogInfo("Sending channel listen packet for '%s'" % channelName)
             p = intermud3.ChannelListenPacket(channelName, True)
             self.connection.SendPacket(p)
+            
+            self.LogInfo("Registering dynamic channel command:", channelName)
+            sorrows.commands.RegisterDynamicCommand(channelName, intermud3.DynamicChannelCommand)
 

@@ -1,0 +1,5 @@
+This is a library that manages the process of monitoring script files and
+notifying registrants about modifications to them.
+
+Code within this library was obtained from external sources and where
+this is the case, the copyright of the code remains with the original author.

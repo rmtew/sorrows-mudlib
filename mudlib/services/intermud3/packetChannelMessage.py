@@ -1,4 +1,4 @@
-from mudlib.services.intermud3 import MessagePacket
+from mudlib.services.intermud3 import Packet, MessagePacket
 
 class ChannelMessagePacket(MessagePacket):
     __packet_type__ = "channel-m"
@@ -14,3 +14,13 @@ class ChannelMessagePacket(MessagePacket):
         s = "[%s] %s@%s: %s" % (self.channelName, self.userfrom, self.mudfrom, self.message)
         for conn in sorrows.net.telnetConnections:
             conn.user.Tell(s)
+
+    def List(self):
+        return Packet.List(self)
+
+    def Payload(self):
+        return [
+            self.channelName,
+            self.visName,
+            self.message,
+        ]

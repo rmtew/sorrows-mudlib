@@ -1,10 +1,5 @@
 import logging, cPickle
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s\t%(levelname)s\t%(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S')
-
 STATE_STARTING = 1
 STATE_STARTED = 2
 STATE_STOPPING = 3

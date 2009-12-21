@@ -1,7 +1,12 @@
 # Bootstrapping code.
-import sys, os, stackless, gc
+import sys, os, stackless, gc, logging
 
 def Run():
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s\t%(levelname)s\t%(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S')
+
     stackless.getcurrent().block_trap = True
 
     dirPath = sys.path[0]
@@ -31,12 +36,13 @@ def Run():
 
     # Register the mudlib and game script directories with the livecoding
     # module.  This will compile and execute them all.
-    import livecoding
+    import reloader
     gameScriptPath = os.path.join(dirPath, "game - example")
     mudlibScriptPath = os.path.join(dirPath, "mudlib")
-    cc = livecoding.CodeManager(detectChanges=True)
-    cc.AddDirectory(mudlibScriptPath, "mudlib")
-    cc.AddDirectory(gameScriptPath, "game")
+
+    cr = reloader.CodeReloader(mode=reloader.MODE_UPDATE)
+    cr.AddDirectory("mudlib", mudlibScriptPath)
+    cr.AddDirectory("game", gameScriptPath)
     
     import imp, __builtin__
     __builtin__.sorrows = imp.new_module('sorrows')
@@ -63,9 +69,6 @@ def Run():
         finally:
             if servicesStopping is True:
                 servicesStopping = 10
-                # Clear the only reference to the live coding module.  File change notifications
-                # at this point serve no purpose but confusion.
-                del cc
                 # Kill the sleeping tasklets remaining.
                 uthread.KillSleepingTasklets()
                 # Tell all the services to stop.
@@ -76,5 +79,8 @@ def Run():
                 break
 
 if __name__ == '__main__':
-    Run()
+    try:
+        Run()
+    finally:
+        logging.shutdown()
 

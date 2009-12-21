@@ -1,0 +1,43 @@
+
+= livecoding =
+
+== Version ==
+
+2.01
+
+== Licensing and copyright ==
+
+Files declaring other licenses and authors are derivative, and remain under the specified licenses and copyright by the original authors.
+
+All other files are licensed under the BSD license, which is included as the file 'LICENSE'.
+
+== Authors ==
+
+ * Richard Tew <richard.m.tew@gmail.com>
+
+== Overview ==
+
+This library implements something which is often called live coding or code reloading. It allows an application to have any Python code which might be part of it updated as the files the code is in are changed - while the application is running.
+
+  * No need to restart the application in order to incorporate changes made to Python scripts.
+  * No need to execute Python scripts manually each time you want to use the code within them.
+
+The way the library goes about this is by having directories containing Python scripts registered to be monitored so that any time a change is made to a script the code within it can be reloaded and put in place transparently.
+
+Note that these directories should not be those of standard Python modules available for normal import.  The reason for this is that this library manually processes the contents of registered directories and places them so that they can be imported.  By handling this itself, this allows the library to know enough to apply changes to modules as they happen.
+
+== Library Directories ==
+
+ * examples: Example code to illustrate use of this library.
+ * filechanges: A library that manages the process of monitoring script files and notifying registrants about modifications to them.
+ * scripts: A script directory for use by the unit tests.
+ * scripts2: Additional scripts for use by the unit tests.
+ * tests: Unit tests for this library.
+
+== Design Decisions ==
+
+There are several noteworthy design decisions which were made during the implementation of this library:
+
+ 1. Use of a custom import scheme.
+ 1. Ignoring removals, whether removal of files or removal of functions or classes from files.
+
