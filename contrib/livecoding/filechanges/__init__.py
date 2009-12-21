@@ -112,6 +112,12 @@ class ChangeThread(threading.Thread):
         self.start()
 
     def run(self):
+        try:
+            self._run()
+        except ReferenceError:
+            return
+    
+    def _run(self):
         module = GetFileChangeModule()
         module.Prepare(self.handler)
         time.sleep(self.handler.delay)

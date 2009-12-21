@@ -14,6 +14,7 @@ import types
 import logging
 import unittest
 
+logger = logging.getLogger("namespace")
 
 class ScriptFile(object):
     lastError = None
@@ -108,12 +109,12 @@ class ScriptFile(object):
 
     def LogLastError(self, flush=True, context="Unknown logic"):
         if self.lastError is None:
-            logging.error("Script file '%s' unexpectedly missing a last error", self.filePath)
+            logger.error("Script file '%s' unexpectedly missing a last error", self.filePath)
             return
 
-        logging.error("Error executing script file '%s'", self.filePath)
+        logger.error("Error executing script file '%s'", self.filePath)
         for line in self.lastError:
-            logging.error(line.rstrip("\r\n"))
+            logger.error(line.rstrip("\r\n"))
 
         if flush:
             self.lastError = None
@@ -187,7 +188,7 @@ class ScriptDirectory(object):
         scriptFilesToLoad = set(self.filesByPath.itervalues())
         attemptsLeft = self.dependencyResolutionPasses
         while len(scriptFilesToLoad) and attemptsLeft > 0:
-            logging.info("ScriptDirectory.Load dependency resolution attempts left %d", attemptsLeft)
+            logger.info("ScriptDirectory.Load dependency resolution attempts left %d", attemptsLeft)
 
             scriptFilesLoaded = set()
             for scriptFile in scriptFilesToLoad:
@@ -200,7 +201,7 @@ class ScriptDirectory(object):
             attemptsLeft -= 1
 
         if len(scriptFilesToLoad):
-            logging.error("ScriptDirectory.Load failed to resolve dependencies")
+            logger.error("ScriptDirectory.Load failed to resolve dependencies")
 
             # Log information about the problematic script files.
             for scriptFile in scriptFilesToLoad:
@@ -211,7 +212,7 @@ class ScriptDirectory(object):
         return True
 
     def LoadDirectory(self, dirPath):
-        logging.debug("LoadDirectory %s", dirPath)
+        logger.debug("LoadDirectory %s", dirPath)
 
         namespace = self.GetNamespacePath(dirPath)
 
@@ -229,13 +230,13 @@ class ScriptDirectory(object):
                 scriptFile = self.LoadScript(entryPath, namespace)
                 self.RegisterScript(scriptFile)
             else:
-                logging.error("Unrecognised type of directory entry %s", entryPath)
+                logger.error("Unrecognised type of directory entry %s", entryPath)
 
     def Unload(self):
         if not len(self.filesByPath) and not len(self.namespaces):
             return
 
-        logging.debug("Cleaning up after removed directory '%s'", self.baseDirPath)
+        logger.debug("Cleaning up after removed directory '%s'", self.baseDirPath)
 
         for k, scriptFile in self.filesByPath.items():
             self.UnloadScript(scriptFile)
@@ -269,7 +270,7 @@ class ScriptDirectory(object):
             baseNamespaceName, moduleName = None, parts[0]
             baseNamespace = None
 
-        logging.debug("CreateNamespace %s")
+        logger.debug("CreateNamespace %s", namespaceName)
 
         module = imp.new_module(namespaceName)
         # module.__name__ = moduleName
@@ -288,10 +289,10 @@ class ScriptDirectory(object):
     def DestroyNamespace(self, namespaceName):
         module = self.namespaces.get(namespaceName, None)
         if module.__file__:
-            logging.debug("DestroyNamespace '%s' skipping, still used %s", namespaceName, module.__file__)
+            logger.debug("DestroyNamespace '%s' skipping, still used %s", namespaceName, module.__file__)
             return
 
-        logging.debug("DestroyNamespace '%s'", namespaceName)
+        logger.debug("DestroyNamespace '%s'", namespaceName)
         del sys.modules[namespaceName]
         del self.namespaces[namespaceName]
 
@@ -322,25 +323,25 @@ class ScriptDirectory(object):
             return self.filesByPath[filePath]
 
     def LoadScript(self, filePath, namespacePath):
-        logging.debug("LoadScript %s", filePath)
+        logger.debug("LoadScript %s", filePath)
 
         return self.scriptFileClass(filePath, namespacePath)
 
     def RunScript(self, scriptFile):
-        logging.debug("RunScript %s", scriptFile.filePath)
+        logger.debug("RunScript %s", scriptFile.filePath)
 
         if not scriptFile.Run():
-            logging.debug("RunScript failed")
+            logger.debug("RunScript failed")
             return False
 
         if self.unitTest:
-            logging.debug("RunScript unit testing")
+            logger.debug("RunScript unit testing")
 
             if not scriptFile.UnitTest():
-                logging.debug("RunScript tests failed or errored")
+                logger.debug("RunScript tests failed or errored")
                 return False
 
-        logging.debug("RunScript exporting to namespace %s", scriptFile.namespacePath)
+        logger.debug("RunScript exporting to namespace %s", scriptFile.namespacePath)
 
         namespace = self.CreateNamespace(scriptFile.namespacePath, scriptFile.filePath)
         self.SetModuleAttributes(scriptFile, namespace)
@@ -366,10 +367,10 @@ class ScriptDirectory(object):
         for k, v, valueType in scriptFile.GetExportableAttributes():
             # By default we never overwrite.  This way we can identify duplicate contributions.
             if hasattr(namespace, k) and k not in overwritableAttributes:
-                logging.error("Duplicate namespace contribution for '%s.%s' from '%s', our class = %s", moduleName, k, scriptFile.filePath, v.__file__ == scriptFile.filePath)                
+                logger.error("Duplicate namespace contribution for '%s.%s' from '%s', our class = %s", moduleName, k, scriptFile.filePath, v.__file__ == scriptFile.filePath)                
                 continue
 
-            logging.debug("InsertModuleAttribute %s.%s", moduleName, k)
+            logger.debug("InsertModuleAttribute %s.%s", moduleName, k)
 
             if valueType in (types.ClassType, types.TypeType):
                 v.__module__ = moduleName
@@ -381,7 +382,7 @@ class ScriptDirectory(object):
         scriptFile.SetContributedAttributes(contributedAttributes)
 
     def RemoveModuleAttributes(self, scriptFile, namespace):
-        logging.debug("RemoveModuleAttributes %s", scriptFile.filePath)
+        logger.debug("RemoveModuleAttributes %s", scriptFile.filePath)
         if scriptFile.contributedAttributes is None:
             return True
 

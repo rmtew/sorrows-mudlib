@@ -7,6 +7,7 @@ import types
 import weakref
 import time
 
+logger = logging.getLogger("reloader")
 
 import namespace
 
@@ -80,36 +81,36 @@ class CodeReloader:
     # External events.
 
     def ProcessChangedFile(self, filePath, added=False, changed=False, deleted=False):
-        logging.debug("File change '%s' added=%s changed=%s deleted=%s", filePath, added, changed, deleted)
+        logger.debug("File change '%s' added=%s changed=%s deleted=%s", filePath, added, changed, deleted)
 
         scriptDirectory = self.FindDirectory(filePath)
         if scriptDirectory is None:
-            logging.error("File change event for invalid path '%s'", filePath)
+            logger.error("File change event for invalid path '%s'", filePath)
             return
 
         oldScriptFile = scriptDirectory.FindScript(filePath)
         if oldScriptFile:
             # Modified or deleted.
             if changed:
-                logging.info("Script reloaded '%s'", filePath)
+                logger.info("Script reloaded '%s'", filePath)
                 self.ReloadScript(oldScriptFile)
             elif deleted:
-                logging.info("Script removed '%s'", filePath)
-                logging.warn("Deleted script leaking its namespace contributions")
+                logger.info("Script removed '%s'", filePath)
+                logger.warn("Deleted script leaking its namespace contributions")
         else:
             if added:
-                logging.info("Script loaded '%s'", filePath)
+                logger.info("Script loaded '%s'", filePath)
                 self.LoadScript(filePath)
             elif changed:
-                logging.error("Modified script not already loaded '%s'", filePath)
+                logger.error("Modified script not already loaded '%s'", filePath)
             elif deleted:
-                logging.error("Deleted script not already loaded '%s'", filePath)
+                logger.error("Deleted script not already loaded '%s'", filePath)
 
     # ------------------------------------------------------------------------
     # Script reloading support.
 
     def LoadScript(self, scriptFilePath):
-        logging.debug("LoadScript")
+        logger.debug("LoadScript")
 
         dirPath = os.path.dirname(scriptFilePath)
         scriptDirectory = self.FindDirectory(scriptFilePath)    
@@ -123,7 +124,7 @@ class CodeReloader:
         return ret            
 
     def ReloadScript(self, oldScriptFile):
-        logging.debug("ReloadScript")
+        logger.debug("ReloadScript")
         
         newScriptFile = self.CreateNewScript(oldScriptFile)
         if newScriptFile is None:
@@ -137,7 +138,7 @@ class CodeReloader:
         filePath = oldScriptFile.filePath
         namespacePath = oldScriptFile.namespacePath
 
-        logging.debug("CreateNewScript namespace='%s', file='%s'", namespacePath, filePath)
+        logger.debug("CreateNewScript namespace='%s', file='%s'", namespacePath, filePath)
 
         # Read in and compile the modified script file.
         scriptDirectory = self.FindDirectory(filePath)
@@ -159,7 +160,7 @@ class CodeReloader:
         return None
 
     def UseNewScript(self, oldScriptFile, newScriptFile):
-        logging.debug("UseNewScript")
+        logger.debug("UseNewScript")
 
         filePath = newScriptFile.filePath
         namespacePath = newScriptFile.namespacePath
@@ -189,14 +190,14 @@ class CodeReloader:
             self.RemoveLeakedAttributes(newScriptFile)
 
     def UpdateModuleAttributes(self, scriptFile, newScriptFile, namespace, overwritableAttributes=set()):
-        logging.debug("UpdateModuleAttributes")
+        logger.debug("UpdateModuleAttributes")
 
         moduleName = namespace.__name__
         filePath = newScriptFile.filePath
         
         # Track what files have contributed to the namespace.
         if filePath not in namespace.__file__:
-            logging.error("On an update, a script file's path is expected to have already been registered")
+            logger.error("On an update, a script file's path is expected to have already been registered")
 
         attributeChanges = {}
 
@@ -236,16 +237,16 @@ class CodeReloader:
                 newValue.__module__ = moduleName
                 newValue.__file__ = filePath
 
-                logging.debug("Encountered new class '%s'", attrName)
+                logger.debug("Encountered new class '%s'", attrName)
             elif oldType is newType and oldValue == newValue:
                 # Skip constants whose value has not changed.
-                logging.debug("Skippped unchanged attribute '%s'", attrName)
+                logger.debug("Skippped unchanged attribute '%s'", attrName)
                 continue
             elif isinstance(newValue, types.FunctionType):
-                logging.debug("Rebound method '%s'", attrName)
+                logger.debug("Rebound method '%s'", attrName)
                 newValue = RebindFunction(newValue, globals_)
             elif isinstance(newValue, types.UnboundMethodType) or isinstance(newValue, types.MethodType):
-                logging.debug("Rebound method '%s' to function", attrName)
+                logger.debug("Rebound method '%s' to function", attrName)
                 newValue = RebindFunction(newValue.im_func, globals_)
 
             # Build up the retained original globals with contributions.
@@ -261,7 +262,7 @@ class CodeReloader:
         if value is None:
             value = newValue
 
-        logging.debug("Updating class %s, %s", value, id(value))
+        logger.debug("Updating class %s, %s", value, id(value))
 
         for attrName, attrValue in newValue.__dict__.iteritems():
             if isinstance(attrValue, types.FunctionType):
@@ -281,7 +282,7 @@ class CodeReloader:
                 else:
                     continue
 
-            logging.debug("setting %s %s", attrName, attrValue)
+            logger.debug("setting %s %s", attrName, attrValue)
             setattr(value, attrName, attrValue)
 
     # ------------------------------------------------------------------------
@@ -308,7 +309,7 @@ class CodeReloader:
     # Attribute compatibility support
 
     def ScriptCompatibilityCheck(self, oldScriptFile, newScriptFile):
-        logging.debug("ScriptCompatibilityCheck '%s'", oldScriptFile.filePath)
+        logger.debug("ScriptCompatibilityCheck '%s'", oldScriptFile.filePath)
 
         # Do not allow replacement of old contributions, whether from the old
         # script file given, or contributions it has inherited itself, if the
