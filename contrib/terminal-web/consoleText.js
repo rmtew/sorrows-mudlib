@@ -17,6 +17,10 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+  // CONSTANTS
+
+  var cursorColor = "rgb(241,128,22)";
+
   // GLOBALS
 
   var consoleTextElement = null;
@@ -28,6 +32,7 @@
   var consoleLineArray = [ ];
 
   var cursorLineIndex = 0;
+  var cursorVisible = false;
 
   var lastKeyCode = undefined;
 
@@ -37,15 +42,14 @@
     // Whatever element on the page is tagged as the cursor gets blinked.
     cursorElement = document.getElementById("cursor");
     if (cursorElement != null) {
-      // Internet Explorer: rgb(rr,gg,bb)
-      // Firefox: rgb(rr, gg, bb)
-      if (cursorElement.style.color.replace(/ /gi, "") == color1) {
-        cursorElement.style.color = color2;
-        cursorElement.style.backgroundColor = color1;
-      } else {
+      if (cursorVisible) {
         cursorElement.style.color = color1;
         cursorElement.style.backgroundColor = color2;
+      } else {
+        cursorElement.style.color = color2;
+        cursorElement.style.backgroundColor = cursorColor;
       }
+      cursorVisible = !cursorVisible;
     }
 
     setTimeout("blinkCursor()", 500);
