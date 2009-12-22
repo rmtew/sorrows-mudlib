@@ -1,0 +1,42 @@
+<html>
+<head>
+
+<!--
+    Web-page console v0.1, index.html
+    Copyright (C) 2009 Richard Tew <richard.m.tew@gmail.com>
+    Donate if you appreciate it: http://disinterest.org/donate.html
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-->
+
+<title>Console Prototype</title>
+
+<link rel="stylesheet" type="text/css" media="all" href="console.css" />
+<script type="text/javascript" src="consoleWindow.js"></script>
+<script type="text/javascript" src="consoleText.js"></script>
+
+</head>
+<body bgcolor="#7799CC" onload="onPageLoaded();" onkeypress="return onKeyPress(event)"
+xonkeyup="return onKeyUp(event)" xonkeydown="return onKeyDown(event)">
+
+<div class="home-link">[ <a href="../../projects.html">home</a> ]</div>
+
+<div id="console" class="console" onmouseup="onMouseUp(event)" onmousemove="onMouseMove(event)">
+  <div id="titlebar" class="title" onmousedown="onMouseDown(event)">AmigaDOS</div>
+  <!-- Whitespace inside 'consolebody' is preserved, so there is none here. -->
+  <div id="consolebody" class="consolebody"><div id="consoletext" class="scrollable"></div></div>
+</div>
+
+</body>
+</html>
