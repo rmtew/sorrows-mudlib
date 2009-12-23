@@ -62,12 +62,12 @@
         white-space:            pre-wrap;
 }
 
-.cursorInverse {
+.cursor[shown=yes] {
 	color:			#7799CC;
 	background-color:	rgb(241,128,22);
 }
 
-.cursorNormal {
+.cursor[shown=no] {
 	color:			white;
 	background-color:	#7799CC;
 }

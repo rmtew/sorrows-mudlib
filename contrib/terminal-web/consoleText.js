@@ -24,7 +24,7 @@
   var consoleTextElement = null;
 
   var promptHTML = "<font class='prompt'>&gt;</font>";
-  var cursorHTML = "<font id='cursor' class='cursorInverse'>&nbsp;</font>";
+  var cursorHTML = "<font id='cursor' class='cursor'>&nbsp;</font>";
 
   var consoleBufferHTML = "";
   var consoleLineArray = [ ];
@@ -39,12 +39,10 @@
     // Whatever element on the page is tagged as the cursor gets blinked.
     cursorElement = document.getElementById("cursor");
     if (cursorElement != null) {
-      if (cursorElement.className == "cursorNormal") { // Hide the cursor.
-        cursorElement.setAttribute("class", "cursorInverse");
-        cursorElement.setAttribute("className", "cursorInverse");
+      if (cursorElement.getAttribute("shown") == "yes") { // Hide the cursor.
+        cursorElement.setAttribute("shown", "no");
       } else { // Show the cursor.
-        cursorElement.setAttribute("class", "cursorNormal");
-        cursorElement.setAttribute("className", "cursorNormal");
+        cursorElement.setAttribute("shown", "yes");
       }
     }
 
@@ -121,7 +119,7 @@
       // Copy the current line array and make the select entry the cursor too.
       var idx = lineArray.length - cursorLineIndex;
       lineArray = lineArray.slice(0);
-      lineArray[idx] = "<font id='cursor' class='cursorNormal'>"+ lineArray[idx] +"</font>";
+      lineArray[idx] = "<font id='cursor' class='cursor' shown='yes'>"+ lineArray[idx] +"</font>";
       // Prevent the real cursor from being added.
       trailingHTML = "";
     }
