@@ -23,8 +23,8 @@
 
   var consoleTextElement = null;
 
-  var promptHTML = "<font class='prompt'>&gt;</font>";
-  var cursorHTML = "<font id='cursor' class='cursor'>&nbsp;</font>";
+  var promptHTML = "<span class='prompt'>&gt;</span>";
+  var cursorHTML = "<span id='cursor' class='cursor'>&nbsp;</span>";
 
   var consoleBufferHTML = "";
   var consoleLineArray = [ ];
@@ -121,7 +121,7 @@
       // Copy the current line array and make the select entry the cursor too.
       var idx = lineArray.length - cursorLineIndex;
       lineArray = lineArray.slice(0);
-      lineArray[idx] = "<font id='cursor' class='cursor'>"+ lineArray[idx] +"</font>";
+      lineArray[idx] = "<span id='cursor' class='cursor'>"+ lineArray[idx] +"</span>";
       // Prevent the real cursor from being added.
       trailingHTML = "";
     }

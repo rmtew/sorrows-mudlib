@@ -20,49 +20,49 @@
 .home-link {
   width: 80px;
   text-align: center;
-  margin-left:auto;
-  margin-right:auto;
+  margin-left: auto;
+  margin-right: auto;
   font-size: 14px;
   color: white;
   font-family:"Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
 }
 
 .console {
-	position:		absolute;
-	top:			50;
-	left: 			10;
-	height: 		512;
-	width:			640;
-	background-color:	#FFFFFF;
+  position: absolute;
+  top: 50;
+  left: 10;
+  height: 512;
+  width: 640;
+  background-color: #FFFFFF;
 }
 
 .titlebar {
-	position:		relative;
-	top:			2;
-	left: 			2;
-	height: 		20;
-	width:			636;
-	color:			#7799CC;
-	background-color:	white;
-	font-family:		courier;
-	overflow:		hidden;
+  position: relative;
+  top: 2;
+  left: 2;
+  height: 20;
+  width: 636;
+  color: #7799CC;
+  background-color: white;
+  font-family: courier;
+  overflow: hidden;
 }
 
 .consolebody {
-	position:		relative;
-	top:			2;
-	left: 			2;
-	height: 		488;
-	width:			636;
-	color:			white;
-	background-color:	#7799CC;
-	font-family:		courier;
-	overflow-y:		scroll;
-	word-wrap:		break-word;
-        white-space:            pre-wrap;
+  position: relative;
+  top: 2;
+  left: 2;
+  height: 488;
+  width: 636;
+  color: white;
+  background-color: #7799CC;
+  font-family: courier;
+  overflow-y: scroll;
+  word-wrap: break-word;
+  white-space: pre-wrap;
 }
 
-font.cursor {
-	color:			#7799CC;
-	background-color:	rgb(241,128,22);
+span.cursor {
+  color: #7799CC;
+  background-color: rgb(241,128,22);
 }
