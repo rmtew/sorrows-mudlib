@@ -73,6 +73,6 @@ function handleSpecialKeyPress(keyCode, ctrlKey, altKey, shiftKey) {
   return handleNormalKeyPress(event.which || event.keyCode, event.ctrlKey, event.altKey, event.shiftKey);
 }
 function onPageLoaded() {  onPageLoaded_Window();
-  consoleTextElement = document.getElementById("consoletext");
+  consoleTextElement = document.getElementById("consolebody");
   updateConsole();
   setTimeout("blinkCursor()", 300);}

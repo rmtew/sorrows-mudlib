@@ -88,6 +88,7 @@ div.titlebartext {
   overflow-y: scroll;
   word-wrap: break-word;
   white-space: pre-wrap;
+  line-height: 90%;
 }
 
 span.cursor {
