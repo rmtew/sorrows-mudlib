@@ -48,6 +48,34 @@
   overflow: hidden;
 }
 
+div.titlebarline{
+  position: absolute;
+  background-color: #7799CC;
+  height: 4;
+  width: 580;
+  left: 2;
+  z-index: 1;
+}
+
+div#titlebarline1 {
+  top: 3;
+}
+
+div#titlebarline2{
+  top: 11;
+}
+
+div.titlebartext {
+  position: absolute;
+  top: 0;
+  left: 2;
+  margin-top: -2; /* The Amiga title is offset upwards slightly. */
+  padding-right: 4;
+  color: #7799CC;
+  background-color: white;
+  z-index: 2; /* The title text appears over the bars. */
+}
+
 .consolebody {
   position: relative;
   top: 2;
