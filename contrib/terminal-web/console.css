@@ -62,12 +62,7 @@
         white-space:            pre-wrap;
 }
 
-.cursor[shown=yes] {
+font.cursor {
 	color:			#7799CC;
 	background-color:	rgb(241,128,22);
-}
-
-.cursor[shown=no] {
-	color:			white;
-	background-color:	#7799CC;
 }
