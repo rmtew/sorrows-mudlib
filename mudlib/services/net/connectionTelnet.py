@@ -19,27 +19,27 @@ class TelnetConnection(Connection):
         self.telneg = miniboa.telnetnegotiation.TelnetNegotiation()
 
         def send_cb(data):
-            print "SEND%s" % [ord(c) for c in data]
+            service.LogDebug("SEND(%s)%s%s", self.user.name, self.clientAddress, [ord(c) for c in data])
             self.send(data)
         self.telneg.set_send_cb(send_cb)
 
         def compress2_cb(flag):
-            print "COMPRESS2[%s]" % flag
+            service.LogDebug("COMPRESS2(%s)%s[%s]", self.user.name, self.clientAddress, flag)
             self.compress2 = flag
         self.telneg.set_compress2_cb(compress2_cb)
 
         def echo_cb(flag):
-            print "ECHO[%s]" % flag
+            service.LogDebug("ECHO(%s)%s[%s]", self.user.name, self.clientAddress, flag)
             self.echo = flag
-        self.telneg.set_echo_cb(send_cb)
+        self.telneg.set_echo_cb(echo_cb)
 
         def terminal_type_cb(data):
-            print "TERMINAL TYPE[%s]" % data
-        self.telneg.set_terminal_type_cb(send_cb)
+            service.LogDebug("TERMINAL TYPE(%s)%s[%s]", self.user.name, self.clientAddress, data)
+        self.telneg.set_terminal_type_cb(terminal_type_cb)
 
         def terminal_size_cb(rows, columns):
-            print "TERMINAL SIZE[%s]" % str((rows, columns))
-        self.telneg.set_terminal_size_cb(send_cb)
+            service.LogDebug("TERMINAL SIZE(%s)%s[%s]", self.user.name, self.clientAddress, str((rows, columns)))
+        self.telneg.set_terminal_size_cb(terminal_size_cb)
 
         self.telneg.request_will_compress()
 
@@ -79,15 +79,12 @@ class TelnetConnection(Connection):
             if s == "":
                 return s
 
-            l = list(self.telneg.feed(s))
-            
-            if getattr(self, "telneg_warning", False) is False:
-                self.telneg_warning = True
-                self.service.LogWarning("Not yet using the filtered telneg output")
-            
-            if self.echo:
-                if s == '\x08':
-                    self.send(s+" ")
-                self.send(s)
-            buf += s
+            for s2 in self.telneg.feed(s):            
+                # This is so not optimal yet, but it is correct which is good for now.
+                for c in s2:
+                    if self.echo:
+                        if c == '\x08':
+                            self.send(c +" ")
+                        self.send(c)
+                    buf += c
 

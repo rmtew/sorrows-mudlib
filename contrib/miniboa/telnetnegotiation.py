@@ -85,13 +85,14 @@ IS      = chr(000)      # Sub-process negotiation IS command
 
 #--[ Telnet Options ]----------------------------------------------------------
 
-BINARY  = chr(  0)      # Transmit Binary
-ECHO    = chr(  1)      # Echo characters back to sender
-RECON   = chr(  2)      # Reconnection
-SGA     = chr(  3)      # Suppress Go-Ahead
-TTYPE   = chr( 24)      # Terminal Type
-NAWS    = chr( 31)      # Negotiate About Window Size
-LINEMO  = chr( 34)      # Line Mode
+BINARY      = chr(  0)      # Transmit Binary
+ECHO        = chr(  1)      # Echo characters back to sender
+RECON       = chr(  2)      # Reconnection
+SGA         = chr(  3)      # Suppress Go-Ahead
+TTYPE       = chr( 24)      # Terminal Type
+NAWS        = chr( 31)      # Negotiate About Window Size
+LINEMODE    = chr( 34)      # Line Mode
+OLD_ENVIRON = chr( 36)      # Old - Environment variables
 
 #--[ Extra Shit ]--------------------------------------------------------------
 
@@ -387,8 +388,8 @@ class TelnetNegotiation(object):
             if option in (BINARY, ECHO, COMPRESS2):            
                 if self._check_reply_pending(option):
                     self._note_reply_pending(option, False)
-                    self._note_local_option(option, True)
-                    cb and cb(True)                        
+                    self._note_local_option(option, False)
+                    cb and cb(False)                        
                 elif (self._check_local_option(BINARY) == True or self._check_local_option(BINARY) == UNKNOWN):
                     self._note_local_option(option, False)
                     self._iac_wont(option)                    

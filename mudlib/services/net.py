@@ -47,10 +47,11 @@ class NetworkService(Service):
             currentSocket.close()
             return
 
-        connection = TelnetConnection(currentSocket)
-        connection.Setup(self, self.nextConnectionID, echo=False)
-        connection.clientAddress = clientAddress
         self.LogInfo("Telnet connection #%s Address=%s", self.nextConnectionID, clientAddress)
+
+        connection = TelnetConnection(currentSocket)
+        connection.clientAddress = clientAddress
+        connection.Setup(self, self.nextConnectionID, echo=False)
         # Store this for our printing convenience.
         self.telnetConnections.append(connection)
         self.nextConnectionID += 1
