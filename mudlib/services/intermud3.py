@@ -150,10 +150,10 @@ class Intermud3Service(Service):
                 uthread.new(self.SendChannelListenPackets, self.desiredListenChannels)
 
             elif packet.__class__ is intermud3.MudlistPacket:
-                if len(packet.infoByName) < 10:
-                    self.LogDebug("packet %s %s %s %s", packetType, packet.mudlistID, len(packet.infoByName), packet.infoByName.keys())
-                else:
-                    self.LogDebug("packet %s %s %s", packetType, packet.mudlistID, len(packet.infoByName))
+                #if len(packet.infoByName) < 10:
+                #    self.LogDebug("packet %s %s %s %s", packetType, packet.mudlistID, len(packet.infoByName), packet.infoByName.keys())
+                #else:
+                #    self.LogDebug("packet %s %s %s", packetType, packet.mudlistID, len(packet.infoByName))
 
                 config.mudlistID = packet.mudlistID
                 self.mudInfoByName.update(packet.infoByName)
@@ -161,10 +161,10 @@ class Intermud3Service(Service):
             elif packet.__class__ is intermud3.ChanlistReplyPacket:
                 config.chanlistID = packet.chanlistID
                 self.channelInfoByName.update(packet.infoByName)
-                self.LogDebug("channel list %s", packet.infoByName.keys())
+                # self.LogDebug("channel list %s", packet.infoByName.keys())
 
             elif packet.__packet_type__.endswith("-req"):
-                self.LogDebug(*packet.LogEntry())
+                # self.LogDebug(*packet.LogEntry())
 
                 if packet.__reply_type__ not in self.packetClassesByType:
                     self.LogError("Unable to find reply packet class %s", packet.__reply_type__)
