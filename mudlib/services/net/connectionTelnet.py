@@ -50,7 +50,7 @@ class TelnetConnection(Connection):
             # mean that the released flag should be set and we will exit.
             if line:
                 # Pass on the line without the trailing CR LF.
-                self.user.ReceiveInput(line[:-2])
+                self.user.ReceiveInput(line)
 
     def OnDisconnection(self):
         # Notify the service of the disconnection.
@@ -63,16 +63,21 @@ class TelnetConnection(Connection):
         buf = self.readBufferString
 
         while True:
-            if buf.find('\r\n') > -1:
-                i = buf.index('\r\n')
-                ret = buf[:i+2]
-                self.readBufferString = buf[i+2:]
+            if buf.find('\r') > -1:
+                i = buf.index('\r')
+                ret = buf[:i]
+                if len(buf) > i+1 and buf[i+1] == '\n':
+                    self.readBufferString = buf[i+2:]
+                else:
+                    self.readBufferString = buf[i+1:]
+
                 while '\x08' in ret:
                     i = ret.index('\x08')
                     if i == 0:
                         ret = ret[1:]
                     else:
                         ret = ret[:i-1]+ret[i+1:]
+
                 return ret
 
             s = self.recv(65536)
