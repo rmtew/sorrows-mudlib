@@ -41,6 +41,7 @@ class TelnetConnection(Connection):
             service.LogDebug("TERMINAL SIZE(%s)%s[%s]", self.user.name, self.clientAddress, str((rows, columns)))
         self.telneg.set_terminal_size_cb(terminal_size_cb)
 
+        self.telneg.request_will_echo()
         self.telneg.request_will_compress()
 
     def ManageConnection(self):
@@ -86,10 +87,14 @@ class TelnetConnection(Connection):
 
             for s2 in self.telneg.feed(s):            
                 # This is so not optimal yet, but it is correct which is good for now.
-                for c in s2:
+                for i, c in enumerate(s2):
                     if self.echo:
                         if c == '\x08':
                             self.send(c +" ")
+                        elif c == '\r' and i == len(s2)-1:
+                            # \r and \n are expected to come in pairs.
+                            # If \r is the final character, no \n was sent.
+                            self.send('\n')
                         self.send(c)
                     buf += c
 
