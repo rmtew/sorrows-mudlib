@@ -47,10 +47,7 @@ class TelnetConnection(Connection):
     def ManageConnection(self):
         while not self.released:
             line = self.readline()
-            # An empty string implies disconnection.  Ignoring that will
-            # mean that the released flag should be set and we will exit.
-            if line:
-                # Pass on the line without the trailing CR LF.
+            if line is not None:
                 self.user.ReceiveInput(line)
 
     def OnDisconnection(self):
@@ -83,7 +80,7 @@ class TelnetConnection(Connection):
 
             s = self.recv(65536)
             if s == "":
-                return s
+                return None
 
             for s2 in self.telneg.feed(s):            
                 # This is so not optimal yet, but it is correct which is good for now.

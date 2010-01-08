@@ -104,3 +104,7 @@ class WorldMap2DService(Service):
         if tile.key == "r":
             raise RuntimeError("MovementFailure", "The river is too dangerous to cross.")
         body.SetPosition(position)
+
+    def OnObjectReleased(self, object):
+        # Make sure the object is unindexed.
+        pass

@@ -307,7 +307,7 @@ class TelnetNegotiation(object):
                 else: ## Nope, must be a two-byte command
                     self._two_byte_cmd(byte)
 
-        logger.debug("Telnet negotiation character %d", ord(byte))
+        # logger.debug("Telnet negotiation character %d", ord(byte))
                     
         return True
 

@@ -14,15 +14,6 @@ EC_REVERSE_VIDEO_OFF = "\x1b[27m"
 EC_SCROLL_UP         = "\x1bM"
 EC_SCROLL_DOWN       = "\x1bD"
 
-IAC  = chr(255)
-WILL = chr(251)
-WONT = chr(252)
-
-TELOPT_ECHO	= chr(1)
-
-EC_ECHO_ON    = IAC + WILL + TELOPT_ECHO
-EC_ECHO_OFF   = IAC + WONT + TELOPT_ECHO
-
 
 class SimulationShell(Shell):
     def Setup(self, stack):
@@ -95,7 +86,7 @@ class SimulationShell(Shell):
         self.user.Write(EC_SCROLL_DOWN)
 
     def DisplayScreen(self):
-        self.user.Write(EC_ECHO_OFF)
+        self.user.connection.telneg.request_wont_echo()
         self.user.Write(EC_CLEAR_SCREEN)
         self.UpdateTitle()
 
@@ -120,5 +111,5 @@ class SimulationShell(Shell):
 
     def OnRemovalFromStack(self):
         msg = "Simulation exited."
-        self.user.Write(EC_ECHO_ON)
+        self.user.connection.telneg.request_will_echo()
         self.user.Tell(EC_RESET_TERMINAL + EC_CLEAR_SCREEN + msg)
