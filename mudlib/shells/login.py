@@ -39,7 +39,7 @@ class LoginShell(Shell):
         self.password = None
 
         # Print a login screen here if so desired.
-        self.user.Tell("Nameless Sorrows 4.0")
+        self.user.Tell("Nameless Sorrows")
         self.user.Tell("Enter 'quit' or 'q' at any time during the login process to disconnect.\n")
 
         handler = InputHandler()

@@ -9,12 +9,12 @@ class UserShell(Shell):
         self.stack.SetShell(handler)
         self.currentDirectory = (None, None) # parent, current
         self.user.Tell('You are logged in as "'+ self.user.name +'".')
-        # self.user.connection.manager.room.Tell(self.user.name +' enters the game.', self.user)
 
     def ExecuteCommand(self):
         # Ignore sent carriage returns.
         if len(self.raw) == 0:
             return
+
         try:
             verb = string.lower(self.verb)
 ##            if verb == "tell":
