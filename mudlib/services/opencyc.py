@@ -1,8 +1,8 @@
-try:
-    from cycapi import CycConnection
-    skip = False
-except ImportError, e:
-    skip = True
+#try:
+#    from cycapi import CycConnection
+#    skip = False
+#except ImportError, e:
+#    skip = True
 
 if False: # not skip:
     import socket

@@ -22,15 +22,11 @@ class NetworkService(Service):
         host, port = config.host, config.getint("port")
 
         listenSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        listenSocket.wrap_accept_socket = self.WrapSocket
         listenSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         listenSocket.bind((host, port))
         listenSocket.listen(5)
         self.LogInfo("Listening on address %s:%s", host, port)
         uthread.new(self.AcceptTelnetConnections, listenSocket)
-
-    def WrapSocket(self, newSocket):
-        return TelnetConnection(newSocket)
 
     def AcceptTelnetConnections(self, listenSocket):
         acceptNonLocal = int(sorrows.data.config.net.acceptnonlocal)

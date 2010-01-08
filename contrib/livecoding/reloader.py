@@ -132,8 +132,7 @@ class CodeReloader:
         if newScriptFile is None:
             return False
 
-        self.UseNewScript(oldScriptFile, newScriptFile)
-
+        self.UseNewScript(oldScriptFile, newScriptFile)        
         return True
 
     def CreateNewScript(self, oldScriptFile):
@@ -147,7 +146,7 @@ class CodeReloader:
         newScriptFile = scriptDirectory.LoadScript(filePath, namespacePath)
 
         # Try and execute the new script file.
-        if newScriptFile.Run():
+        if scriptDirectory.RunScript(newScriptFile, tentative=True):
             # Before we can go ahead and use the new version of the script file,
             # we need to verify that it is suitable for use.  That it ran without
             # error is a good start.  But we also need to verify that the

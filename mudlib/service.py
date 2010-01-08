@@ -15,6 +15,8 @@ def IsServiceLoaded(serviceClass):
 class Service:
     # The current state of the service as managed by us, ideally.
     state = None
+    # Dependencies.
+    __dependencies__ = frozenset()
     # Whether the service should be automatically run when loaded.
     __optional__ = False
     # The custom logger object.

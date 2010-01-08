@@ -7,6 +7,8 @@ class TelnetConnection(Connection):
         Connection.Setup(self, service, connectionID)
 
         self.echo = echo
+        self.consoleColumns = 80
+        self.consoleRows = 24
 
         self.optionEcho = False
         self.optionLineMode = True
@@ -39,10 +41,13 @@ class TelnetConnection(Connection):
 
         def terminal_size_cb(rows, columns):
             service.LogDebug("TERMINAL SIZE(%s)%s[%s]", self.user.name, self.clientAddress, str((rows, columns)))
+            self.consoleRows = rows
+            self.consoleColumns = columns
         self.telneg.set_terminal_size_cb(terminal_size_cb)
 
         self.telneg.request_will_echo()
         self.telneg.request_will_compress()
+        self.telneg.request_naws()
 
     def ManageConnection(self):
         while not self.released:
@@ -81,6 +86,7 @@ class TelnetConnection(Connection):
             s = self.recv(65536)
             if s == "":
                 return None
+            # print [ ord(c) for c in s ]
 
             for s2 in self.telneg.feed(s):            
                 # This is so not optimal yet, but it is correct which is good for now.

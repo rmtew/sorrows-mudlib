@@ -2,7 +2,7 @@ from mudlib import Service
 
 class UserService(Service):
     __sorrows__ = 'users'
-    __dependencies__ = [ 'data' ]
+    __dependencies__ = set([ 'data' ])
 
     def Run(self):
         if sorrows.data.TableExists("users"):

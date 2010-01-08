@@ -1,5 +1,5 @@
 from mudlib import Service
-import types
+import types, random, weakref
 import stackless
 import uthread
 
@@ -11,6 +11,7 @@ class ServiceService(Service):
     __sorrows__ = 'services'
 
     def Run(self):
+        self.listeners = weakref.WeakValueDictionary()
         self.listenersByEvent = {}
         self.dependenciesByService = {}
 
@@ -38,16 +39,16 @@ class ServiceService(Service):
                     pendingList.append(v)
 
         # Start the obligatory services.
-        self.RunPendingServices(pendingList)
+        if not self.RunPendingServices(pendingList):
+            # TODO: Handle this better?
+            return
 
         # Now possibly start the specified optional services.
         # We have to do them separately because the data service is an obligatory service and it needs to be started first.
-        pendingList = []
         services = sorrows.data.config.services
-        for v in optionalList:
-            if services.getint(v.__sorrows__, 0):
-                pendingList.append(v)
+        pendingList = [ v for v in optionalList if services.getint(v.__sorrows__, False) ]
         if len(pendingList):
+            # TODO: Also handle this better?
             self.RunPendingServices(pendingList)
 
         self.AddEventListener(self)
@@ -60,26 +61,37 @@ class ServiceService(Service):
         SendEvent('OnServicesStarted')
 
     def RunPendingServices(self, pendingList):
-        cnt = 20
-        skips = 0
+        self.LogInfo("Starting %d services", len(pendingList))
+
+        lastDependencyIndex = None
+        retryCount = 0
         while len(pendingList):
-            stillPendingList = []
+            dependencyIndex = {}
             for svcClass in pendingList:
-                start = 1
-                for svcName2 in getattr(svcClass, '__dependencies__', []):
-                    if not self.runningServices.has_key(svcName2):
-                        start = 0
-                        break
-                if start:
-                    self.StartService(svcClass())
-                else:
-                    stillPendingList.append(svcClass)
-                    skips += 1
-            pendingList = stillPendingList
-        if not cnt:
-            self.LogError("Unable to start services: %s", [ x.__sorrows__ for x in pendingList ])
-        else:
-            self.LogInfo("(held off %d starts due to dependencies in the process, tries left %d)", skips, cnt)
+                serviceDependencies = svcClass.__dependencies__ - set(self.runningServices.iterkeys())
+                if serviceDependencies:
+                    dependencyIndex[svcClass] = serviceDependencies
+                    continue
+
+                self.StartService(svcClass())
+
+            if dependencyIndex == lastDependencyIndex:
+                # Note that no progress was made.
+                retryCount += 1
+                # Give up after a given number of tries.
+                if retryCount == 10:
+                    self.LogError("Service startup procedure failed.")
+                    return False
+
+                # As long as we keep retrying, try some variation.
+                random.shuffle(pendingList)
+            else:
+                retryCount = 0
+
+            lastDependencyIndex = dependencyIndex
+            pendingList = dependencyIndex.keys()
+
+        return True
 
     def OnStop(self):
         cnt = 20
@@ -108,12 +120,12 @@ class ServiceService(Service):
 
     def StartService(self, svc):
         svcName = svc.__sorrows__
-        self.LogInfo("Starting sorrows."+ svcName)
+        self.LogInfo("Starting sorrows.%s", svcName)
 
         svc.Register()
         svc.Start()
 
-        for svcName2 in getattr(svc, '__dependencies__', []):
+        for svcName2 in svc.__dependencies__:
             if not self.dependenciesByService.has_key(svcName2):
                 self.dependenciesByService[svcName2] = []
             self.dependenciesByService[svcName2].append(svcName)
@@ -123,9 +135,9 @@ class ServiceService(Service):
 
     def StopService(self, svc):
         svcName = svc.__sorrows__
-        self.LogInfo("Stopping sorrows."+ svcName)
+        self.LogInfo("Stopping sorrows.%s", svcName)
 
-        for svcName2 in getattr(svc, '__dependencies__', []):
+        for svcName2 in svc.__dependencies__:
             if self.dependenciesByService.has_key(svcName2):
                 self.dependenciesByService[svcName2].remove(svcName)
                 if not len(self.dependenciesByService[svcName2]):

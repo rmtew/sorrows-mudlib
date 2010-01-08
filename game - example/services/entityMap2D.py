@@ -4,7 +4,7 @@ import game.worldMap2D
 
 class Entity2Service(Service):
     __sorrows__ = 'entity2'
-    __dependencies__ = [ 'worldMap2D' ]
+    __dependencies__ = set([ 'worldMap2D' ])
 
     # ==================================================
     # Service

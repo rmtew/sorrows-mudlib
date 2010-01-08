@@ -1,8 +1,6 @@
 import string
 from mudlib import Shell, InputHandler
 
-# Standard telnet window size.
-COLS = 80
 ROWS = 25
 
 EC_CLEAR_LINE        = "\x1b[2K"
@@ -61,7 +59,7 @@ class SimulationShell(Shell):
         right = self.status +"  "
 
         self.user.Write(pre)
-        self.user.Write(EC_REVERSE_VIDEO_ON + left + (" " * (COLS - len(left) - len(right))) + right + EC_REVERSE_VIDEO_OFF)
+        self.user.Write(EC_REVERSE_VIDEO_ON + left + (" " * (self.user.connection.consoleColumns - len(left) - len(right))) + right + EC_REVERSE_VIDEO_OFF)
 
     def UpdateResult(self, s):
         self.MoveCursor(0, self.windowLength + self.windowOffset + 1, clear=True)
@@ -97,7 +95,7 @@ class SimulationShell(Shell):
         # - 2 blank lines.
         # - Status bar.
 
-        self.statusOffset = ROWS
+        self.statusOffset = self.user.connection.consoleRows
         self.windowOffset = 1 + 3
         self.windowLength = self.statusOffset - self.windowOffset - 3
 

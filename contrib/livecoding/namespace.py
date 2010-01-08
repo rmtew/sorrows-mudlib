@@ -15,6 +15,7 @@ import logging
 import unittest
 
 logger = logging.getLogger("namespace")
+# logger.setLevel(logging.DEBUG)
 
 class ScriptFile(object):
     lastError = None
@@ -61,7 +62,7 @@ class ScriptFile(object):
 
         return True
 
-    def UnitTest(self):
+    def UnitTest(self):    
         dirPath, scriptFileName = os.path.split(self.filePath)
         testScriptPath = os.path.join(dirPath, scriptFileName[:-3] + "_unittest.py")
         testFileExists = os.path.exists(testScriptPath)
@@ -81,6 +82,8 @@ class ScriptFile(object):
                 if issubclass(testCase, unittest.TestCase):
                     subSuite = unittest.defaultTestLoader.loadTestsFromTestCase(testCase)
                     testSuite.addTests(subSuite)
+
+        logger.debug("UnitTest extracted %d tests", testSuite.countTestCases())
 
         testResult = unittest.TestResult()
         testSuite.run(testResult)
@@ -327,24 +330,22 @@ class ScriptDirectory(object):
 
         return self.scriptFileClass(filePath, namespacePath)
 
-    def RunScript(self, scriptFile):
+    def RunScript(self, scriptFile, tentative=False):
         logger.debug("RunScript %s", scriptFile.filePath)
 
         if not scriptFile.Run():
             logger.debug("RunScript failed")
             return False
 
-        if self.unitTest:
-            logger.debug("RunScript unit testing")
+        if self.unitTest and not scriptFile.UnitTest():
+            logger.debug("RunScript tests failed or errored")
+            return False
 
-            if not scriptFile.UnitTest():
-                logger.debug("RunScript tests failed or errored")
-                return False
+        if not tentative:
+            logger.debug("RunScript exporting to namespace %s", scriptFile.namespacePath)
 
-        logger.debug("RunScript exporting to namespace %s", scriptFile.namespacePath)
-
-        namespace = self.CreateNamespace(scriptFile.namespacePath, scriptFile.filePath)
-        self.SetModuleAttributes(scriptFile, namespace)
+            namespace = self.CreateNamespace(scriptFile.namespacePath, scriptFile.filePath)
+            self.SetModuleAttributes(scriptFile, namespace)
 
         return True
 

@@ -7,7 +7,7 @@ from mudlib import Service
 
 class WorldService(Service):
     __sorrows__ = 'world'
-    __dependencies__ = [ 'data' ]
+    __dependencies__ = set([ 'data' ])
 
     def Run(self):
         self.example = Planet(9235632, 6378000.0, 10000.0, 0.15)

@@ -7,7 +7,7 @@ from mudlib.services.net import MudConnection
 
 class Intermud3Service(Service):
     __sorrows__ = 'i3'
-    __dependencies__ = [ 'net' ]
+    __dependencies__ = set([ 'net' ])
     __optional__ = True
 
     # -----------------------------------------------------------------------

@@ -4,7 +4,7 @@ from game.worldVoid import Entity
 
 class EntityVoidService(Service):
     __sorrows__ = 'entityVoid'
-    __dependencies__ = [ 'worldVoid' ]
+    __dependencies__ = set([ 'worldVoid' ])
 
     # ==================================================
     # Service
