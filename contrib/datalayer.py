@@ -15,10 +15,10 @@ class Table(object):
         self.columnMetaData = {}
         self.rows = []
 
-    def Lookup(self, key=Exception, value=Exception):
+    def Lookup(self, key=Exception, value=Exception, transform=lambda v: v):
         matches = []
         for row in self.rows:
-            if key is Exception or key in row.columns:
+            if key is Exception or transform(getattr(row, key, Exception)) == value:
                 row.lastAccessTime = time.time()
                 matches.append(row)
         return matches

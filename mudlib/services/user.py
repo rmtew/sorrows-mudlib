@@ -1,3 +1,4 @@
+import datalayer
 from mudlib import Service
 
 class UserService(Service):
@@ -5,22 +6,22 @@ class UserService(Service):
     __dependencies__ = set([ 'data' ])
 
     def Run(self):
-        if sorrows.data.TableExists("users"):
-            self.table = sorrows.data.GetTable("users")
-        else:
-            self.table = sorrows.data.AddTable("users", [ "userID", "userName", "password" ])
-            self.table.SetIdColumn("userID")
+        self.table = sorrows.data.store.users
 
     def UserExists(self, userName):
-        row = self.table.FindMatchingRow("userName", userName, caseInsensitive=1)
-        return row is not None
+        matches = self.table.Lookup("userName", userName, transform=lambda s: s.lower())
+        return len(matches)
 
     def CheckPassword(self, userName, password):
-        row = self.table.FindMatchingRow("userName", userName, caseInsensitive=1)
-        idx = self.table.header.index("password")
-        return password == row[idx]
+        matches = self.table.Lookup("userName", userName, transform=lambda s: s.lower())
+        return matches[0].password == password
 
     def AddUser(self, userName, password):
         if self.UserExists(userName):
             raise RuntimeError("AddUserExists")
-        return self.table.AddRow((userName, password))
+
+        row = self.table.AddRow()
+        row.userName = userName
+        row.password = password
+        
+        return row
