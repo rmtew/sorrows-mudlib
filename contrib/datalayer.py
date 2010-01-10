@@ -1,4 +1,4 @@
-import unittest, time
+import unittest, time, pickle, UserDict
 
 class ColumnMetaData(object):
     def __init__(self):
@@ -56,6 +56,9 @@ class Row(object):
         self.columns = {}
 
     def __getattr__(self, attrName, value=None):
+        if attrName.startswith("__"):
+            return object.__getattr__(self, attrName)
+
         if attrName in self.__dict__:
             return self.__dict__[attrName]
 
@@ -65,8 +68,8 @@ class Row(object):
         return self.columns[attrName]
 
     def __setattr__(self, attrName, value):
-        # If "columns" does not exist, __init__ is still executing.
-        if "columns" not in self.__dict__:
+        # If "columns" does not exist, __init__ is still executing.        
+        if "columns" not in self.__dict__ or attrName in self.__dict__:
             return object.__setattr__(self, attrName, value)
 
         self.table.OnColumnWrite(attrName)
@@ -86,6 +89,9 @@ class DataLayer(object):
         return tableName in self.tables
 
     def __getattr__(self, attrName, value=None):
+        if attrName.startswith("__") or attrName in self.__dict__:
+            return object.__getattr__(self, attrName)
+            
         return self.GetTable(attrName)
 
 
@@ -140,6 +146,46 @@ class TableTests(unittest.TestCase):
         indirectTable = self.store.GetTable("test")
         directTable = self.store.test
         self.failUnless(indirectTable is directTable, "Different tables retrieved")
+
+class PersistenceTests(unittest.TestCase):
+    def testRowPersistence(self):
+        table = UserDict.UserDict()    
+        table.OnColumnWrite = lambda *args: None
+        table.OnColumnRead = lambda *args: None
+
+        row = Row(table)
+        row.one = 1
+        row.string = "string"
+
+        s = pickle.dumps(row)
+        restoredRow = pickle.loads(s)
+
+        self.failUnless(isinstance(row.table, UserDict.UserDict), "Row table reference incorrect")
+        self.failUnless(len(row.columns) == 2, "Not just two columns in the unpersisted row")
+        self.failUnless(row.one == 1, "'one' column has incorrect value")
+        self.failUnless(row.string == "string", "'string' column has incorrect value")        
+
+    def testStorePersistence(self):
+        originalStore = DataLayer()
+        row = originalStore.test.AddRow()
+        row.one = 1
+        row.string = "string"
+        
+        s = pickle.dumps(originalStore)        
+        restoredStore = pickle.loads(s)
+        
+        self.failUnless(len(restoredStore.tables) == 1, "Not just one table restored")
+        self.failUnless(restoredStore.TableExists("test"), "Restored table a different one than expected")
+        
+        table = restoredStore.test
+        rows = table.Lookup()
+        row = rows[0]
+        self.failUnless(len(rows) == 1, "Not just one row restored")
+        self.failUnless(row.table is table, "Row table reference incorrect")
+        self.failUnless(len(row.columns) == 2, "Not just two columns in the unpersisted row")
+        self.failUnless(row.one == 1, "'one' column has incorrect value")
+        self.failUnless(row.string == "string", "'string' column has incorrect value")
+
 
 if __name__ == "__main__":    
     unittest.main()
