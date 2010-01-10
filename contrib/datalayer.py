@@ -7,6 +7,8 @@ class ColumnMetaData(object):
         self.lastWriteTime = time.time()
 
 class Table(object):
+    lookupColumn = None
+
     def __init__(self, tableName):
         self.tableName = tableName
         self.creationTime = time.time()
@@ -23,10 +25,15 @@ class Table(object):
                 matches.append(row)
         return matches
 
-    if False:
-        # Do not know how to determine SOME_KEY.
-        def __getitem__(self, value):
-            return self.Lookup(SOME_KEY, value)
+    def __getitem__(self, value):
+        matches = self.Lookup(self.lookupColumn, value)
+        if len(matches) > 1:
+            raise Exception("Too many matches")
+
+        if len(matches) == 0:
+            raise KeyError(value)
+        
+        return matches[0]
 
     def AddRow(self):
         row = Row(self)
@@ -146,6 +153,45 @@ class TableTests(unittest.TestCase):
         indirectTable = self.store.GetTable("test")
         directTable = self.store.test
         self.failUnless(indirectTable is directTable, "Different tables retrieved")
+
+    def testTableLookupTransform(self):
+        table = self.store.test
+        
+        row = table.AddRow()
+        row.label = "sample"
+        
+        row = table.AddRow()
+        row.label = "saMple"
+
+        row = table.AddRow()
+        row.label = "SAMPLE"
+
+        matches = table.Lookup("label", "SamplE")
+        self.failUnless(len(matches) == 0, "Unexpected matches with no transform")
+
+        matches = table.Lookup("label", "SAMPLE")
+        self.failUnless(len(matches) == 1, "Not a single match with no transform")
+
+        matches = table.Lookup("label", "SAMPLE", transform=lambda v: v.lower())
+        self.failUnless(len(matches) == 0, "Unexpected matches with a bad transform")
+
+        matches = table.Lookup("label", "SAMPLE", transform=lambda v: v.upper())
+        self.failUnless(len(matches) == 3, "Not three matches with a good transform")
+
+    def testTableLookupSyntax(self):
+        table = self.store.test
+        table.lookupColumn = "key"
+        
+        for i in range(10):
+            row = table.AddRow()
+            row.key = i
+            row.label = str(i)
+
+        self.failUnlessRaises(KeyError, lambda: table[20])
+
+        row = table[4]
+        self.failUnless(row.key == 4, "Row index column has incorrect value")
+        self.failUnless(row.label == "4", "Row string column has incorrect value")        
 
 class PersistenceTests(unittest.TestCase):
     def testRowPersistence(self):
