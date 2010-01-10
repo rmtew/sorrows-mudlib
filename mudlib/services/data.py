@@ -8,7 +8,7 @@ class DataService(Service):
     
 
     def Run(self):
-        self.savePath = sorrows.services.gameDataPath + "gamedata.db"
+        self.savePath = os.path.join(sorrows.services.gameDataPath, "gamedata.db")
         
         if os.path.exists(self.savePath):
             self.store = cPickle.load(open(self.savePath, 'rb'))
