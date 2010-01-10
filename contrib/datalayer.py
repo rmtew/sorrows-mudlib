@@ -72,6 +72,7 @@ class Row(object):
         if attrName in self.columns:
             self.table.OnColumnRead(attrName)
 
+        self.lastAccessTime = time.time()
         return self.columns[attrName]
 
     def __setattr__(self, attrName, value):
@@ -80,7 +81,9 @@ class Row(object):
             return object.__setattr__(self, attrName, value)
 
         self.table.OnColumnWrite(attrName)
+
         self.columns[attrName] = value
+        self.lastAccessTime = time.time()
 
 class DataLayer(object):
     def __init__(self):
