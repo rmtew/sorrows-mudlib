@@ -1,0 +1,145 @@
+import unittest, time
+
+class ColumnMetaData(object):
+    def __init__(self):
+        self.creationTime = time.time()
+        self.lastReadTime = time.time()
+        self.lastWriteTime = time.time()
+
+class Table(object):
+    def __init__(self, tableName):
+        self.tableName = tableName
+        self.creationTime = time.time()
+        self.lastAccessTime = time.time()
+        
+        self.columnMetaData = {}
+        self.rows = []
+
+    def Lookup(self, key=Exception, value=Exception):
+        matches = []
+        for row in self.rows:
+            if key is Exception or key in row.columns:
+                row.lastAccessTime = time.time()
+                matches.append(row)
+        return matches
+
+    if False:
+        # Do not know how to determine SOME_KEY.
+        def __getitem__(self, value):
+            return self.Lookup(SOME_KEY, value)
+
+    def AddRow(self):
+        row = Row(self)
+        self.rows.append(row)
+        return row
+
+    def OnColumnRead(self, columnName):
+        metadata = self.columnMetaData.get(columnName, None)
+        if metadata is None:
+            self.columnMetaData[columnName] = ColumnMetaData()
+        else:
+            metadata.lastReadTime = time.time()
+
+    def OnColumnWrite(self, columnName):
+        metadata = self.columnMetaData.get(columnName, None)
+        if metadata is None:
+            self.columnMetaData[columnName] = ColumnMetaData()
+        else:
+            metadata.lastWriteTime = time.time()
+
+class Row(object):
+    def __init__(self, table):
+        self.table = table
+
+        self.creationTime = time.time()
+        self.lastAccessTime = time.time()
+        self.columns = {}
+
+    def __getattr__(self, attrName, value=None):
+        if attrName in self.__dict__:
+            return self.__dict__[attrName]
+
+        if attrName in self.columns:
+            self.table.OnColumnRead(attrName)
+
+        return self.columns[attrName]
+
+    def __setattr__(self, attrName, value):
+        # If "columns" does not exist, __init__ is still executing.
+        if "columns" not in self.__dict__:
+            return object.__setattr__(self, attrName, value)
+
+        self.table.OnColumnWrite(attrName)
+        self.columns[attrName] = value
+
+class DataLayer(object):
+    def __init__(self):
+        self.tables = {}
+
+    def GetTable(self, tableName):
+        table = self.tables.get(tableName, None)
+        if table is None:
+            table = self.tables[tableName] = Table(tableName)
+        return table
+
+    def TableExists(self, tableName):
+        return tableName in self.tables
+
+    def __getattr__(self, attrName, value=None):
+        return self.GetTable(attrName)
+
+
+## Unit tests.
+
+class RowTests(unittest.TestCase):
+    def setUp(self):
+        self.store = DataLayer()
+
+    def testRowCreation(self):
+        table = self.store.test
+
+        # Verify that the row does not exist.
+        matches = table.Lookup("key", "value")
+        self.failUnless(not len(matches), "Retrieved row is not valid")
+
+        row = table.AddRow()
+        
+        matches = table.Lookup()
+        self.failUnless(len(matches), "Failed to find the new row")
+
+    def testColumnCreation(self):
+        table = self.store.test
+        row = table.AddRow()
+        row.key = "value"
+        
+        self.failUnless(row.key == "value", "Stored value is incorrect")
+
+    def testRowLookup(self):
+        table = self.store.test
+        row = table.AddRow()
+        row.key = "value"
+
+        matches = table.Lookup("key", "value")
+        self.failUnless(len(matches) == 1, "The new row was not entered into its table")
+        self.failUnless(row is matches[0], "The new row is not the stored row")
+        self.failUnless(row.key == "value", "The new row column does not have the assigned value")
+
+class TableTests(unittest.TestCase):
+    def setUp(self):
+        self.store = DataLayer()
+
+    def testTableExists(self):
+        table = self.store.test
+        self.failUnless(self.store.TableExists("test"), "TableExists is broken")
+
+    def testTableCreation(self):
+        # Verify that the table does not already exist.
+        self.failUnless(not self.store.TableExists("test"), "Table already exists")
+
+        # Verify that the two forms of access create and return the same table.
+        indirectTable = self.store.GetTable("test")
+        directTable = self.store.test
+        self.failUnless(indirectTable is directTable, "Different tables retrieved")
+
+if __name__ == "__main__":    
+    unittest.main()
