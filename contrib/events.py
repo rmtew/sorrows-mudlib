@@ -27,33 +27,33 @@ This module supports three different event subscription scenarios.
 
   Pseudo-code:
 
-      def OnClassChanged(class, instances):
-          oldEvents = getattr(class, "__EVENTS__", set())
-      
-          matches = eh.ProcessClass(class)
-          if len(matches):
-              ## Handle instances yet to be created.
-              old_init = class.__init__
-              def new_init(self, *args, **kwargs):
-                  eh.Register(self)
-                  old_init(*args, **kwargs)
-              class.__init__ = new_init
-          
-              ## Handle existing instances.
-              newEvents = set([ t[0] for t in matches ])
-              
-              # Remove existing registrations.
-              removedEvents = oldEvents - newEvents
-              addedEvents = newEvents - oldEvents
-              matchesLookup = dict(matches)
-              for instance in instances:
-                  for eventName in removedEvents:
-                      eh._Unregister(eventName, instance)
-                  for eventName in addedEvents:
-                      eh._Register(eventName, instance, matchesLookup[eventName])
+    def OnClassChanged(class_, instances):
+        oldEvents = getattr(class_, "__EVENTS__", set())
 
-              class.__EVENTS__ = newEvents
+        matches = eh.ProcessClass(class_)
+        if len(matches):
+            ## Handle instances yet to be created.
+            old_init = class_.__init__
+            def new_init(self, *args, **kwargs):
+                eh.Register(self)
+                old_init(*args, **kwargs)
+            class_.__init__ = new_init
 
+            ## Handle existing instances.
+            newEvents = set([ t[0] for t in matches ])
+
+            # Remove existing registrations.
+            removedEvents = oldEvents - newEvents
+            addedEvents = newEvents - oldEvents
+            matchesLookup = dict(matches)
+            for instance in instances:
+                for eventName in removedEvents:
+                    eh._Unregister(eventName, instance)
+                functionName = matchesLookup[eventName]
+                for eventName in addedEvents:
+                    eh._Register(eventName, instance, functionName)
+
+            class_.__EVENTS__ = newEvents
 """
 
 import unittest, traceback, types, weakref, logging
@@ -240,6 +240,15 @@ class BroadcastTests(unittest.TestCase):
         event = self.event.launch.ServicesStarted()
         self.failUnless(isinstance(event, NonBlockingEvent), "Event was not non-blocking by default")
         self.failUnless(event.delayed, "Event did not delay its broadcast")
+
+    def _testExceptionCatching(self):
+        class TestClass:
+            def event_SomeEvent(self):
+                raise Exception, "LogTest"
+
+        instance = TestClass()
+        self.event.Register(instance)
+        self.event.SomeEvent()
 
 
 if __name__ == "__main__":    
