@@ -58,7 +58,7 @@ class ServiceService(Service):
         __builtin__.SendEvent = dom = self.SendEvent
         __builtin__.SendEventNow = dom = self.SendEventNow
 
-        SendEvent('OnServicesStarted')
+        events.launch.ServicesStarted()
 
     def RunPendingServices(self, pendingList):
         self.LogInfo("Starting %d services", len(pendingList))

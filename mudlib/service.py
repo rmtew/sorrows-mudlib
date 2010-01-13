@@ -107,6 +107,12 @@ class Service:
     # ------------------------------------------------------------------------
     # Logging support.
 
+    def LogException(self, *args, **kwargs):
+        if self.logger is None:
+            self.logger = logging.getLogger(self.__sorrows__)
+        
+        self.logger.exception(*args, **kwargs)
+
     def LogInfo(self, *args, **kwargs):
         self.Log(logging.INFO, *args, **kwargs)
 

@@ -8,8 +8,10 @@
 #   their problem.
 #
 
-import os, sys, time, traceback, weakref
+import os, sys, time, weakref, logging
 import threading, Queue
+
+logger = logging.getLogger("reloader")
 
 class ChangeHandler:
     def __init__(self, callback, delay=None, useThread=True):
@@ -52,8 +54,7 @@ class ChangeHandler:
         try:
             self.callback(filePath, added=added, changed=changed, deleted=deleted)
         except:
-            traceback.print_exc()
-            sys.exc_clear()
+            logger.exception()
 
     def ShouldIgnorePathEntry(self, path):
         # By default this concentrates on files, not directories.

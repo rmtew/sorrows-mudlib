@@ -128,9 +128,7 @@ class Intermud3Service(Service):
             try:
                 packet = self.packetClassesByType[packetType](*rawPacket[1:])
             except Exception:
-                self.LogError("BROKEN PACKET %s %s %s", packetType, len(rawPacket), rawPacket[:6])
-                import traceback
-                traceback.print_exc()
+                self.LogException("BROKEN PACKET %s %s %s", packetType, len(rawPacket), rawPacket[:6])
                 return True
 
             if packet.__class__ is intermud3.StartupReplyPacket:

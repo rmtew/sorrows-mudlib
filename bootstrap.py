@@ -47,8 +47,11 @@ def Run():
     cr = reloader.CodeReloader(mode=reloader.MODE_UPDATE)
     cr.AddDirectory("mudlib", mudlibScriptPath)
     cr.AddDirectory("game", gameScriptPath)
-    
+
     import imp, __builtin__
+    from events import EventHandler
+    __builtin__.events = EventHandler()
+
     __builtin__.sorrows = imp.new_module('sorrows')
 
     from mudlib.services import ServiceService

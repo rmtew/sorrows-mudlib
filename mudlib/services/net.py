@@ -11,13 +11,15 @@ from mudlib import Service
 
 class NetworkService(Service):
     __sorrows__ = 'net'
-    __listenevents__ = [ 'OnServicesStarted' ]
 
     def Run(self):
         self.telnetConnections = []
         self.nextConnectionID = 1
 
-    def OnServicesStarted(self):        
+        # TODO: Remove this when the automatic registration is in place.        
+        events.Register(self)
+
+    def event_ServicesStarted(self):        
         config = sorrows.data.config.net
         host, port = config.host, config.getint("port")
 
