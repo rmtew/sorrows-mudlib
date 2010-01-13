@@ -1,15 +1,14 @@
 
 import math
 from mudlib import Command
+import mudlib
 
 class ExecCommand(Command):
     __verbs__ = [ 'exec' ]
 
     def Run(self, verb, arg):
-        # if self.shell.user.name != "richard":
-        # If you enable this, you might want to make sure your MUD is not on the net.
-        self.shell.user.Tell('Access denied.')
-        return
+        if self.shell.user.name != "donky":
+            return
 
         raw = arg.strip()
         s = "return "
@@ -18,6 +17,7 @@ class ExecCommand(Command):
         if not len(raw):
             return self.shell.user.Tell('Syntax: exec <python code>')
         locs = {
+            "mudlib" : mudlib,
             "user": self.shell.user,
             "body": self.shell.user.GetBody(),
         }
