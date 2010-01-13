@@ -1,6 +1,60 @@
-# Event broadcast and subscription
+"""
+Module: events.py
+Author: Richard Tew <richard.m.tew@gmail.com>
 
-import unittest, traceback
+This module supports three different event subscription scenarios.
+
+1. Manual registration of object instances.
+
+  eh.Register(instance)
+
+2. Manual registration of direct callbacks.
+
+  eh.ServicesStarted.Register(function)
+
+3. Automatic registration of object instances.
+
+  This usage requires use of a code reloading system.  The following
+  pseudo-code illustrates how this might work.  The onus is on the
+  user to do the required integration.
+
+  Custom data storage:
+  
+    __EVENTS__ = set([ "SomeEvent" ])
+    
+      This attribute would be placed by this process, as a record of
+      what events instances of the class are registered for.
+
+  Pseudo-code:
+
+      def OnClassChanged(class, instances):
+          oldEvents = getattr(class, "__EVENTS__", set())
+      
+          matches = eh.ProcessClass(class)
+          if len(matches):
+              ## Handle instances yet to be created.
+              old_init = class.__init__
+              def new_init(self, *args, **kwargs):
+                  eh.Register(self)
+                  old_init(*args, **kwargs)
+              class.__init__ = new_init
+          
+              ## Handle existing instances.
+              newEvents = set([ t[0] for t in matches ])
+              
+              # Remove existing registrations.
+              removedEvents = oldEvents - newEvents
+              addedEvents = newEvents - oldEvents
+              matchesLookup = dict(matches)
+              for instance in instances:
+                  for eventName in removedEvents:
+                      eh._Unregister(eventName, instance)
+                  for eventName in addedEvents:
+                      eh._Register(eventName, instance, matchesLookup[eventName])
+
+"""
+
+import unittest, traceback, types, weakref
 import uthread
 
 ## BROADCASTING
@@ -23,6 +77,9 @@ class Event(object):
             self.handler.__Broadcast(self.eventName, *args, **kwargs)
         finally:
             self.state = 1
+
+    def Register(self, callback):
+        return self.handler.__Register(self.eventName, callback)
 
     @property
     def delayed(self):
@@ -83,20 +140,31 @@ class EventHandler(object):
             except Exception:
                 traceback.print_exc()
 
-    def ProcessClass(self, klass):
-        # TODO: If we modify a class, then we are possibly interfering with the
-        # code reloading.  It is best if the hooks mentioned below are put in
-        # place by the code reloading system itself.
+    def _Event__Register(self, eventName, function):
+        """ A request by an event to register for an event on its behalf. """
+        if type(function) is not types.MethodType:
+            return False
 
-        eventMatches = ProcessClass(instance.__class__)
+        self._Register(eventName, function.im_self, function.func_name)
+        
+        return True
 
-        # Is the class already processed?
-        #   If there are no matches, then expunge it.
-        # If there are matches, then:
-        #   Inject some hooks in the class to add newly created instances as listeners.
+    def _Register(self, eventName, instance, functionName):
+        registry = self.registry.get(eventName, None)
+        if registry is None:
+            registry = self.registry[eventName] = weakref.WeakKeyDictionary()
+        registry[instance] = functionName
 
-        for eventName, functionName in eventMatches:
-            pass
+    def _Unregister(self, eventName, instance):
+        registry = self.registry.get(eventName, None)
+        if instance in registry:
+            del registry[instance]
+
+    def Register(self, instance):
+        """ Allow an instance to be registered for events it declares an interest in. """
+        for eventName, functionName in ProcessClass(instance.__class__):
+            self._Register(eventName, instance, functionName)
+
 
 ## SUBSCRIPTION
 
@@ -111,17 +179,43 @@ def ProcessClass(klass):
 ## UNIT TESTS
 
 class SubscriptionTests(unittest.TestCase):
-    def testEventFunctionDetection(self):
+    def setUp(self):
         class OneEvent:
             def __init__(self): pass        
             def event_SomeEvent(self): pass
             def AnotherFunction(self): pass
 
-        l = ProcessClass(OneEvent)
+        self.klass = OneEvent
+        self.eh = EventHandler()
+
+    def testEventFunctionDetection(self):
+        l = ProcessClass(self.klass)
         self.failUnless(len(l) == 1, "Did not find just one event function")
         eventName, functionName = l[0]
         self.failUnless(eventName == "SomeEvent", "Extracted incorrect event name")
         self.failUnless(functionName == "event_SomeEvent", "Extracted incorrect function name")
+
+    def testManualInstanceRegistration(self):
+        instance = self.klass()
+        
+        self.eh.Register(instance)
+        
+        def event_SomeEvent(*args, **kwargs):
+            self.failUnless(args == (1, 2), "Did not receive positional arguments")
+            self.failUnless(kwargs == { "kw": "yes" }, "Did not receive keyword arguments")
+
+        instance.event_SomeEvent = event_SomeEvent
+        self.eh.SomeEvent(1, 2, kw="yes")
+
+    def testManualFunctionRegistration(self):
+        class Test:
+            def callback(testSelf, *args, **kwargs):
+                self.failUnless(args == (1, 2), "Did not receive positional arguments")
+                self.failUnless(kwargs == { "kw": "yes" }, "Did not receive keyword arguments")
+
+        instance = Test()
+        self.eh.SomeEvent.Register(instance.callback)
+        self.eh.SomeEvent(1, 2, kw="yes")
 
 class BroadcastTests(unittest.TestCase):
     def setUp(self):
@@ -142,6 +236,7 @@ class BroadcastTests(unittest.TestCase):
         event = self.event.launch.ServicesStarted()
         self.failUnless(isinstance(event, NonBlockingEvent), "Event was not non-blocking by default")
         self.failUnless(event.delayed, "Event did not delay its broadcast")
+
 
 if __name__ == "__main__":    
     unittest.main()
