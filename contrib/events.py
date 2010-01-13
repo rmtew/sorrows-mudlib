@@ -52,10 +52,14 @@ This module supports three different event subscription scenarios.
                   for eventName in addedEvents:
                       eh._Register(eventName, instance, matchesLookup[eventName])
 
+              class.__EVENTS__ = newEvents
+
 """
 
-import unittest, traceback, types, weakref
+import unittest, traceback, types, weakref, logging
 import uthread
+
+logger = logging.getLogger("events")
 
 ## BROADCASTING
 
@@ -138,7 +142,7 @@ class EventHandler(object):
             try:
                 function(*args, **kwargs)
             except Exception:
-                traceback.print_exc()
+                logger.exception("Error broadcasting '%s' to a subscriber", eventName)
 
     def _Event__Register(self, eventName, function):
         """ A request by an event to register for an event on its behalf. """
