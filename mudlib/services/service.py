@@ -51,13 +51,6 @@ class ServiceService(Service):
             # TODO: Also handle this better?
             self.RunPendingServices(pendingList)
 
-        self.AddEventListener(self)
-
-        # Install the event built-ins.
-        import __builtin__
-        __builtin__.SendEvent = dom = self.SendEvent
-        __builtin__.SendEventNow = dom = self.SendEventNow
-
         events.launch.ServicesStarted()
 
     def RunPendingServices(self, pendingList):
@@ -131,7 +124,6 @@ class ServiceService(Service):
             self.dependenciesByService[svcName2].append(svcName)
 
         self.runningServices[svcName] = svc
-        self.AddEventListener(svc)
 
     def StopService(self, svc):
         svcName = svc.__sorrows__
@@ -143,34 +135,8 @@ class ServiceService(Service):
                 if not len(self.dependenciesByService[svcName2]):
                     del self.dependenciesByService[svcName2]
 
-        self.RemoveEventListener(svc)
         del self.runningServices[svcName]
 
         svc.Stop()
         svc.Unregister()
 
-    # ------------------------------------------------------------------------
-    # Event support.
-
-    def AddEventListener(self, ob):
-        for eventName in getattr(ob, '__listenevents__', []):
-            if not self.listenersByEvent.has_key(eventName):
-                self.listenersByEvent[eventName] = []
-            self.listenersByEvent[eventName].append(ob)
-
-    def RemoveEventListener(self, ob):
-        for eventName in getattr(ob, '__listenevents__', []):
-            self.listenersByEvent[eventName].remove(ob)
-
-    def SendEvent(self, eventName, *args):
-        # No point in sending, if there are no listeners.
-        if eventName in self.listenersByEvent:
-            uthread.new(self.DeliverEvent, eventName, args)
-
-    def SendEventNow(self, eventName, *args):
-        self.DeliverEvent(eventName, args)
-
-    def DeliverEvent(self, eventName, args):
-        for listener in self.listenersByEvent.get(eventName, []):
-            f = getattr(listener, eventName, None)
-            f is not None and f(*args)

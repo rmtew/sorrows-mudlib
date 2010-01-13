@@ -86,25 +86,6 @@ class Service:
 
     # =======================================================================
 
-    def UnpersistData(self, path):
-        try:
-            f = open(path, 'rb')
-            d = cPickle.load(f)
-            f.close()
-        except IOError, e:
-            if e.errno == 2:
-                return {}
-            else:
-                raise
-        return d
-
-    def PersistData(self, path, d):
-        f = open(path, 'wb')
-        cPickle.dump(d, f, 1)
-        f.close()
-
-
-    # ------------------------------------------------------------------------
     # Logging support.
 
     def LogException(self, *args, **kwargs):

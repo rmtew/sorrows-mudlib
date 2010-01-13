@@ -115,9 +115,9 @@ class ScriptFile(object):
             logger.error("Script file '%s' unexpectedly missing a last error", self.filePath)
             return
 
-        logger.error("Error executing script file '%s'", self.filePath)
-        for line in self.lastError:
-            logger.error(line.rstrip("\r\n"))
+        logger.error("Error executing script file '%s'\n%s", self.filePath, "".join(self.lastError).rstrip("\r\n"))
+        # for line in self.lastError:
+        #logger.error(line.rstrip("\r\n"))
 
         if flush:
             self.lastError = None
