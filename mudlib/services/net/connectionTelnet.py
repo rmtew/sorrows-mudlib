@@ -6,6 +6,8 @@ class TelnetConnection(Connection):
     def Setup(self, service, connectionID, echo=False):
         Connection.Setup(self, service, connectionID)
 
+        self.passwordMode = False
+
         self.echo = echo
         self.consoleColumns = 80
         self.consoleRows = 24
@@ -59,6 +61,9 @@ class TelnetConnection(Connection):
         # Notify the service of the disconnection.
         self.service.OnTelnetDisconnection(self)
 
+    def SetPasswordMode(self, flag):
+        self.passwordMode = flag
+
     # -----------------------------------------------------------------------
     # readline
     # -----------------------------------------------------------------------
@@ -91,7 +96,7 @@ class TelnetConnection(Connection):
             for s2 in self.telneg.feed(s):            
                 # This is so not optimal yet, but it is correct which is good for now.
                 for i, c in enumerate(s2):
-                    if self.echo:
+                    if self.echo and not self.passwordMode:
                         if c == '\x08':
                             self.send(c +" ")
                         elif c == '\r' and i == len(s2)-1:

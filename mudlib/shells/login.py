@@ -71,6 +71,7 @@ class LoginShell(Shell):
             self.state = "CreatePassword1"
         elif self.state == "CreatePassword1":
             password = s
+            self.user.Tell("")
             if len(password) < MIN_PASSWORD_SIZE:
                 self.user.Tell("That password is too short.  Minimum length is %d characters." % MIN_PASSWORD_SIZE)
                 return
@@ -81,10 +82,12 @@ class LoginShell(Shell):
             self.state = "CreatePassword2"
         elif self.state == "CreatePassword2":
             password = s
+            self.user.Tell("")
             if password != self.password:
                 self.user.Tell("That password does not match.  Try again.")
                 self.state = "CreatePassword1"
                 return
+
             try:
                 sorrows.users.AddUser(self.userName, self.password)
             except Exception:
@@ -100,8 +103,10 @@ class LoginShell(Shell):
             from mudlib.shells import UserShell
             UserShell().Setup(self.stack)
         elif self.state == "EnterPassword":
+            self.user.Tell("")
             if sorrows.users.CheckPassword(self.userName, s):
                 self.user.name = self.userName
+                self.user.connection.SetPasswordMode(False)
 
                 from mudlib.shells import UserShell
                 UserShell().Setup(self.stack)
@@ -111,4 +116,6 @@ class LoginShell(Shell):
                 self.user.ManualDisconnection()
 
     def WritePrompt(self):
+        if "Password" in self.state:
+            self.user.connection.SetPasswordMode(True)
         return loginPrompts[self.state]
