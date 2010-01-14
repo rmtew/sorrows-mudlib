@@ -55,7 +55,10 @@ class MudConnection(Connection):
         s2 = chr(i % 256) + s2
         i = i >> 8
         s2 = chr(i % 256) + s2
-        self.send(s2 + p)
+        if wait:
+            self.socket.sendall(s2 + p)
+        else:
+            self.socket.send(s2 + p)
 
 
 LPC_NONE = 0

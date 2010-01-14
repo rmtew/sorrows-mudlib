@@ -1,5 +1,5 @@
 # Bootstrapping code.
-import sys, os, stackless, gc, logging
+import sys, os, stackless, gc, logging, traceback
 
 def Run():
     logging.basicConfig(
@@ -29,7 +29,7 @@ def Run():
 
     # Monkey-patch in the stackless-compatible sockets.
     import stacklesssocket
-    import uthread
+    import uthread, uthread2
     stacklesssocket._schedule = uthread.BeNice
     stacklesssocket.install()
 
@@ -64,26 +64,32 @@ def Run():
     
     stackless.getcurrent().block_trap = False
 
-    servicesStopping = True
-    while True:
-        try:
-            try:
-                uthread.Run()
-            except KeyboardInterrupt:
-                print
-                print '** EXITING: Server manually stopping.'
-                print
-        finally:
-            if servicesStopping is True:
-                servicesStopping = 10
-                # Kill the sleeping tasklets remaining.
-                uthread.KillSleepingTasklets()
-                # Tell all the services to stop.
-                uthread.new(sorrows.services.Stop) 
-            elif servicesStopping:
-                servicesStopping -= 1
-            else:
-                break
+    manualShutdown = False
+    try:
+        uthread.Run()
+    except KeyboardInterrupt:
+        print
+        print '** EXITING: Server manually stopping.'
+        print
+        manualShutdown = True
+    finally:
+        cr.EndMonitoring()
+
+    if manualShutdown:
+        class HelperClass:
+            def ShutdownComplete(self):
+                managerTasklet.kill()
+
+        helper = HelperClass()
+        events.ShutdownComplete.Register(helper.ShutdownComplete)
+
+        uthread.new(sorrows.services.Stop)
+        # We have most likely killed the stacklesssocket tasklet.
+        managerTasklet = stacklesssocket.StartManager()
+        uthread.Run()
+
+    logging.info("Shutdown complete")
+
 
 if __name__ == '__main__':
     try:

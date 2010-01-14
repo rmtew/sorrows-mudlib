@@ -222,7 +222,9 @@ def RunNiceTasklets():
     # we start.  This is because some of the tasklets we awaken
     # may BeNice their way back onto the channel.
     n = -yieldChannel.balance
-    while n > 0:
+    # There are occasions where a yielder may disappear, and
+    # 'n' will be incorrect.
+    while n > 0 and yieldChannel.balance:
         yieldChannel.send(None)
         n -= 1
 
@@ -716,7 +718,7 @@ def LockCheck():
             StackTrace()
             sys.exc_clear()
 
-new(LockCheck).context = "uthread::LockCheck"
+# new(LockCheck).context = "uthread::LockCheck"
 
 __uthread__queue__          = None
 def PoolHelper(queue):

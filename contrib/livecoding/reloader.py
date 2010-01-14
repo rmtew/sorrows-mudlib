@@ -46,6 +46,10 @@ class CodeReloader:
         import filechanges
         return filechanges.ChangeHandler(cb, *args, **kwargs)
 
+    def EndMonitoring(self):
+        if self.monitorFileChanges:
+            self.internalFileMonitor = None
+
     # ------------------------------------------------------------------------
     # Directory registration support.
 

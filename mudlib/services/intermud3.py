@@ -41,7 +41,7 @@ class Intermud3Service(Service):
             # Notify the router that we are going down.
             self.LogInfo("Sending shutdown packet to router '%s'", sorrows.data.config.intermud3.routername)
             p = intermud3.ShutdownPacket()
-            self.connection.SendPacket(p)
+            self.connection.SendPacket(p, wait=True)
 
             self.connection.close()
             self.connection = None

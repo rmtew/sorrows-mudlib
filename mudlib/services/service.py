@@ -3,9 +3,6 @@ import types, random, weakref
 import stackless
 import uthread
 
-# Types of events to broadcast:
-# SendEventNow  - Deliver the event to all listeners and block while doing it.
-# SendEvent     - Deliver the event to all listeners in our own time.
 
 class ServiceService(Service):
     __sorrows__ = 'services'
@@ -108,8 +105,8 @@ class ServiceService(Service):
             cnt -= 1
         if not cnt:
             self.LogError("Unable to stop services: %s", self.runningServices.keys())
-        else:
-            self.LogInfo("(held off %d stops due to dependencies in the process, tries left %d)", skips, cnt)
+
+        events.ShutdownComplete()
 
     def StartService(self, svc):
         svcName = svc.__sorrows__
