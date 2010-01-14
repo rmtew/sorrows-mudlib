@@ -203,6 +203,7 @@ def KillSleepingTasklets():
 # Being nice related logic.
 
 yieldChannel = stackless.channel()
+yieldChannel.preference = 1
 
 def BeNice():
     '''
@@ -222,9 +223,7 @@ def RunNiceTasklets():
     # we start.  This is because some of the tasklets we awaken
     # may BeNice their way back onto the channel.
     n = -yieldChannel.balance
-    # There are occasions where a yielder may disappear, and
-    # 'n' will be incorrect.
-    while n > 0 and yieldChannel.balance:
+    while n > 0:
         yieldChannel.send(None)
         n -= 1
 
