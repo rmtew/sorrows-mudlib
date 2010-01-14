@@ -6,13 +6,14 @@ from mudlib import Service
 
 class WWWService(Service):
     __sorrows__ = 'www'
+    __optional__ = True
 
-    def Run(self):
-        address = ('127.0.0.1', 9000)
-        self.LogInfo("Listening on address %s:%s", *address)
+    def Run(self):    
+        stackless.tasklet(self.RunServer)()
 
-        stackless.tasklet(self.RunServer)(address)
+    def RunServer(self):
+        cfg = sorrows.data.config.www
 
-    def RunServer(self, address):
-        self.server = StacklessHTTPServer(address, RequestHandler)
+        self.LogInfo("Listening on address %s:%s", cfg.host, cfg.port)
+        self.server = StacklessHTTPServer((cfg.host, cfg.getint("port")), RequestHandler)
         self.server.serve_forever()

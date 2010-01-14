@@ -1,5 +1,6 @@
 [services]
 i3=0
+www=1
 
 [identity]
 name=Nameless Sorrows - Clone
@@ -20,3 +21,7 @@ routername = *i4
 host = 204.209.44.3
 port = 8080
 reconnectiondelay = 60.0
+
+[www]
+host =
+port = 9000
