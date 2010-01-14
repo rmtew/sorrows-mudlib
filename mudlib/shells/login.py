@@ -1,3 +1,4 @@
+import logging
 from mudlib import InputHandler, Shell
 
 # Enter login name.
@@ -86,9 +87,10 @@ class LoginShell(Shell):
                 return
             try:
                 sorrows.users.AddUser(self.userName, self.password)
-            except:
+            except Exception:
                 self.user.Tell("Someone created an account with that name while you were in the process of creating yours.")
                 self.state = "EnterLoginName"
+                logging.exception("CreatePassword2")
                 return
 
             #self.state = "SelectCharacter"
