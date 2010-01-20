@@ -66,7 +66,7 @@ class ChangeHandler:
             if skipPath in path:
                 return True
 
-        return False
+        return not path.endswith(".py")
 
     def ProcessFileEvents(self):
         self.module.Check(self)
