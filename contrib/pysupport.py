@@ -51,7 +51,7 @@ ListIteratorType = type(iter([]))
                     
 def PrintReferrers(value, indent=2, seen=None, referrers=None, frames=None):
     if indent == 24:
-        print "GAVE UP RECURSION AT", indent
+        print (" " * indent) + "GAVE UP RECURSION AT", indent
         return
 
     # Initialise the recursively passes collections.  Can't do this in the
@@ -99,7 +99,7 @@ def PrintReferrers(value, indent=2, seen=None, referrers=None, frames=None):
             else:
                 print (" " * indent) + "SKIPPED/is-local-frame", hex(id(v)), _SafeRepr(v)
             continue
-        if type(v) in (list, dict, types.FunctionType, types.TypeType, types.ClassType, ListIteratorType):
+        if type(v) in (list, dict, types.FunctionType, types.TypeType, types.ClassType, ListIteratorType, types.InstanceType, tuple):
             PrintReferrers(v, seen=seen, indent=indent+2, referrers=referrers, frames=frames)
         else:
             print (" " * indent) + "VALUE", type(v), v
