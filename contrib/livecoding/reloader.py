@@ -28,12 +28,13 @@ class CodeReloader:
     internalFileMonitor = None
     scriptDirectoryClass = ReloadableScriptDirectory
 
-    def __init__(self, mode=MODE_OVERWRITE, monitorFileChanges=True, fileChangeCheckDelay=None):
+    def __init__(self, mode=MODE_UPDATE, monitorFileChanges=True, fileChangeCheckDelay=None):
         self.mode = mode
         self.monitorFileChanges = monitorFileChanges
 
         self.directoriesByPath = {}
         self.leakedAttributes = {}
+        self.classUpdateCallback = None
 
         if monitorFileChanges:
             # Grabbing a weakref to a method of this instance requires me to
@@ -49,6 +50,12 @@ class CodeReloader:
     def EndMonitoring(self):
         if self.monitorFileChanges:
             self.internalFileMonitor = None
+
+    def SetClassUpdateCallback(self, ob):
+        if type(ob) is types.MethodType:
+            self.classUpdateCallback = (weakref.proxy(ob.im_self), ob.func_name)
+        elif type(ob) is types.FunctionType:
+            self.classUpdateCallback = weakref.proxy(ob)
 
     # ------------------------------------------------------------------------
     # Directory registration support.
@@ -267,13 +274,13 @@ class CodeReloader:
         if value is None:
             value = newValue
 
-        logger.debug("Updating class %s, %s", value, id(value))
+        logger.debug("Updating class %s:%s from %s:%s", value, hex(id(value)), newValue, hex(id(newValue)))
 
         for attrName, attrValue in newValue.__dict__.iteritems():
             if isinstance(attrValue, types.FunctionType):
-                newAttrValue = RebindFunction(attrValue, globals_)
+                attrValue = RebindFunction(attrValue, globals_)
             elif isinstance(attrValue, types.UnboundMethodType) or isinstance(attrValue, types.MethodType):
-                newAttrValue = RebindFunction(attrValue.im_func, globals_)
+                attrValue = RebindFunction(attrValue.im_func, globals_)
             else:
                 # __doc__: On new-style classes, this cannot be overwritten.
                 # __dict__: This makes no sense to overwrite.
@@ -282,13 +289,22 @@ class CodeReloader:
                 if attrName in ("__doc__", "__dict__", "__module__", "__weakref__"):
                     continue
 
-                if value is not newValue:
-                    newAttrValue = attrValue
-                else:
+                if value is newValue:
                     continue
 
             logger.debug("setting %s %s", attrName, attrValue)
             setattr(value, attrName, attrValue)
+
+        if self.classUpdateCallback:
+            try:
+                if type(self.classUpdateCallback) is tuple:
+                    getattr(self.classUpdateCallback[0], self.classUpdateCallback[1])(value)
+                else:
+                    self.classUpdateCallback(value)
+            except ReferenceError:
+                self.classUpdateCallback = None
+            except Exception:
+                logger.exception("Error broadcasting class update")
 
     # ------------------------------------------------------------------------
     # Leaked attribute support

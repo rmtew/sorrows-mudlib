@@ -30,6 +30,10 @@ class ScriptFile(object):
         if implicitLoad:
             self.Load(filePath)
 
+    def __del__(self):
+        self.scriptGlobals.clear()
+        # print "GC", self.namespacePath, self.filePath, hex(id(self.scriptGlobals))
+
     def __repr__(self):
         return "<ScriptFile filePath='%s' namespacePath='%s'>" % (self.filePath, self.namespacePath)
 
