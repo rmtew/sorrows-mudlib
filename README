@@ -8,17 +8,11 @@ mudlib, but much cleaner).  This is the currect implementation.
 
 It was originally written for a mud called Nameless Sorrows.
 
--- QUICK ADDITIONS -------------------------------------------
-
-The Intermud service is not fully working and needs some fixes still.
-
-The OpenCyc suuport sill requires fixes.
-
 -- GETTING STARTED -------------------------------------------
 
 In order to run this, it should be sufficient to have installed:
 
-	Python 2.5.2
+	Python 2.6.4
 		http://www.python.org
 	Stackless Python dll and lib replacements for Python 2.5.2
 		http://www.stackless.com
@@ -39,25 +33,32 @@ Open a console in this directory and type:
 Or if python is not in your path, something like:
 
 	"PATH TO PYTHON\python" bootstrap.py
-	e.g. "c:\program files\python23\python" bootstrap.py
+	e.g. "c:\python26\python.exe" bootstrap.py
 
 Then, given a successful start-up, you should see something like:
 
-    D:\SVN\_personal\sorrows\trunk>c:\Python25\python.exe bootstrap.py
-    STARTING sorrows.services
-    Starting sorrows.net
-    Starting sorrows.rules
-    Starting sorrows.commands
-    Starting sorrows.data
-    Starting sorrows.users
-    Starting sorrows.world
-    Starting sorrows.worldVoid
-    Starting sorrows.worldMap2D
-    WorldMap2D: Read map "map.txt", 40x40
-    Starting sorrows.entity2
-    Starting sorrows.entityVoid
-    (held off 2 starts due to dependencies in the process, tries left 20 )
-    STARTED sorrows.services
+    D:\SVN\_personal\sorrows\trunk>c:\Python26\python.exe bootstrap.py
+    2010-01-21 15:24:43;namespace;INFO;Creating namespace 'mudlib'
+    ...
+    2010-01-21 15:24:44;reloader;INFO;Added 'D:\SVN\_googlecode\sorrows-mudlib\mudlib' into 'mudlib'
+    2010-01-21 15:24:44;reloader;INFO;Monitoring file changes for 'D:\SVN\_googlecode\sorrows-mudlib\mudlib'
+    2010-01-21 15:24:44;namespace;INFO;Creating namespace 'game'
+    ...
+    2010-01-21 15:24:44;reloader;INFO;Added 'D:\SVN\_googlecode\sorrows-mudlib\games\room - simple' into 'game'
+    2010-01-21 15:24:44;reloader;INFO;Monitoring file changes for 'D:\SVN\_googlecode\sorrows-mudlib\games\room - simple'
+    2010-01-21 15:24:44;services;INFO;Starting 6 required services
+    2010-01-21 15:24:44;services;INFO;Starting sorrows.net
+    2010-01-21 15:24:44;services;INFO;Starting sorrows.rules
+    2010-01-21 15:24:44;services;INFO;Starting sorrows.commands
+    2010-01-21 15:24:44;commands;INFO;15 command classes located
+    ...
+    2010-01-21 15:24:44;services;INFO;Starting sorrows.data
+    2010-01-21 15:24:44;services;INFO;Starting sorrows.users
+    2010-01-21 15:24:44;services;INFO;Starting sorrows.world
+    2010-01-21 15:24:44;services;INFO;Starting 1 optional services
+    2010-01-21 15:24:44;services;INFO;Starting sorrows.www
+    2010-01-21 15:24:44;www;INFO;Listening on address :9000
+    2010-01-21 15:24:44;net;INFO;Listening on address :3000
 
 The next step is to log in.
 
@@ -68,71 +69,16 @@ Now you should have a telnet window in which you are greeted by
 output from the MUD server.  Enter a name and a password to get
 to the command prompt:
 
-    Nameless Sorrows 4.0
+    Nameless Sorrows
     Enter 'quit' or 'q' at any time during the login process to disconnect.
-    
+
     Login name: richard
     Creating a new account with the name 'richard'.
-    Password: <censored>
-    Password (again): <censored>
+    Password:
+    Password (again):
     You are logged in as "richard".
-    > commands
-    Available commands:
-      shutdown
-      rehash
-      commands
-      e
-      look
-      exec
-      python
-      l
-      who
-      sw
-      ne
-      n
-      start
-      s
-      cheight
-      w
-      world
-      say
-      se
-      nw
     >
 
 To shutdown the MUD server, you can either enter 'shutdown' at the
 telnet command prompt or you can press control-c in the MUD server
 console window.
-
-See doc/PASTE-SCRIPTS for some additional information.
-
--- EXPERIMENTAL ----------------------------------------------
-
-Simulation:
-
-    There is a simple simulation involving a baker, a miller
-    and a farmer.  This is based in the world model provided
-    by the 'worldVoid' service which is an infinite 2D void.
-    To get this working paste the contents of the PASTE-SCRIPTS
-    file in the telnet window after you have logged in with a
-    user name and password.  But note that the simulation
-    output is written to the server console window, not the
-    telnet window.
-
-Inference engine:
-
-    The Python bindings to the OpenCyc inference engine are
-    included in the source code and are linked into the MUD
-    server.  If a version of the OpenCyc engine is running
-    on the local host, it will be connected to and can be
-    used if you know what you are doing.
-
--- LOST AND FOUND  -------------------------------------------
-
-The original world model gave the player a ANSI coloured view
-of a 2D map from some included text files.  However, some of
-the files have gone missing breaking this world model which
-is (was) provided by the 'worldMap2D' service.
-
---------------------------------------------------------------
-
