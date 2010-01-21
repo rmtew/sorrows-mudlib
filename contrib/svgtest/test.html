@@ -1,0 +1,70 @@
+<!DOCTYPE HTML>
+<!-- PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd" -->
+<html>
+<head>
+
+<title>SVG Prototype</title>
+
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
+
+<style type="text/css">
+#svgarea {
+	position:absolute;
+	top: 75px;
+	left: 40px;
+	bottom: 60px;
+	right: 14px;
+
+	background-color: #A0A0A0;
+	overflow-x: scroll;
+	overflow-y: scroll;
+	width: 640px;
+	height: 480px;
+}
+
+#svgcontrols {
+	display: absolute;
+	position:absolute;
+	top: 75px;
+	bottom: 60px;
+	right: 0px;
+	width: 2px;
+	padding: 10px;
+}
+</style>
+
+<script type="text/javascript">
+function onloadf() {
+  var svgContainer = document.getElementById("svgarea");
+
+  var svgns = "http://www.w3.org/2000/svg";
+  var xlinkns = "http://www.w3.org/1999/xlink";
+  var svgroot = document.createElementNS(svgns, "svg");
+  svgroot.setAttribute("xwidth", 640);
+  svgroot.setAttribute("xheight", 480);
+  svgroot.setAttribute("id", "svgroot");
+  svgroot.setAttribute("xmlns", svgns);
+  svgContainer.appendChild(svgroot);
+
+  var svgElement = document.createElementNS(svgns, "rect");
+  svgElement.setAttribute('id', 'element2');
+  svgElement.setAttribute('width', '200');
+  svgElement.setAttribute('height', '200');
+  svgElement.setAttribute('x', '400');
+  svgElement.setAttribute('y', '100');
+  svgElement.setAttribute('fill', 'yellow');
+  svgElement.setAttribute('stroke', 'navy');
+  svgElement.setAttribute('stroke-width', '10');
+  svgroot.appendChild(svgElement);
+}
+</script>
+</head>
+
+<body onload="onloadf();">
+
+<div id="svgarea"></div>
+
+<div id="svgcontrols">XXX</div>
+
+</body>
+</html>
