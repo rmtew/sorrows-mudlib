@@ -7,12 +7,12 @@ def OnClassAddition(class_):
     print "CREATE", class_
 
 def OnClassUpdate(class_):
-    print "UPDATE", class_
-    for instance in gc.get_referrers(class_):
-        if not isinstance(instance, class_):
-            continue
-
-        print "FOUND INSTANCE", instance
+    #import pysupport
+    gc.collect()
+    for instanceClass, instances in pysupport.FindInstances(class_).iteritems():
+        print "FOUND INSTANCES", instanceClass, instances
+        # for instance in instances:
+        #    pysupport.PrintReferrers(instance)
 
 
 def Run():

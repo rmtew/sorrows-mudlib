@@ -11,22 +11,7 @@ class UserService(Service):
     def Run(self):
         self.table = sorrows.data.store.users
 
-    def UserExists(self, userName):
-        matches = self.table.Lookup("userName", userName, transform=lambda s: s.lower())
-        return len(matches)
-
-    def CheckPassword(self, userName, password):
-        matches = self.table.Lookup("userName", userName, transform=lambda s: s.lower())
-        user = matches[0]
-        return user.passwordHash == self.Hash(password, user.passwordSalt)
-
-    def Hash(self, password, salt):
-        m = hashlib.sha1()
-        m.update(password)
-        m.update(salt)
-        return m.hexdigest()
-
-    def AddUser(self, userName, password):
+    def Add(self, userName, password):
         if self.UserExists(userName):
             raise RuntimeError("AddUserExists")
 
@@ -36,3 +21,23 @@ class UserService(Service):
         row.passwordHash = self.Hash(password, row.passwordSalt)
         
         return row
+
+    def Get(self, userName):
+        matches = self.table.Lookup("userName", userName, transform=lambda s: s.lower())
+        if len(matches):
+            if len(matches) > 1:
+                self.LogError("Found more than one user by the name 'userName'", userName)
+            return matches[0]
+
+    def UserExists(self, userName):
+        return self.Get(userName) is not None
+
+    def CheckPassword(self, userName, password):
+        user = self.Get(userName)
+        return user.passwordHash == self.Hash(password, user.passwordSalt)
+
+    def Hash(self, password, salt):
+        m = hashlib.sha1()
+        m.update(password)
+        m.update(salt)
+        return m.hexdigest()

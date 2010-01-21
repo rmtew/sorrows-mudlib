@@ -45,7 +45,7 @@ class LoginShell(Shell):
 
         handler = InputHandler()
         handler.Setup(self, self.ReceiveInput, self.WritePrompt, 0)
-        self.stack.Push(handler)
+        self.stack.SetShell(handler)
 
     def ExecuteCommand(self):
         s = self.raw.strip()
@@ -89,7 +89,7 @@ class LoginShell(Shell):
                 return
 
             try:
-                sorrows.users.AddUser(self.userName, self.password)
+                sorrows.users.Add(self.userName, self.password)
             except Exception:
                 self.user.Tell("Someone created an account with that name while you were in the process of creating yours.")
                 self.state = "EnterLoginName"

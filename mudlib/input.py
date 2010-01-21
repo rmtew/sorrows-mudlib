@@ -11,19 +11,20 @@ class InputHandler:
         self.shell.OnRemovalFromStack()
         self.shell = None
 
+
 class InputStack:
     def Setup(self, user):
         self.user = user
         self.stack = []
+
         # Default to the login shell (they have to login first!).
         from mudlib.shells import LoginShell
-        self.shell = LoginShell()
-        self.shell.Setup(self)
+        shell = LoginShell()
+        shell.Setup(self)
 
     def Release(self):
         self.user = None
         self.stack = []
-        self.shell = None
 
     def Push(self, handler):
         if isinstance(handler, InputHandler):
