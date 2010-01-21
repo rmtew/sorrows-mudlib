@@ -1,4 +1,5 @@
 import string
+import mudlib
 from mudlib import Shell, InputHandler
 
 class PythonShell(Shell):
@@ -12,6 +13,7 @@ class PythonShell(Shell):
         self.globalDict = d = {}
         d["_"] = None
         d["user"] = self.user
+        d["mudlib"] = mudlib
         if self.user.body is not None:
             d["body"] = self.user.body
             d["world"] = self.user.body.service

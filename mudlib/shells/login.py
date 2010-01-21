@@ -98,18 +98,13 @@ class LoginShell(Shell):
 
             #self.state = "SelectCharacter"
 
-            self.user.name = self.userName
-
-            from mudlib.shells import UserShell
-            UserShell().Setup(self.stack)
+            self.EnterGame()
         elif self.state == "EnterPassword":
             self.user.Tell("")
             if sorrows.users.CheckPassword(self.userName, s):
-                self.user.name = self.userName
                 self.user.connection.SetPasswordMode(False)
 
-                from mudlib.shells import UserShell
-                UserShell().Setup(self.stack)
+                self.EnterGame()
             elif self.guessAttempts > 1:
                 self.guessAttempts -= 1
             else:
@@ -119,3 +114,12 @@ class LoginShell(Shell):
         if "Password" in self.state:
             self.user.connection.SetPasswordMode(True)
         return loginPrompts[self.state]
+
+    def EnterGame(self):
+        self.user.name = self.userName
+
+        # Place the newly connected user in the game world.
+        sorrows.world.AddUser(self.user)
+
+        from mudlib.shells import UserShell
+        UserShell().Setup(self.stack)

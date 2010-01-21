@@ -1,6 +1,20 @@
 # Bootstrapping code.
 import sys, os, stackless, gc, logging, traceback
 
+# TODO: Not getting class creation events yet.
+
+def OnClassAddition(class_):
+    print "CREATE", class_
+
+def OnClassUpdate(class_):
+    print "UPDATE", class_
+    for instance in gc.get_referrers(class_):
+        if not isinstance(instance, class_):
+            continue
+
+        print "FOUND INSTANCE", instance
+
+
 def Run():
     logging.basicConfig(
         level=logging.DEBUG,
@@ -41,23 +55,26 @@ def Run():
     # Register the mudlib and game script directories with the livecoding
     # module.  This will compile and execute them all.
     import reloader
-    gameScriptPath = os.path.join(dirPath, "game - example")
+    gamePath = os.path.join("games", "room - simple")
+    gameScriptPath = os.path.join(dirPath, gamePath)
     mudlibScriptPath = os.path.join(dirPath, "mudlib")
 
     cr = reloader.CodeReloader(mode=reloader.MODE_UPDATE)
+    # Register for code reloading updates of managed classes.
+    # Broadcast an event when we receive an update.
+    cr.SetClassUpdateCallback(OnClassUpdate)
     cr.AddDirectory("mudlib", mudlibScriptPath)
     cr.AddDirectory("game", gameScriptPath)
 
     import imp, __builtin__
     from events import EventHandler
     __builtin__.events = EventHandler()
-
     __builtin__.sorrows = imp.new_module('sorrows')
 
     from mudlib.services import ServiceService
     svcSvc = ServiceService()
-    svcSvc.gameScriptPath = "game - example"
-    svcSvc.gameDataPath = os.path.join("game - example", "data")
+    svcSvc.gameScriptPath = gamePath
+    svcSvc.gameDataPath = os.path.join(gamePath, "data")
     svcSvc.Register()
     svcSvc.Start()
     del svcSvc

@@ -36,6 +36,7 @@ class ServiceService(Service):
                     pendingList.append(v)
 
         # Start the obligatory services.
+        self.LogInfo("Starting %d required services", len(pendingList))
         if not self.RunPendingServices(pendingList):
             # TODO: Handle this better?
             return
@@ -46,13 +47,12 @@ class ServiceService(Service):
         pendingList = [ v for v in optionalList if services.getint(v.__sorrows__, False) ]
         if len(pendingList):
             # TODO: Also handle this better?
+            self.LogInfo("Starting %d optional services", len(pendingList))
             self.RunPendingServices(pendingList)
 
         events.launch.ServicesStarted()
 
     def RunPendingServices(self, pendingList):
-        self.LogInfo("Starting %d services", len(pendingList))
-
         lastDependencyIndex = None
         retryCount = 0
         while len(pendingList):
