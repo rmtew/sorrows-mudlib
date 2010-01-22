@@ -15,18 +15,28 @@ def FindSubclasses(class_, inclusive=False):
     if inclusive:
         subclasses.append(class_)
 
-    for v in gc.get_referrers(class_):
-        if type(v) is tuple and class_ in v:
-            rclass_ = ReferringClass(v)
-            subclasses.append(rclass_)
-            if rclass_ is not None:
-                subclasses.extend(FindSubclasses(rclass_))
+    if type(class_) is types.TypeType:
+        # New-style classes.
+        candidates = [ class_ ]
+        while len(candidates):
+            l = candidates.pop().__subclasses__()
+            subclasses.extend(l)
+            candidates.extend(l)
+    else:
+        # Old-style classes.
+        for v in gc.get_referrers(class_):
+            if type(v) is tuple and class_ in v:
+                rclass_ = ReferringClass(v)
+                subclasses.append(rclass_)
+                if rclass_ is not None:
+                    subclasses.extend(FindSubclasses(rclass_))
+
     return subclasses
 
 def FindInstances(class_):
     instances = {}
     for v in gc.get_referrers(class_):
-        if type(v) is types.InstanceType and isinstance(v, class_):
+        if isinstance(v, class_):
             if class_ not in instances:
                 instances[class_] = []
             instances[class_].append(v)
@@ -107,7 +117,7 @@ def PrintReferrers(value, indent=2, seen=None, referrers=None, frames=None):
 
 ## UNIT TESTS FOLLOW
 
-class InstanceTests(unittest.TestCase):
+class OldStyleTests(unittest.TestCase):
     def setUp(self):
         class ClassOfInterest:
             pass
@@ -138,6 +148,45 @@ class InstanceTests(unittest.TestCase):
         self.failUnless(self.ic.__class__ in l, "IndirectClass instance not found")
 
     def testFindInstances(self):
+        d = FindInstances(self.coi.__class__)
+        self.failUnless(len(d) == 4, "Not enough entries")
+        self.failUnless(self.coi.__class__ in d and len(d[self.coi.__class__]) == 1, "ClassOfInterest instance not found")
+        self.failUnless(self.sic.__class__ in d and len(d[self.sic.__class__]) == 1, "SingleInheritingClass instance not found")
+        self.failUnless(self.mic.__class__ in d and len(d[self.mic.__class__]) == 1, "MultiInheritingClass instance not found")
+        self.failUnless(self.ic.__class__ in d and len(d[self.ic.__class__]) == 1, "IndirectClass instance not found")
+
+
+class NewStyleTests(unittest.TestCase):
+    def setUp(self):
+        class ClassOfInterest(object):
+            pass
+
+        class SomeOtherClass(object):
+            pass
+
+        class SingleInheritingClass(ClassOfInterest):
+            pass
+
+        class MultiInheritingClass(SomeOtherClass, ClassOfInterest):
+            pass
+
+        class IndirectClass(MultiInheritingClass):
+            pass
+
+        self.coi = ClassOfInterest()
+        self.sic = SingleInheritingClass()
+        self.soc = SomeOtherClass()
+        self.mic = MultiInheritingClass()
+        self.ic = IndirectClass()
+
+    def testFindSubclasses(self):
+        l = FindSubclasses(self.coi.__class__)
+        self.failUnless(len(l) == 3, "Failed to locate the subclasses")
+        self.failUnless(self.sic.__class__ in l, "SingleInheritingClass instance not found")
+        self.failUnless(self.mic.__class__ in l, "MultiInheritingClass instance not found")
+        self.failUnless(self.ic.__class__ in l, "IndirectClass instance not found")
+
+    def xtestFindInstances(self):
         d = FindInstances(self.coi.__class__)
         self.failUnless(len(d) == 4, "Not enough entries")
         self.failUnless(self.coi.__class__ in d and len(d[self.coi.__class__]) == 1, "ClassOfInterest instance not found")
