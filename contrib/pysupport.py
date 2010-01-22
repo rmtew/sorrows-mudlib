@@ -33,17 +33,14 @@ def FindSubclasses(class_, inclusive=False):
 
     return subclasses
 
-def FindInstances(class_):
+def FindInstances(class_, inclusive=True):
     instances = {}
-    for v in gc.get_referrers(class_):
-        if isinstance(v, class_):
-            if class_ not in instances:
-                instances[class_] = []
-            instances[class_].append(v)
-        elif type(v) is tuple and class_ in v:
-            rclass_ = ReferringClass(v)
-            if rclass_ is not None:
-                instances.update(FindInstances(rclass_))
+    for subclass in FindSubclasses(class_, inclusive):
+        for referrer in gc.get_referrers(subclass):
+            if isinstance(referrer, subclass):
+                if subclass not in instances:
+                    instances[subclass] = []
+                instances[subclass].append(referrer)
     return instances
 
 
@@ -186,7 +183,7 @@ class NewStyleTests(unittest.TestCase):
         self.failUnless(self.mic.__class__ in l, "MultiInheritingClass instance not found")
         self.failUnless(self.ic.__class__ in l, "IndirectClass instance not found")
 
-    def xtestFindInstances(self):
+    def testFindInstances(self):
         d = FindInstances(self.coi.__class__)
         self.failUnless(len(d) == 4, "Not enough entries")
         self.failUnless(self.coi.__class__ in d and len(d[self.coi.__class__]) == 1, "ClassOfInterest instance not found")
