@@ -59,7 +59,7 @@ def Run():
     gameScriptPath = os.path.join(dirPath, gamePath)
     mudlibScriptPath = os.path.join(dirPath, "mudlib")
 
-    cr = reloader.CodeReloader(mode=reloader.MODE_UPDATE)
+    cr = reloader.CodeReloader()
     # Register for code reloading updates of managed classes.
     # Broadcast an event when we receive an update.
     cr.SetClassUpdateCallback(OnClassUpdate)
