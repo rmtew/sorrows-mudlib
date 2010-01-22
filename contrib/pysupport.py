@@ -37,7 +37,13 @@ def FindInstances(class_, inclusive=True):
     instances = {}
     for subclass in FindSubclasses(class_, inclusive):
         for referrer in gc.get_referrers(subclass):
-            if isinstance(referrer, subclass):
+            # This will choke on frames, lists and so forth.
+            try:
+                isInstance = isinstance(referrer, subclass)
+            except Exception:
+                continue
+
+            if isInstance:
                 if subclass not in instances:
                     instances[subclass] = []
                 instances[subclass].append(referrer)
