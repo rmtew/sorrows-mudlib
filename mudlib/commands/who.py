@@ -1,6 +1,6 @@
-from mudlib import Command
+from mudlib import PlayerCommand
 
-class Who(Command):
+class Who(PlayerCommand):
     __verbs__ = [ 'who' ]
 
     def Run(self, verb, arg):

@@ -1,22 +1,6 @@
 import string
 from mudlib import Shell, InputHandler
 
-class UserShell(Shell):
-    def Setup(self, stack):
-        Shell.Setup(self, stack)
-        handler = InputHandler()
-        handler.Setup(self, self.ReceiveInput, self.WritePrompt, 0)
-        self.stack.SetShell(handler)
-        self.currentDirectory = (None, None) # parent, current
-        self.user.Tell('You are logged in as "'+ self.user.name +'".')
-
-    def ExecuteCommand(self):
-        # Ignore sent carriage returns.
-        if len(self.raw) == 0:
-            return
-
-        try:
-            verb = string.lower(self.verb)
 ##            if verb == "tell":
 ##                bits = self.arg.split(' ')
 ##                lname = bits[0].lower()
@@ -26,15 +10,45 @@ class UserShell(Shell):
 ##                        self.user.Tell('You tell '+ user.name +': '+ ''.join(bits[1:]))
 ##                        return
 ##                self.user.Tell('There is no "'+ lname +'" logged in.')
-            if verb == "quit":
+
 ##                for user in self.user.connection.manager.room.players:
 ##                    prefix = self.user.name +' leaves '
 ##                    if user == self.user:
 ##                        prefix = 'You leave '
 ##                    user.Tell(prefix +'the game.')
 ##                raise QuitException()
+
+class GameShell(Shell):
+    __access__ = [ "player" ]
+
+    def Setup(self, stack):
+        Shell.Setup(self, stack)
+
+        handler = InputHandler()
+        handler.Setup(self, self.ReceiveInput, self.WritePrompt, 0)
+
+        self.stack.SetShell(handler)
+
+        # Place the newly connected user in the game world.
+        sorrows.world.AddUser(self.user)
+
+        self.currentDirectory = (None, None) # parent, current
+        self.user.Tell('You are logged in as "'+ self.user.name +'".')
+
+    def OnRemovalFromStack(self):
+        sorrows.world.RemoveUser(self.user)
+        Shell.OnRemovalFromStack(self)
+
+    def ExecuteCommand(self):
+        # Ignore sent carriage returns.
+        if len(self.raw) == 0:
+            return
+
+        try:
+            verb = string.lower(self.verb)
+            if verb == "quit":
                 self.user.ManualDisconnection()
-            elif not sorrows.commands.Execute(self, verb, self.arg):
+            elif not self._ExecuteCommand(verb, self.arg):
                 self.user.Tell('What?')
         except Exception:
             self.user.Tell("An exception occured.")
@@ -44,6 +58,11 @@ class UserShell(Shell):
                 for line in tb.split('\n'):
                     self.user.Tell(line +"\r")
 
+    def _ExecuteCommand(self, verb, argString):
+        return sorrows.commands.Execute(self, verb, argString, self.__access__)
+
     def WritePrompt(self):
         return '> '
 
+class DeveloperGameShell(GameShell):
+    __access__ = GameShell.__access__ + [ "developer" ]

@@ -59,6 +59,9 @@ class TelnetConnection(Connection):
 
     def OnDisconnection(self):
         # Notify the service of the disconnection.
+        self.user.OnTelnetDisconnection()
+        self.user = None
+
         self.service.OnTelnetDisconnection(self)
 
     def SetPasswordMode(self, flag):

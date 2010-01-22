@@ -1,6 +1,6 @@
-from mudlib import Command
+from mudlib import DeveloperCommand
 
-class Shutdown(Command):
+class Shutdown(DeveloperCommand):
     __verbs__ = [ 'shutdown' ]
 
     def Run(self, verb, arg):

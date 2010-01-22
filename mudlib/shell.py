@@ -5,6 +5,9 @@ class Shell:
         self.stack = stack
         self.user = stack.user
 
+    def OnRemovalFromStack(self):
+        pass
+
     def ReceiveInput(self, s):
         # Break the input down to the verb and arguments.
         self.raw = s
@@ -23,7 +26,4 @@ class Shell:
         raise NameError, 'ExecuteCommand not found in the inheriting shell object'
 
     def Broadcast(self, msg):
-        pass
-
-    def OnRemovalFromStack(self):
         pass

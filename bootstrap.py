@@ -7,7 +7,7 @@ def OnClassAddition(class_):
     print "CREATE", class_
 
 def OnClassUpdate(class_):
-    #import pysupport
+    import pysupport
     gc.collect()
     for instanceClass, instances in pysupport.FindInstances(class_).iteritems():
         print "FOUND INSTANCES", instanceClass, instances

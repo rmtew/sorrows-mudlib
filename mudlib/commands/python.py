@@ -1,13 +1,8 @@
-from mudlib import Command
+from mudlib import DeveloperCommand
 
-class Python(Command):
+class Python(DeveloperCommand):
     __verbs__ = [ 'python' ]
 
     def Run(self, verb, arg):
-        if True or self.shell.user.name != "donky":
-            # If you enable this, you might want to make sure your MUD is not on the net.
-            self.shell.user.Tell('Access denied.')
-            return
-
         from mudlib.shells import PythonShell
         PythonShell().Setup(self.shell.stack)

@@ -1,6 +1,6 @@
-from mudlib import Command
+from mudlib import DeveloperCommand
 
-class Rehash(Command):
+class Rehash(DeveloperCommand):
     __verbs__ = [ 'rehash' ]
 
     def Run(self, verb, arg):

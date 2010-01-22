@@ -12,6 +12,9 @@ class User:
         self.body = None
         self.properties = {}
 
+    def OnTelnetDisconnection(self):
+        self.inputstack.Release()
+
     def __nonzero__(self):
         "The user object is still valid if its connection is."
         return not self.connection.released

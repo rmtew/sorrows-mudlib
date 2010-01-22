@@ -1,6 +1,6 @@
-from mudlib import Command
+from mudlib import PlayerCommand
 
-class WorldCommand(Command):
+class WorldCommand(PlayerCommand):
     def GetWorldService(self):
         svcName = self.shell.user.worldServiceName
         if svcName is None:

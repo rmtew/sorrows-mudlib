@@ -1,16 +1,12 @@
 
 import math
-from mudlib import Command
+from mudlib import DeveloperCommand
 import mudlib
 
-class ExecCommand(Command):
+class ExecCommand(DeveloperCommand):
     __verbs__ = [ 'exec' ]
 
     def Run(self, verb, arg):
-        if True or self.shell.user.name != "donky":
-            self.shell.user.Tell('Access denied.')
-            return
-
         raw = arg.strip()
         s = "return "
         if raw.startswith(s):

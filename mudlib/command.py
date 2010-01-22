@@ -1,3 +1,4 @@
+
 class Command:
     def __init__(self, shell):
         self.shell = shell
@@ -7,3 +8,10 @@ class Command:
 
     def Run(self, verb, argString):
         pass
+
+
+class PlayerCommand(Command):
+    pass
+    
+class DeveloperCommand(Command):
+    pass

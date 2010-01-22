@@ -118,8 +118,5 @@ class LoginShell(Shell):
     def EnterGame(self):
         self.user.name = self.userName
 
-        # Place the newly connected user in the game world.
-        sorrows.world.AddUser(self.user)
-
-        from mudlib.shells import UserShell
-        UserShell().Setup(self.stack)
+        from mudlib.shells import GameShell
+        GameShell().Setup(self.stack)

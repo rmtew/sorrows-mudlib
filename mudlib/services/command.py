@@ -1,58 +1,74 @@
 import pysupport
-from mudlib import Service, Command
+from mudlib import Service, PlayerCommand, DeveloperCommand
 
 class CommandService(Service):
     __sorrows__ = 'commands'
 
     def Run(self):
-        self.verbs = {}
         self.dynamicVerbs = {}
 
         self.Rehash()
 
     def Rehash(self):
-        l = pysupport.FindSubclasses(Command, inclusive=True)
-        self.LogInfo("%d command classes located", len(l))
-        
-        import gc, sys
-        gc.collect()
-        self.verbs = {}
-        for class_ in l:
-            if class_.__module__ == "__builtin__":
-                try:
-                    print "THE LEAKED CODE RELOADING CLASSES ARE BACK"
-                    pysupport.PrintReferrers(class_)
-                except Exception:
-                    import traceback
-                    traceback.print_exc()
-                continue
+        def CheckLeakedClass(class_):
+            if class_.__module__ != "__builtin__":
+                return False
 
-            for verb in getattr(class_, '__verbs__', []):
-                if self.verbs.has_key(verb):
-                    self.LogWarning('Duplicate command %s', verb)
-                    continue
+            import gc, sys
+            gc.collect()
+            try:
+                print "THE LEAKED CODE RELOADING CLASSES ARE BACK"
+                pysupport.PrintReferrers(class_)
+            except Exception:
+                import traceback
+                traceback.print_exc()
 
-                self.LogInfo("Command '%s' registered (no access levels yet)", verb)
-                self.verbs[verb] = class_
+            return True            
+
+        self.playerCommands = {}
+        self.developerCommands = {}
+        playerTuple = (pysupport.FindSubclasses(PlayerCommand), self.playerCommands, "player")
+        developerTuple = (pysupport.FindSubclasses(DeveloperCommand), self.developerCommands, "developer")
+        for locatedClasses, verbIndex, label in (playerTuple, developerTuple):
+            self.LogInfo("%d %s commands located", len(locatedClasses), label)
+            for class_ in locatedClasses:
+                for verb in getattr(class_, '__verbs__', []):
+                    if verbIndex.has_key(verb):
+                        self.LogWarning('Duplicate command %s', verb)
+                        continue
+
+                    self.LogInfo("Command '%s' registered (%s)", verb, label)
+                    verbIndex[verb] = class_
 
     def RegisterDynamicCommand(self, verb, handler):
         self.LogInfo("Dynamic command '%s' registered (no access levels yet)", verb)
         self.dynamicVerbs[verb] = handler
 
-    def Execute(self, shell, verb, argString):
-        class_ = self.verbs.get(verb, None)
-        if class_ is None:
-            class_ = self.dynamicVerbs.get(verb, None)
+    def Execute(self, shell, verb, argString, accessTypes):
+        class_ = None
+        if "developer" in accessTypes:
+            class_ = self.developerCommands.get(verb, None)
+        if "player" in accessTypes:
+            if class_ is None:
+                class_ = self.playerCommands.get(verb, None)
+            if class_ is None:
+                class_ = self.dynamicVerbs.get(verb, None)
+
         if class_ is not None:
-            cmd = self.verbs[verb](shell)
+            cmd = class_(shell)
             try:
                 cmd.Run(verb, argString)
             finally:
                 cmd.Release()
-            return 1
-        return 0
+            return True
 
-    def List(self):
-        l = self.verbs.keys()
-        l.extend(self.dynamicVerbs.keys())
+        return False
+
+    def List(self, shell):
+        l = []
+        if "player" in shell.__access__:
+            l.extend(self.playerCommands.keys())
+            l.extend(self.dynamicVerbs.keys())
+        if "developer" in shell.__access__:
+            l.extend(self.developerCommands.keys())
         return l

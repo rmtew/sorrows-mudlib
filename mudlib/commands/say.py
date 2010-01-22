@@ -1,6 +1,6 @@
-from mudlib import Command
+from mudlib import PlayerCommand
 
-class Say(Command):
+class Say(PlayerCommand):
     __verbs__ = [ 'say' ]
 
     def Run(self, verb, argString):

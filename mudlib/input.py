@@ -24,7 +24,8 @@ class InputStack:
 
     def Release(self):
         self.user = None
-        self.stack = []
+        while self.Pop():
+            pass
 
     def Push(self, handler):
         if isinstance(handler, InputHandler):
@@ -35,9 +36,11 @@ class InputStack:
     def Pop(self):
         # The bottom of the stack is the login/creator/player shell position.
         # NOTHING ELSE should go there.  We prevent them from being removed.
-        if len(self.stack) > 1:
-            self.stack[-1].OnRemovalFromStack()
-            self.stack.pop()
+        if len(self.stack):
+            if not self.user or len(self.stack) > 1:
+                handler = self.stack.pop()
+                handler.OnRemovalFromStack()
+                return handler
 
     def SetShell(self, handler):
         if isinstance(handler, InputHandler):
