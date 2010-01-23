@@ -62,7 +62,7 @@ class Row(object):
         self.lastAccessTime = time.time()
         self.columns = {}
 
-    def __getattr__(self, attrName, value=None):
+    def __getattr__(self, attrName):
         if attrName.startswith("__"):
             return object.__getattr__(self, attrName)
 
@@ -70,10 +70,11 @@ class Row(object):
             return self.__dict__[attrName]
 
         if attrName in self.columns:
+            self.lastAccessTime = time.time()
             self.table.OnColumnRead(attrName)
+            return self.columns[attrName]
 
-        self.lastAccessTime = time.time()
-        return self.columns[attrName]
+        raise AttributeError, "Row has no column '%s'" % attrName
 
     def __setattr__(self, attrName, value):
         # If "columns" does not exist, __init__ is still executing.        
@@ -129,6 +130,18 @@ class RowTests(unittest.TestCase):
         row.key = "value"
         
         self.failUnless(row.key == "value", "Stored value is incorrect")
+
+    def testRowExistingColumnAccess(self):
+        table = self.store.test
+        row = table.AddRow()
+        self.failUnlessRaises(AttributeError, lambda: getattr(row, "newColumn"))
+        row.newColumn = 1
+        self.failUnless(row.newColumn == 1, "Set column value was not correct")
+
+    def testRowNonExistingColumnAccess(self):
+        table = self.store.test
+        row = table.AddRow()
+        self.failUnless(getattr(row, "newColumn", 1) == 1, "Did not get default column value")
 
     def testRowLookup(self):
         table = self.store.test
