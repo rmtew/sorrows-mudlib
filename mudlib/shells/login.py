@@ -1,5 +1,6 @@
 import logging
 from mudlib import InputHandler, Shell
+import mudlib.shells
 
 # Enter login name.
 # - User exists.
@@ -96,6 +97,7 @@ class LoginShell(Shell):
                 logging.exception("CreatePassword2")
                 return
 
+            self.user.connection.SetPasswordMode(False)
             #self.state = "SelectCharacter"
 
             self.EnterGame()
@@ -118,5 +120,8 @@ class LoginShell(Shell):
     def EnterGame(self):
         self.user.name = self.userName
 
-        from mudlib.shells import GameShell
-        GameShell().Setup(self.stack)
+        isDeveloper = getattr(sorrows.data.config.developers, self.userName, False)
+        if isDeveloper:
+            mudlib.shells.DeveloperGameShell().Setup(self.stack)
+        else:
+            mudlib.shells.GameShell().Setup(self.stack)

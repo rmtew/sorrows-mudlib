@@ -82,3 +82,23 @@ to the command prompt:
 To shutdown the MUD server, you can either enter 'shutdown' at the
 telnet command prompt or you can press control-c in the MUD server
 console window.
+
+-- DEVELOPERS VS. PLAYERS ------------------------------------
+
+Any user who logs into the MUD will be logged in as a player.  But users
+can also log in as developers if the appropriate preparations are taken.
+
+The position of developer is one with a set level of access.  All users
+who have been made developers, have that same level of access.  It is
+not intended to be given to anyone you do not trust, as it includes access
+to commands that allow execution of Python code.
+
+In order to accord a user the status of being a developer, the MUD must
+be shut down and the 'config.ini' file should be edited.  A section by
+the name of 'developers' should be added, if it is not already present.
+And in that section, the names of users who are to be developers should
+be listed in the following manner.
+
+[developers]
+richard = 1
+

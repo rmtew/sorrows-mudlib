@@ -12,6 +12,7 @@ class UserService(Service):
         self.table = sorrows.data.store.users
 
     def Add(self, userName, password):
+        # Constraint: Only one user can exist with the same name.
         if self.UserExists(userName):
             raise RuntimeError("AddUserExists")
 
