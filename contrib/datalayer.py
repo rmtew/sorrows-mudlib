@@ -99,7 +99,7 @@ class DataLayer(object):
     def TableExists(self, tableName):
         return tableName in self.tables
 
-    def __getattr__(self, attrName, value=None):
+    def __getattr__(self, attrName):
         if attrName.startswith("__") or attrName in self.__dict__:
             return object.__getattr__(self, attrName)
             
