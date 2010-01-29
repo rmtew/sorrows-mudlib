@@ -14,7 +14,9 @@ def FindClassSubclasses(class_):
     l = []
     for v in gc.get_referrers(class_):
         if type(v) is tuple and class_ in v:
-            l.append(ReferringClass(v))
+            referringClass = ReferringClass(v)
+            if referringClass is not None:
+                l.append(referringClass)
     return l
 
 def FindSubclasses(class_, inclusive=False):
