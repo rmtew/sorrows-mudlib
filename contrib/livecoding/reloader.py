@@ -34,6 +34,7 @@ class CodeReloader:
 
         self.directoriesByPath = {}
         self.leakedAttributes = {}
+        self.classCreationCallback = None
         self.classUpdateCallback = None
 
         if monitorFileChanges:
@@ -56,12 +57,32 @@ class CodeReloader:
             self.classUpdateCallback = (weakref.proxy(ob.im_self), ob.func_name)
         elif type(ob) is types.FunctionType:
             self.classUpdateCallback = weakref.proxy(ob)
+        elif ob is None:
+            self.classUpdateCallback = ob           
+        else:
+            raise Exception("Bad callback")
+
+    def SetClassCreationCallback(self, ob):
+        if type(ob) is types.MethodType:
+            self.classCreationCallback = (weakref.proxy(ob.im_self), ob.func_name)
+        elif type(ob) is types.FunctionType:
+            self.classCreationCallback = weakref.proxy(ob)
+        elif ob is None:
+            self.classCreationCallback = ob           
+        else:
+            raise Exception("Bad callback")
+
+        for handler in self.directoriesByPath.itervalues():
+            handler.SetClassCreationCallback(self.classCreationCallback)
 
     # ------------------------------------------------------------------------
     # Directory registration support.
 
     def AddDirectory(self, baseNamespace, baseDirPath):
         handler = self.scriptDirectoryClass(baseDirPath, baseNamespace)
+        if self.classCreationCallback:
+            handler.SetClassCreationCallback(self.classCreationCallback)
+
         if handler.Load():
             self.directoriesByPath[baseDirPath] = handler
             logger.info("Added '%s' into '%s'", baseDirPath, baseNamespace)

@@ -168,11 +168,16 @@ class ScriptDirectory(object):
         # Personal references to created namespaces.
         self.namespaces = {}
 
+        self.classCreationCallback = None
+
         self.SetBaseDirectory(baseDirPath)
         self.SetBaseNamespaceName(baseNamespace)
 
     def __del__(self):
         self.Unload()
+
+    def SetClassCreationCallback(self, ob):
+        self.classCreationCallback = ob
 
     def SetBaseDirectory(self, baseDirPath):
         self.baseDirPath = baseDirPath
@@ -385,8 +390,24 @@ class ScriptDirectory(object):
             contributedAttributes.add(k)
 
             logger.info("Added '%s.%s'", moduleName, k)
+            
+            if type(v) in (types.TypeType, types.ClassType):
+                self.BroadcastClassCreationEvent(namespace, k, v)
+            # print namespace, k, type(v)
 
         scriptFile.SetContributedAttributes(contributedAttributes)
+
+    def BroadcastClassCreationEvent(self, *args):
+        if self.classCreationCallback:
+            try:
+                if type(self.classCreationCallback) is tuple:
+                    getattr(self.classCreationCallback[0], self.classCreationCallback[1])(*args)
+                else:
+                    self.classCreationCallback(*args)
+            except ReferenceError:
+                self.classCreationCallback = None
+            except Exception:
+                logger.exception("Error broadcasting class creation")
 
     def RemoveModuleAttributes(self, scriptFile, namespace):
         logger.debug("RemoveModuleAttributes %s", scriptFile.filePath)

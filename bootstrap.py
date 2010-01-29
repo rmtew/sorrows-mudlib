@@ -1,18 +1,33 @@
 # Bootstrapping code.
 import sys, os, stackless, gc, logging, traceback
 
-# TODO: Not getting class creation events yet.
+dirPath = sys.path[0]
+if not len(dirPath):
+    raise RuntimeError("Expected to find the directory the script was executed in in sys.path[0], but did not.")
 
-def OnClassAddition(class_):
-    print "CREATE", class_
+# Add the "contrib" directory to the path.
+contribDirPath = os.path.join(dirPath, "contrib")
+if os.path.exists(contribDirPath) and contribDirPath not in sys.path:
+    sys.path.append(contribDirPath)
+
+import pysupport
+
+
+def OnClassCreation(namespace, className, class_):
+    class_.__instances__ = classmethod(pysupport.FindClassInstances)
+    if not hasattr(class_, "__subclasses__"):
+        class_.__subclasses__ = classmethod(pysupport.FindClassSubclasses)
+
+    class_.__events__ = set()
+
+    # print "CREATE", className, class_, class_
+    events.ProcessClass(class_)
 
 def OnClassUpdate(class_):
-    import pysupport
-    gc.collect()
-    for instanceClass, instances in pysupport.FindInstances(class_).iteritems():
-        print "FOUND INSTANCES", instanceClass, instances
-        # for instance in instances:
-        #    pysupport.PrintReferrers(instance)
+    # gc.collect()
+    # instances = pysupport.FindInstances(class_)
+    # print "UPDATE", class_
+    events.ProcessClass(class_)
 
 
 def Run():
@@ -27,25 +42,21 @@ def Run():
 
     stackless.getcurrent().block_trap = True
 
-    dirPath = sys.path[0]
-    if not len(dirPath):
-        raise RuntimeError("Expected to find the directory the script was executed in in sys.path[0], but did not.")
-
     iniFilename = os.path.join(dirPath, "config.ini")
     if not os.path.exists(iniFilename):
         print "Please copy 'config.ini.base' to 'config.ini' and modify it appropriately."
         sys.exit(0)
-
-    # Add the "contrib" directory to the path.
-    contribDirPath = os.path.join(dirPath, "contrib")
-    if os.path.exists(contribDirPath):
-        sys.path.append(contribDirPath)
 
     # Monkey-patch in the stackless-compatible sockets.
     import stacklesssocket
     import uthread, uthread2
     stacklesssocket._schedule = uthread.BeNice
     stacklesssocket.install()
+
+    # Install the global event handler.
+    import __builtin__
+    from events import EventHandler
+    __builtin__.events = EventHandler()
 
     # Add the "livecoding" contrib directory to the path.
     livecodingDirPath = os.path.join(dirPath, "contrib", "livecoding")
@@ -62,13 +73,12 @@ def Run():
     cr = reloader.CodeReloader()
     # Register for code reloading updates of managed classes.
     # Broadcast an event when we receive an update.
+    cr.SetClassCreationCallback(OnClassCreation)
     cr.SetClassUpdateCallback(OnClassUpdate)
     cr.AddDirectory("mudlib", mudlibScriptPath)
     cr.AddDirectory("game", gameScriptPath)
 
-    import imp, __builtin__
-    from events import EventHandler
-    __builtin__.events = EventHandler()
+    import imp
     __builtin__.sorrows = imp.new_module('sorrows')
 
     from mudlib.services import ServiceService
