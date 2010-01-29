@@ -10,6 +10,13 @@ def ReferringClass(v):
     if len(matches) == 1:
         return matches[0]        
 
+def FindClassSubclasses(class_):
+    l = []
+    for v in gc.get_referrers(class_):
+        if type(v) is tuple and class_ in v:
+            l.append(ReferringClass(v))
+    return l
+
 def FindSubclasses(class_, inclusive=False):
     subclasses = []
     if inclusive:
@@ -23,30 +30,29 @@ def FindSubclasses(class_, inclusive=False):
             subclasses.extend(l)
             candidates.extend(l)
     else:
-        # Old-style classes.
-        for v in gc.get_referrers(class_):
-            if type(v) is tuple and class_ in v:
-                rclass_ = ReferringClass(v)
-                subclasses.append(rclass_)
-                if rclass_ is not None:
-                    subclasses.extend(FindSubclasses(rclass_))
-
+        l = FindClassSubclasses(class_)
+        subclasses.extend(l)
+        for subclass in l:
+            subclasses.extend(FindSubclasses(subclass))
     return subclasses
+
+def FindClassInstances(class_):
+    l = []
+    for referrer in gc.get_referrers(class_):
+        # This will choke on frames, lists and so forth.
+        try:
+            isInstance = isinstance(referrer, class_)
+        except Exception:
+            continue
+
+        if isInstance:
+            l.append(referrer)
+    return l
 
 def FindInstances(class_, inclusive=True):
     instances = {}
     for subclass in FindSubclasses(class_, inclusive):
-        for referrer in gc.get_referrers(subclass):
-            # This will choke on frames, lists and so forth.
-            try:
-                isInstance = isinstance(referrer, subclass)
-            except Exception:
-                continue
-
-            if isInstance:
-                if subclass not in instances:
-                    instances[subclass] = []
-                instances[subclass].append(referrer)
+        instances[subclass] = FindClassInstances(class_)
     return instances
 
 
