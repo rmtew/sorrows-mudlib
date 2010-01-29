@@ -2,13 +2,16 @@ import ConfigParser
 
 RANDOM_DEFAULT = "RANDOM_DEFAULT"
 
-class IniSection:
+class IniSection(object):
     def __init__(self, sectionName, iniFile):
         self.__dict__["sectionName"] = sectionName
         #self.__dict__["configParser"] = iniFile.configParser
         self.__dict__["iniFile"] = iniFile
 
     def __getattr__(self, attrName):
+        if attrName.startswith("__"):
+            return object.__getattr__(self, attrName)
+
         try:
             return self.iniFile.configParser.get(self.sectionName,attrName)
         except ConfigParser.NoOptionError,e:
@@ -28,7 +31,7 @@ class IniSection:
 
 
 
-class IniFile:#(IniSection):
+class IniFile(object):
     def __init__(self, filename):
         self.configParser = ConfigParser.ConfigParser()
         self.filename = filename
@@ -36,6 +39,9 @@ class IniFile:#(IniSection):
         self.dirty = 0
 
     def __getattr__(self, attrName):
+        if attrName.startswith("__"):
+            return object.__getattr__(self, attrName)
+    
         if not self.configParser.has_section(attrName):
             self.configParser.add_section(attrName)
         inis = IniSection(attrName, self)
