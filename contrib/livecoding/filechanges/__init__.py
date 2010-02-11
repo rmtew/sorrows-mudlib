@@ -54,7 +54,7 @@ class ChangeHandler:
         try:
             self.callback(filePath, added=added, changed=changed, deleted=deleted)
         except:
-            logger.exception()
+            logger.exception("Problem executing callback")
 
     def ShouldIgnorePathEntry(self, path):
         # By default this concentrates on files, not directories.
