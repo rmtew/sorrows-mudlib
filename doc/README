@@ -1,0 +1,15 @@
+
+This directory contains the documentation for the Sorrows mudlib.
+
+Note that the documentation is written in the restructured text format.
+If you wish to read it as web pages, rather than in this marked up form,
+then you will either need to acquire a prebuilt version, or build your
+own.
+
+To generate the HTML documentation on Windows:
+
+  Install sphinx from http://sphinx.pocoo.org
+  Run build.bat
+
+To generate the HTML documentation on other platforms, open build.bat and run
+the commands manually, modifying the locations and paths to suit your platform.
