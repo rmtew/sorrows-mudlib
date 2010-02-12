@@ -292,7 +292,7 @@ class CodeReloader:
         newScriptFile.SetContributedAttributes(contributedAttributes)
 
     def UpdateClass(self, value, newValue, globals_):
-        if value is None:
+        if value is None or value is NonExistentValue:
             value = newValue
 
         logger.debug("Updating class %s:%s from %s:%s", value, hex(id(value)), newValue, hex(id(newValue)))
