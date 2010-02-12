@@ -258,7 +258,7 @@ class MicrothreadingMixIn(ThreadingMixIn):
         try:
             self.process_request_thread(request, client_address)
         except Exception:
-            logger.exception()
+            logger.exception("Error processing request")
 
 
 class StacklessHTTPServer(MicrothreadingMixIn, HTTPServer):
