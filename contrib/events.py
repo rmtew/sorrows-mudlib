@@ -292,9 +292,14 @@ class EventHandler(object):
             events.Register(self)
 
         ## Hook into the class, to get notified of the creation of instances.
+        # This logic is invoked everytime the class is updated.  But for it to
+        # work correctly, it needs to understand that if the class does not
+        # define an __init__ method, our hook will still be in place.
         init_real = class_.__dict__.get("__init__", None)
-        if init_real is None:
+        if init_real is None or init_real.func_name != "__init__":
             class_.__init__ = init_standin
+            if init_real is not None and init_real.func_name == "init_wrapper":
+                del class_.__dict__["__real_init__"]
         else:
             class_.__init__ = init_wrapper
             class_.__real_init__ = init_real
