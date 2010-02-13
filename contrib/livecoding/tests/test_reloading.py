@@ -1,3 +1,10 @@
+#
+# Q. Unit tests failing and not clear why?
+#
+# A. Set the logger to log at DEBUG level.  Go to the bottom of this file
+#    and change one of the last lines.
+#
+
 import unittest
 import os, sys, time, math
 import inspect, copy
@@ -750,6 +757,9 @@ class CodeReloaderSupportTests(CodeReloadingTestCase):
         # Pretend that the programmer deleted a class from the script since the original load.
         del newScriptFile1.scriptGlobals[leakName]
 
+        # Note the version of the old script, in case UPDATE mode is in use.
+        oldScriptVersion = oldScriptFile.version
+
         # Replace the old script with the new version.
         cr.UseNewScript(oldScriptFile, newScriptFile1)
 
@@ -759,7 +769,7 @@ class CodeReloaderSupportTests(CodeReloadingTestCase):
 
         # Ensure that the leakage is recorded as coming from the original script.
         leakedInVersion = cr.GetLeakedAttributeVersion(leakName)
-        self.failUnless(leakedInVersion == oldScriptFile.version, "Attribute was leaked in %d, should have been leaked in %d" % (leakedInVersion, oldScriptFile.version))
+        self.failUnless(leakedInVersion == oldScriptVersion, "Attribute was leaked in %d, should have been leaked in %d" % (leakedInVersion, oldScriptVersion))
 
         # Ensure that the leakage is left in the module.
         self.failUnless(hasattr(namespace, leakName), "Leaked attribute no longer present")
@@ -786,7 +796,7 @@ class CodeReloaderSupportTests(CodeReloadingTestCase):
 
         # Ensure that the leakage is recorded as coming from the original script.
         leakedInVersion = cr.GetLeakedAttributeVersion(leakName)
-        self.failUnless(leakedInVersion == oldScriptFile.version, "Attribute was leaked in %d, should have been leaked in %d" % (leakedInVersion, oldScriptFile.version))
+        self.failUnless(leakedInVersion == oldScriptVersion, "Attribute was leaked in %d, should have been leaked in %d" % (leakedInVersion, oldScriptVersion))
 
         # Ensure that the leakage is left in the module.
         self.failUnless(hasattr(namespace, leakName), "Leaked attribute no longer present")
@@ -813,7 +823,11 @@ class CodeReloaderSupportTests(CodeReloadingTestCase):
         # Replace the old script with the new version.
         cr.UseNewScript(newScriptFile2, newScriptFile3)
         
-        newValue = newScriptFile3.scriptGlobals[leakName]
+        if cr.mode == reloader.MODE_UPDATE:
+            currentScriptFile = scriptDirectory.FindScript(scriptPath)
+            newValue = currentScriptFile.scriptGlobals[leakName]
+        else:
+            newValue = newScriptFile3.scriptGlobals[leakName]
 
         ## ACTUAL TESTS:
 
@@ -821,7 +835,10 @@ class CodeReloaderSupportTests(CodeReloadingTestCase):
 
         # Ensure that the leakage is left in the module.
         self.failUnless(hasattr(namespace, leakName), "Leaking attribute no longer present in the namespace")
-        self.failUnless(getattr(namespace, leakName) is not leakingValue, "Leaked value is still contributed to the namespace")
+        if cr.mode == reloader.MODE_UPDATE:
+            self.failUnless(getattr(namespace, leakName) is leakingValue, "Leaked value is still contributed to the namespace")
+        else:
+            self.failUnless(getattr(namespace, leakName) is not leakingValue, "Leaked value is still contributed to the namespace")
         self.failUnless(getattr(namespace, leakName) is newValue, "New value is not contributed to the namespace")
 
         # Conclusion: Attribute leaking happens and is rectified.
@@ -1092,6 +1109,6 @@ def GetScriptDirectory():
     return os.path.join(os.path.dirname(parentDirPath), "scripts")
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.WARNING)
+    logging.basicConfig(level=logging.DEBUG)
 
     unittest.main()
