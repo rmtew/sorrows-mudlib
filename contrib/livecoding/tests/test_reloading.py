@@ -15,6 +15,7 @@ class TestCase(unittest.TestCase):
         logging.debug("%s %s", self._testMethodName, (79 - len(self._testMethodName) - 1) *"-")
         super(TestCase, self).run(*args, **kwargs)
 
+logger = logging.getLogger("reloader")
 
 import namespace
 import reloader
@@ -590,7 +591,7 @@ class CodeReloadingObstacleTests(CodeReloadingTestCase):
 
         import game
         oldFunction = game.ImportTestClass.TestFunction.im_func
-        self.failUnless("logging" not in oldFunction.func_globals, "Global entry unexpectedly already present")
+        self.failUnless("logging" not in oldFunction.func_globals, "Global value present before actual import")
         
         cb = MakeMangleFilenameCallback("import_Update.py")
         newScriptFile = self.ReloadScriptFile(scriptDirectory, scriptDirPath, "import.py", mangleCallback=cb)
@@ -630,6 +631,10 @@ class CodeReloaderSupportTests(CodeReloadingTestCase):
     def WaitForScriptFileChange(self, cr, scriptDirectory, scriptPath, oldScriptFile, maxDelay=10.0):
         startTime = time.time()
         delta = time.time() - startTime
+        # In UPDATE mode the scripts version is bumped up.  Copying the version here handles that.
+        # In OVERWRITE mode the new script gets a higher version.
+        if oldScriptFile:
+            oldVersion = oldScriptFile.version
         while delta < maxDelay:
             ret = cr.internalFileMonitor.WaitForNextMonitoringCheck()
             if ret is None:
@@ -644,7 +649,7 @@ class CodeReloaderSupportTests(CodeReloadingTestCase):
             if oldScriptFile is None and newScriptFile is not None:
                 return delta
 
-            if oldScriptFile.version < newScriptFile.version:
+            if oldVersion < newScriptFile.version:
                 return delta
 
     def testDirectoryRegistration(self):
@@ -878,12 +883,12 @@ class CodeReloaderSupportTests(CodeReloadingTestCase):
 
         # Change the monitored script.
         open(scriptFilePath, "w").write(open(sourceScriptFilePath, "r").read())
-        
+
         # Wait for the next file change to be detected.
         ret = self.WaitForScriptFileChange(cr, scriptDirectory, scriptFilePath, oldScriptFile)
         self.failUnless(ret is not None, "File change not detected in a timely fashion (%s)" % ret)
 
-        ## ACTUAL TESTS:
+        ## ACTUAL TESTS: Did the file change that happened make the correct changes?
 
         newDocString = game.FileChangeFunction.__doc__
         self.failUnless(newDocString == " new version ", "Updated function doc string value '"+ newDocString +"'")
@@ -911,8 +916,6 @@ class CodeReloaderSupportTests(CodeReloadingTestCase):
                 self.lineStartsWiths = [
                     "ScriptDirectory.Load",
                     "Error",
-                    "Failure",
-                    "Traceback",
                 ]
                 # How many lines we expect to have suppressed, for verification purposes.
                 self.lineCount = len(self.lineStartsWiths)
@@ -920,6 +923,9 @@ class CodeReloaderSupportTests(CodeReloadingTestCase):
                 self.filteredLines = []
 
             def filter(self, record):
+                if record.levelno != logging.ERROR:
+                    return 0
+            
                 self.lineCount -= 1
 
                 # If there are lines left to filter, check them.
@@ -936,10 +942,10 @@ class CodeReloaderSupportTests(CodeReloadingTestCase):
                 # Othewise, log away.
                 return 1
 
-        logger = logging.getLogger()
+        nslogger = logging.getLogger("namespace")
         loggingFilter = NamespaceUnitTestFilter("testScriptUnitTesting - logging Filter")
         # Make sure we remove this, otherwise the logging will leak..
-        logger.addFilter(loggingFilter)
+        nslogger.addFilter(loggingFilter)
 
         ## BEHAVIOUR TO BE TESTED: Forced unit test and therefore operation failure.
 
@@ -947,7 +953,7 @@ class CodeReloaderSupportTests(CodeReloadingTestCase):
         try:
             scriptDirectory = self.codeReloader.AddDirectory("game", scriptDirPath)
         finally:
-            logger.removeFilter(loggingFilter)
+            nslogger.removeFilter(loggingFilter)
             del __builtins__.unitTestFailure
 
         ## ACTUAL TESTS:

@@ -140,8 +140,8 @@ class ScriptFile(object):
 
             valueType = type(v)
             # Modules will have been imported from elsewhere.
-            if isinstance(v, types.ModuleType):
-                continue
+            #if isinstance(v, types.ModuleType):
+            #    continue
 
             if valueType in (types.ClassType, types.TypeType):
                 # Classes with valid modules will have been imported from elsewhere.
@@ -201,6 +201,9 @@ class ScriptDirectory(object):
         attemptsLeft = self.dependencyResolutionPasses
         while len(scriptFilesToLoad) and attemptsLeft > 0:
             logger.debug("ScriptDirectory.Load dependency resolution attempts left %d", attemptsLeft)
+
+            if len(scriptFilesToLoad) == 1:
+                attemptsLeft = 1
 
             scriptFilesLoaded = set()
             for scriptFile in scriptFilesToLoad:

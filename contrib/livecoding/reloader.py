@@ -171,7 +171,7 @@ class CodeReloader:
         filePath = oldScriptFile.filePath
         namespacePath = oldScriptFile.namespacePath
 
-        logger.debug("CreateNewScript namespace='%s', file='%s'", namespacePath, filePath)
+        logger.debug("CreateNewScript namespace='%s', file='%s', oldVersion=%d", namespacePath, filePath, oldScriptFile.version)
 
         # Read in and compile the modified script file.
         scriptDirectory = self.FindDirectory(filePath)
@@ -218,10 +218,12 @@ class CodeReloader:
             self.RemoveLeakedAttributes(newScriptFile)
         elif self.mode == MODE_UPDATE:
             self.UpdateModuleAttributes(oldScriptFile, newScriptFile, namespace, overwritableAttributes=self.leakedAttributes)
+            oldScriptFile.version += 1
 
             # Remove as leaks the attributes the new version contributed.
             self.RemoveLeakedAttributes(newScriptFile)
 
+    # overwritableAttributes: why is this passed in?
     def UpdateModuleAttributes(self, scriptFile, newScriptFile, namespace, overwritableAttributes=set()):
         logger.debug("UpdateModuleAttributes")
 
@@ -290,6 +292,7 @@ class CodeReloader:
 
         scriptFile.AddContributedAttributes(contributedAttributes)
         newScriptFile.SetContributedAttributes(contributedAttributes)
+        # self.leakedAttributes |= leakedAttributes
 
     def UpdateClass(self, value, newValue, globals_):
         if value is None or value is NonExistentValue:
