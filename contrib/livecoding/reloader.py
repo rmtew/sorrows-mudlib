@@ -9,17 +9,18 @@ import time
 
 logger = logging.getLogger("reloader")
 
-import namespace
+# TODO: rename 'namespace.py' to 'namespaces.py' ... need to think about it...
+import namespace as namespaces
 
 MODE_OVERWRITE = 1
 MODE_UPDATE = 2
 
 class NonExistentValue: pass
 
-class ReloadableScriptFile(namespace.ScriptFile):
+class ReloadableScriptFile(namespaces.ScriptFile):
     version = 1
 
-class ReloadableScriptDirectory(namespace.ScriptDirectory):
+class ReloadableScriptDirectory(namespaces.ScriptDirectory):
     scriptFileClass = ReloadableScriptFile
     unitTest = True
 
@@ -33,7 +34,7 @@ class CodeReloader:
         self.monitorFileChanges = monitorFileChanges
 
         self.directoriesByPath = {}
-        self.leakedAttributes = {}
+        self.namespaceLeaks = {}
         self.classCreationCallback = None
         self.classUpdateCallback = None
 
@@ -212,12 +213,12 @@ class CodeReloader:
             scriptDirectory.UnregisterScript(oldScriptFile)
             scriptDirectory.RegisterScript(newScriptFile)
 
-            scriptDirectory.SetModuleAttributes(newScriptFile, namespace, overwritableAttributes=self.leakedAttributes)
+            scriptDirectory.SetModuleAttributes(newScriptFile, namespace, overwritableAttributes=self.namespaceLeaks)
 
             # Remove as leaks the attributes the new version contributed.
             self.RemoveLeakedAttributes(newScriptFile)
         elif self.mode == MODE_UPDATE:
-            self.UpdateModuleAttributes(oldScriptFile, newScriptFile, namespace, overwritableAttributes=self.leakedAttributes)
+            self.UpdateModuleAttributes(oldScriptFile, newScriptFile, namespace, overwritableAttributes=self.namespaceLeaks)
             oldScriptFile.version += 1
 
             # Remove as leaks the attributes the new version contributed.
@@ -237,28 +238,37 @@ class CodeReloader:
         attributeChanges = {}
 
         # Collect existing values for entries.
-        for k in scriptFile.contributedAttributes:
+        for k in scriptFile.namespaceContributions:
             v = getattr(namespace, k)
             valueType = type(v)
             attributeChanges[k] = [ (v, valueType), (NonExistentValue, None) ]
 
-        # Collect entries for the attributes contributed by the new script file.
-        for k, v, valueType in newScriptFile.GetExportableAttributes():
-            if k not in attributeChanges:
-                attributeChanges[k] = [ (NonExistentValue, None), (v, valueType) ]
+        # Collect entries for the attributes imported or defined by the new script file.
+        for k, v, valueType, exportable in newScriptFile.GetExportableAttributes():
+            if exportable:
+                if hasattr(namespace, k) and k not in overwritableAttributes:
+                    logger.error("Duplicate namespace contribution for '%s.%s' from '%s', our class = %s", moduleName, k, scriptFile.filePath, v.__file__ == scriptFile.filePath)
+                    continue
+
+                if k not in attributeChanges:
+                    attributeChanges[k] = [ (NonExistentValue, None), (v, valueType) ]
+                else:
+                    attributeChanges[k][1] = (v, valueType)
             else:
-                attributeChanges[k][1] = (v, valueType)
+                if k in scriptFile.scriptGlobals:
+                    logger.debug("Updated a non-exported global: %s %s", k, valueType)
+                else:
+                    logger.debug("Added a non-exported global: %s %s", k, valueType)
+                scriptFile.scriptGlobals[k] = v
 
         # The globals dictionary of the retained original script file.
         globals_ = scriptFile.scriptGlobals
 
-        contributedAttributes = set()
-        leakedAttributes = set()
+        namespaceContributions = set()
 
         for attrName, ((oldValue, oldType), (newValue, newType)) in attributeChanges.iteritems():
             # No new value -> the old value is being leaked.
             if newValue is NonExistentValue:
-                leakedAttributes.add(attrName)
                 continue
 
             if newType is types.ClassType or newType is types.TypeType:
@@ -266,7 +276,7 @@ class CodeReloader:
 
                 # If there was an old value, it is updated.
                 if oldValue is not None:
-                    contributedAttributes.add(attrName)
+                    namespaceContributions.add(attrName)
                     continue
 
                 # Otherwise, the new value is being added.
@@ -276,7 +286,7 @@ class CodeReloader:
                 logger.debug("Encountered new class '%s'", attrName)
             elif oldType is newType and oldValue == newValue:
                 # Skip constants whose value has not changed.
-                logger.debug("Skippped unchanged attribute '%s'", attrName)
+                logger.debug("Skipped unchanged attribute '%s'", attrName)
                 continue
             elif isinstance(newValue, types.FunctionType):
                 logger.debug("Rebound method '%s'", attrName)
@@ -289,11 +299,10 @@ class CodeReloader:
             globals_[attrName] = newValue
 
             setattr(namespace, attrName, newValue)
-            contributedAttributes.add(attrName)
+            namespaceContributions.add(attrName)
 
-        scriptFile.AddContributedAttributes(contributedAttributes)
-        newScriptFile.SetContributedAttributes(contributedAttributes)
-        # self.leakedAttributes |= leakedAttributes
+        scriptFile.AddNamespaceContributions(namespaceContributions)
+        newScriptFile.SetNamespaceContributions(namespaceContributions)
 
     def UpdateClass(self, value, newValue, globals_):
         if value is None or value is NonExistentValue:
@@ -335,21 +344,21 @@ class CodeReloader:
     # Leaked attribute support
 
     def IsAttributeLeaked(self, attributeName):
-        return attributeName in self.leakedAttributes
+        return attributeName in self.namespaceLeaks
 
     def GetLeakedAttributeVersion(self, attributeName):
-        return self.leakedAttributes[attributeName][1]
+        return self.namespaceLeaks[attributeName][1]
 
     def AddLeakedAttributes(self, oldScriptFile):
         filePath = oldScriptFile.filePath
     
-        for attributeName in oldScriptFile.contributedAttributes:
-            self.leakedAttributes[attributeName] = (filePath, oldScriptFile.version)
+        for attributeName in oldScriptFile.namespaceContributions:
+            self.namespaceLeaks[attributeName] = (filePath, oldScriptFile.version)
 
     def RemoveLeakedAttributes(self, newScriptFile):
-        for attributeName in newScriptFile.contributedAttributes:
-            if attributeName in self.leakedAttributes:
-                del self.leakedAttributes[attributeName]
+        for attributeName in newScriptFile.namespaceContributions:
+            if attributeName in self.namespaceLeaks:
+                del self.namespaceLeaks[attributeName]
 
     # ------------------------------------------------------------------------
     # Attribute compatibility support

@@ -19,7 +19,7 @@ logger = logging.getLogger("namespace")
 
 class ScriptFile(object):
     lastError = None
-    contributedAttributes = None
+    namespaceContributions = None
 
     def __init__(self, filePath, namespacePath, implicitLoad=True, delGlobals=False):
         self.filePath = filePath
@@ -48,11 +48,11 @@ class ScriptFile(object):
     def GetAttributeValue(self, attributeName):
         return self.scriptGlobals[attributeName]
 
-    def SetContributedAttributes(self, contributedAttributes):
-        self.contributedAttributes = contributedAttributes
+    def SetNamespaceContributions(self, namespaceContributions):
+        self.namespaceContributions = namespaceContributions
 
-    def AddContributedAttributes(self, contributedAttributes):
-        self.contributedAttributes |= contributedAttributes
+    def AddNamespaceContributions(self, namespaceContributions):
+        self.namespaceContributions |= namespaceContributions
         
     def Run(self):
         self.scriptGlobals = {}
@@ -141,19 +141,19 @@ class ScriptFile(object):
                 continue
 
             valueType = type(v)
+            exportable = True
             # Modules will have been imported from elsewhere.
-            #if isinstance(v, types.ModuleType):
-            #    continue
-
-            if valueType in (types.ClassType, types.TypeType):
+            if isinstance(v, types.ModuleType):
+                exportable = False
+            elif valueType in (types.ClassType, types.TypeType):
                 # Classes with valid modules will have been imported from elsewhere.
                 if v.__module__ != "__builtin__":
-                    continue
+                    exportable = False
                 # Skip actual builtin objects.
-                if v in builtinValues:
-                    continue
+                elif v in builtinValues:
+                    exportable = False
 
-            yield k, v, valueType
+            yield k, v, valueType, exportable
 
 
 class ScriptDirectory(object):
@@ -379,29 +379,32 @@ class ScriptDirectory(object):
                 namespace.__file__ += ";"
             namespace.__file__ += scriptFile.filePath
 
-        contributedAttributes = set()
-        for k, v, valueType in scriptFile.GetExportableAttributes():
-            # By default we never overwrite.  This way we can identify duplicate contributions.
-            if hasattr(namespace, k) and k not in overwritableAttributes:
-                logger.error("Duplicate namespace contribution for '%s.%s' from '%s', our class = %s", moduleName, k, scriptFile.filePath, v.__file__ == scriptFile.filePath)                
+        namespaceContributions = set()
+        for k, v, valueType, exportable in scriptFile.GetExportableAttributes():
+            logger.debug("InsertModuleAttribute %s.%s exported=%s", moduleName, k, exportable)
+
+            if not exportable:
+                logger.debug("Added a non-exported global: %s %s", k, valueType)
                 continue
 
-            logger.debug("InsertModuleAttribute %s.%s", moduleName, k)
+            # By default we never overwrite.  This way we can identify duplicate contributions.
+            if hasattr(namespace, k) and k not in overwritableAttributes:
+                logger.error("Duplicate namespace contribution for '%s.%s' from '%s', our class = %s", moduleName, k, scriptFile.filePath, v.__file__ == scriptFile.filePath)
+                continue
 
             if valueType in (types.ClassType, types.TypeType):
                 v.__module__ = moduleName
                 v.__file__ = scriptFile.filePath
 
             setattr(namespace, k, v)
-            contributedAttributes.add(k)
 
-            logger.info("Added '%s.%s'", moduleName, k)
-            
+            namespaceContributions.add(k)
+
             if type(v) in (types.TypeType, types.ClassType):
                 self.BroadcastClassCreationEvent(namespace, k, v)
             # print namespace, k, type(v)
 
-        scriptFile.SetContributedAttributes(contributedAttributes)
+        scriptFile.SetNamespaceContributions(namespaceContributions)
 
     def BroadcastClassCreationEvent(self, *args):
         if self.classCreationCallback:
@@ -417,7 +420,7 @@ class ScriptDirectory(object):
 
     def RemoveModuleAttributes(self, scriptFile, namespace):
         logger.debug("RemoveModuleAttributes %s", scriptFile.filePath)
-        if scriptFile.contributedAttributes is None:
+        if scriptFile.namespaceContributions is None:
             return True
 
         paths = namespace.__file__.split(";")
@@ -426,7 +429,7 @@ class ScriptDirectory(object):
         paths.remove(scriptFile.filePath)
         namespace.__file__ = ";".join(paths)
 
-        for k in scriptFile.contributedAttributes:
+        for k in scriptFile.namespaceContributions:
             delattr(namespace, k)
 
         return True

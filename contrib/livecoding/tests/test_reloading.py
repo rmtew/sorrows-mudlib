@@ -706,7 +706,13 @@ class CodeReloaderSupportTests(CodeReloadingTestCase):
         # Test that a bad path will not find a handler when there are valid ones for other paths.
         self.failUnless(cr.FindDirectory("unregistered path") is None, "Got a script directory handler for an unregistered path")
 
-    def testAttributeLeaking(self):
+    def testUpdateAttributeLeaking(self):
+        self.gtestAttributeLeaking(reloader.MODE_UPDATE)
+
+    def testOverwriteAttributeLeaking(self):
+        self.gtestAttributeLeaking(reloader.MODE_OVERWRITE)
+
+    def gtestAttributeLeaking(self, reloadingMode):
         """
         This test is intended to exercise the leaked attribute tracking.
 
@@ -733,7 +739,7 @@ class CodeReloaderSupportTests(CodeReloadingTestCase):
         leakName = "NewStyleSubclassViaClassReference"
     
         scriptDirPath = GetScriptDirectory()
-        cr = self.codeReloader = reloader.CodeReloader()
+        cr = self.codeReloader = reloader.CodeReloader(mode=reloadingMode)
         cr.scriptDirectoryClass = ReloadableScriptDirectoryNoUnitTesting
         scriptDirectory = cr.AddDirectory("game", scriptDirPath)
         self.failUnless(scriptDirectory is not None, "Script loading failure")
