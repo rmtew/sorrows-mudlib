@@ -21,17 +21,19 @@ class ScriptFile(object):
     lastError = None
     contributedAttributes = None
 
-    def __init__(self, filePath, namespacePath, implicitLoad=True):
+    def __init__(self, filePath, namespacePath, implicitLoad=True, delGlobals=False):
         self.filePath = filePath
         self.namespacePath = namespacePath
 
         self.scriptGlobals = {}
+        self.delGlobals = delGlobals
 
         if implicitLoad:
             self.Load(filePath)
 
     def __del__(self):
-        self.scriptGlobals.clear()
+        if self.delGlobals:
+            self.scriptGlobals.clear()
         # print "GC", self.namespacePath, self.filePath, hex(id(self.scriptGlobals))
 
     def __repr__(self):
@@ -160,7 +162,7 @@ class ScriptDirectory(object):
     unitTest = True
     dependencyResolutionPasses = 10
 
-    def __init__(self, baseDirPath=None, baseNamespace=None):
+    def __init__(self, baseDirPath=None, baseNamespace=None, delScriptGlobals=False):
         # Script file objects indexed in different ways.
         self.filesByPath = {}
         self.filesByDirectory = {}
@@ -169,6 +171,7 @@ class ScriptDirectory(object):
         self.namespaces = {}
 
         self.classCreationCallback = None
+        self.delScriptGlobals = delScriptGlobals
 
         self.SetBaseDirectory(baseDirPath)
         self.SetBaseNamespaceName(baseNamespace)
@@ -340,7 +343,7 @@ class ScriptDirectory(object):
     def LoadScript(self, filePath, namespacePath):
         logger.debug("LoadScript %s", filePath)
 
-        return self.scriptFileClass(filePath, namespacePath)
+        return self.scriptFileClass(filePath, namespacePath, delGlobals=self.delScriptGlobals)
 
     def RunScript(self, scriptFile, tentative=False):
         logger.debug("RunScript %s", scriptFile.filePath)

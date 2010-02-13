@@ -159,7 +159,7 @@ class CodeReloadingObstacleTests(CodeReloadingTestCase):
 
         """
         scriptDirPath = GetScriptDirectory()
-        cr = self.codeReloader = reloader.CodeReloader()
+        cr = self.codeReloader = reloader.CodeReloader(mode=reloader.MODE_OVERWRITE)
         cr.scriptDirectoryClass = ReloadableScriptDirectoryNoUnitTesting
 
         scriptDirectory = cr.AddDirectory("game", scriptDirPath)
@@ -336,7 +336,7 @@ class CodeReloadingObstacleTests(CodeReloadingTestCase):
         versions of a class, still work.
         """
         scriptDirPath = GetScriptDirectory()
-        cr = self.codeReloader = reloader.CodeReloader()
+        cr = self.codeReloader = reloader.CodeReloader(mode=reloader.MODE_OVERWRITE)
         cr.scriptDirectoryClass = ReloadableScriptDirectoryNoUnitTesting
         scriptDirectory = cr.AddDirectory("game", scriptDirPath)
         self.failUnless(scriptDirectory is not None, "Script loading failure")
@@ -1109,6 +1109,6 @@ def GetScriptDirectory():
     return os.path.join(os.path.dirname(parentDirPath), "scripts")
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.WARNING)
 
     unittest.main()
