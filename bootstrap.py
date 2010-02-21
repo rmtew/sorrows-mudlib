@@ -12,6 +12,11 @@ if os.path.exists(contribDirPath) and contribDirPath not in sys.path:
 
 import pysupport
 
+STATE_STARTUP = 0
+STATE_RUNNING = 1
+STATE_SHUTDOWN = 2
+
+bootstrapState = STATE_STARTUP
 
 def OnClassCreation(namespace, className, class_):
     class_.__instances__ = classmethod(pysupport.FindClassInstances)
@@ -20,13 +25,18 @@ def OnClassCreation(namespace, className, class_):
 
     class_.__events__ = set()
 
-    # print "CREATE", className, class_, class_
+    if bootstrapState != STATE_STARTUP:
+        print "CREATE", namespace, className, class_
+
     events.ProcessClass(class_)
 
 def OnClassUpdate(class_):
-    # gc.collect()
-    # instances = pysupport.FindInstances(class_)
-    # print "UPDATE", class_
+    if bootstrapState != STATE_STARTUP:
+        gc.collect()
+        instances = pysupport.FindInstances(class_)
+        instanceCount = sum(len(l) for l in instances.itervalues())
+        print "UPDATE", class_, instanceCount, "instances"
+
     events.ProcessClass(class_)
 
 
@@ -90,6 +100,7 @@ def Run():
     del svcSvc
     
     stackless.getcurrent().block_trap = False
+    bootstrapState = STATE_RUNNING
 
     manualShutdown = False
     try:
@@ -101,6 +112,8 @@ def Run():
         manualShutdown = True
     finally:
         cr.EndMonitoring()
+
+    bootstrapState = STATE_SHUTDOWN
 
     if manualShutdown:
         class HelperClass:
