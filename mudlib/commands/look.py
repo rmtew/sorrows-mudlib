@@ -1,6 +1,6 @@
-from mudlib import WorldCommand
+from mudlib import GameCommand
 
-class Look(WorldCommand):
+class Look(GameCommand):
     __verbs__ = [ 'l', 'look' ]
 
     def Run(self, verb, arg):

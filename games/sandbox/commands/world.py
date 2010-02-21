@@ -1,4 +1,4 @@
-from mudlib import WorldCommand
+from game import WorldCommand
 
 class WorldCmd(WorldCommand):
     __verbs__ = [ 'world' ]

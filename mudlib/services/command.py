@@ -44,7 +44,7 @@ class CommandService(Service):
         self.LogInfo("Dynamic command '%s' registered (no access levels yet)", verb)
         self.dynamicVerbs[verb] = handler
 
-    def Execute(self, shell, verb, argString, accessTypes):
+    def GetCommandClass(self, verb, accessTypes):
         class_ = None
         if "developer" in accessTypes:
             class_ = self.developerCommands.get(verb, None)
@@ -53,7 +53,10 @@ class CommandService(Service):
                 class_ = self.playerCommands.get(verb, None)
             if class_ is None:
                 class_ = self.dynamicVerbs.get(verb, None)
+        return class_
 
+    def Execute(self, shell, verb, argString, accessTypes):
+        class_ = self.GetCommandClass(verb, accessTypes)
         if class_ is not None:
             cmd = class_(shell)
             try:
@@ -65,10 +68,12 @@ class CommandService(Service):
         return False
 
     def List(self, shell):
-        l = []
+        d = { }
         if "player" in shell.__access__:
-            l.extend(self.playerCommands.keys())
-            l.extend(self.dynamicVerbs.keys())
+            d["player"] = []
+            d["player"].extend(self.playerCommands.iterkeys())
+            d["player"].extend(self.dynamicVerbs.iterkeys())
         if "developer" in shell.__access__:
-            l.extend(self.developerCommands.keys())
-        return l
+            d["developer"] = []
+            d["developer"].extend(self.developerCommands.iterkeys())
+        return d

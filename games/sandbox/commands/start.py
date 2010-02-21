@@ -1,4 +1,4 @@
-from mudlib import WorldCommand
+from game import WorldCommand
 
 class StartCmd(WorldCommand):
     __verbs__ = [ 'start' ]

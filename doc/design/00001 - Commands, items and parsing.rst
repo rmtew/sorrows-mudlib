@@ -11,7 +11,7 @@ conceived, delaying work on it until the design is fully fleshed out.  So,
 the goal of this document is to lay out the plan for the implementation of
 item handling related commands.
 
-There are three milestones envisaged:
+Milestones:
 
 #. Interaction with the room.
 #. Interaction with containers and use of plurals.
@@ -23,8 +23,8 @@ Milestone 1: The room
 
 This is composed of two commands:
 
-* TAKE OBJECT
-* DROP OBJECT
+* take <object>
+* drop <object>
 
 It is the most basic level of item iteraction.  And it drives the
 implementation of other functionality it relies on.
@@ -85,7 +85,7 @@ articles like "the".
 
 An idea came to mind while writing the possible parser code.  Currently the
 event system detects registrations based on the presence of methods with the
-naming prefix of 'event_'.  It would be equally possible to declare handled
+naming prefix of 'event\_'.  It would be equally possible to declare handled
 syntax in the same way by function name in WorldCommand subclasses.
 
 Possible parser code::
@@ -256,11 +256,11 @@ Possible code::
   class Room(Object):
       pass
 
-For the "get" command:  The parser should look for an object in the room the
-character is in, and present it to the command, passed into the syntax handling
-method that applies.  The syntax handling method should implement logic that
-checks that the object can be taken, that the character has room for the
-object and then moves the object from the room into the character.
+For the "take" command:  The parser should look for an object in the room the
+character is in, and present it to the command, passed into the syntax
+handling method that applies.  The syntax handling method should implement
+logic that checks that the object can be taken, that the character has room
+for the object and then moves the object from the room into the character.
 
 For the "drop" command:  The parser should look for an object in the character
 and present it to the command.  The syntax handling method should check that
@@ -276,6 +276,23 @@ encoded in the syntax handling method name.  So to keep things simple and not
 get side-tracked, should the onus be on the method to ignore objects from
 the wrong container?  For lack of a better idea, this will have to be the way
 it will work.
+
+Scenario
+^^^^^^^^
+
+Up to this point, the scope of what has been defined is how rooms, objects and
+the parser work together within the limited extent to which they have been
+explored.  A good addition to these abstract elements, is a scenario in which
+they are employed.
+
+Staging the scenario:
+
+#. Create a room.
+#. Have the login process place the player in that room.
+#. Add an object to the room.
+
+Okay, I am going to keep this really simple.  The object is going to be a pair
+of pants.
 
 Milestone 2: Containers and plurals
 -----------------------------------
@@ -312,7 +329,10 @@ Working Notes
 Milestone 1: The room
 ---------------------
 
-
+* Moved WorldCommand into the sandbox game.
+* Made a new subclass of PlayerCommand called GameCommand.
+* GameCommand.Run should dispatch the parsing of a game command usage.
+* Subclasses of GameCommand should not override Run.
 
 Milestone 2: Containers and plurals
 -----------------------------------

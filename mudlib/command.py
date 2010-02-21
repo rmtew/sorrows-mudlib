@@ -12,6 +12,10 @@ class Command:
 
 class PlayerCommand(Command):
     pass
+
+class GameCommand(PlayerCommand):
+    def Run(self, verb, argString):
+        pass
     
 class DeveloperCommand(Command):
     pass

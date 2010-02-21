@@ -1,6 +1,6 @@
-from mudlib import WorldCommand
+from mudlib import GameCommand
 
-class Move(WorldCommand):
+class Move(GameCommand):
     __verbs__ = [ 'n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw' ]
 
     def Run(self, verb, arg):
