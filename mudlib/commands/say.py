@@ -5,8 +5,9 @@ class Say(PlayerCommand):
 
     def Run(self, verb, argString):
         if len(argString):
+            body = self.shell.user.body
             for conn in sorrows.net.telnetConnections:
-                prefix = self.shell.user.name +' says: '
+                prefix = body.shortDescription +' says: '
                 if conn.user is self.shell.user:
                     prefix = 'You say: '
                 conn.user.Tell(prefix + argString +'.')

@@ -1,12 +1,16 @@
 
 from mudlib import Service
-from game.world import Body
+from game.world import Body, Room
 
 class WorldService(Service):
     __sorrows__ = 'world'
 
     def Run(self):
         self.bodiesByUsername = {}
+        
+        room = self.startingRoom = Room()
+        room.SetShortDescription("A room")
+        room.SetLongDescription("This is a room")
 
     def AddUser(self, user):
         if self.bodiesByUsername.has_key(user.name):
@@ -15,6 +19,10 @@ class WorldService(Service):
         body = Body(self, user)
         self.bodiesByUsername[user.name] = body
         user.SetBody(body)
+
+        body.MoveTo(self.startingRoom)
+        body.SetShortDescription(user.name.capitalize())
+
         return body
 
     def RemoveUser(self, user):

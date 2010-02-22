@@ -55,7 +55,7 @@ class ParserService(Service):
 
                     tokens = syntaxText.split("_")
 
-                patterns.append(tokens)
+                patterns.append((k, tokens))
                 
         self.syntaxByCommand[commandName] = patterns
 
@@ -65,11 +65,21 @@ class ParserService(Service):
         were passed to the class, and invoking the correct syntax handler for
         those arguments passing it the resolved objects that were referred to.
         """
-    
-        write = command.shell.user.Tell
-        write("COMMAND %s" % command) 
-        write("VERB '%s'" % verb) 
-        write("ARGS '%s'" % argString) 
+
+        commandName = command.__class__.__name__
+
+        for funcName, tokens in self.syntaxByCommand[commandName]:
+            if len(tokens) > 1:
+                self.LogError("%s.%s had too many tokens %s", commandName, funcName, tokens)
+                continue
+
+            pass
+
+        if False:
+            write = command.shell.user.Tell
+            write("COMMAND %s" % command) 
+            write("VERB '%s'" % verb) 
+            write("ARGS '%s'" % argString) 
 
 
 

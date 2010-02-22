@@ -1,3 +1,6 @@
+import socket
+from errno import EBADF
+
 class Connection:
     released = False
 
@@ -21,10 +24,21 @@ class Connection:
         self.OnDisconnection()
 
     def send(self, *args):
-        return self.socket.send(*args)
+        try:
+            return self.socket.send(*args)
+        except socket.error, e:
+            if e.errno == EBADF:
+                return
+            raise e
 
     def recv(self, byteCount):
-        ret = self.socket.recv(byteCount)
+        try:
+            ret = self.socket.recv(byteCount)
+        except socket.error, e:
+            if e.errno != EBADF:
+                raise e
+            ret = ""
+
         # Detect if the socket has been disconnected and handle it if so.
         if ret == "":
             self.OnDisconnection()

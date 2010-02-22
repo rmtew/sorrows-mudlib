@@ -1,22 +1,18 @@
 import weakref
 
-class Room:
-    shortDescription = ""
-    longDescription = ""
+from game.world import Container
 
+class Room(Container):
     def __init__(self):
-        self.details = {}
+        Container.__init__(self)
+    
         self.exits = weakref.WeakValueDictionary()
-
-    def AddDetail(self, detailName, detailDescription):
-        self.details[detailName] = detailDescription
 
     def AddExit(self, direction, room):
         self.exits[direction] = room
 
-    def __str__(self):
-        return "\r\n".join([
-            self.shortDescription,
-            self.longDescription,
-            "",
-        ])
+    def GetExits(self):
+        return self.exits.keys()
+
+    def GetExitRoom(self, direction):
+        return self.exits.get(direction, None)

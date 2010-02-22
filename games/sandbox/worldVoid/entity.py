@@ -3,11 +3,11 @@
 
 import uthread
 import math
-import mudlib
+import game
 
-class Entity(mudlib.Object):
+class Entity(game.Object):
     def __init__(self):
-        mudlib.Object.__init__(self, sorrows.worldVoid)
+        game.Object.__init__(self, sorrows.worldVoid)
 
         self.profession = None
         self.goals = {}
