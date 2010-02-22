@@ -1,9 +1,9 @@
 from mudlib import GameCommand
 
-class DropCommand(GameCommand):
+class Drop(GameCommand):
     __verbs__ = [ 'drop' ]
     
     # DROP ITEM [implicitly to ground]
 
-    def Run(self, verb, arg):
-        self.shell.user.Tell("TRIED TO DROP SOMETHING")
+    def syntax_SUBJECT(self, matches):
+        print "DROP CALL", matches

@@ -332,7 +332,13 @@ Milestone 1: The room
 * Moved WorldCommand into the sandbox game.
 * Made a new subclass of PlayerCommand called GameCommand.
 * GameCommand.Run should dispatch the parsing of a game command usage.
-* Subclasses of GameCommand should not override Run.
+* Subclasses of GameCommand should not override Run.  Thinking about enforcing this.
+* Was going to enforce this in __init__, but this is too late.  Need to do it at the definition stage, rather than the later usage stage.
+* TODO: Consider how GameCommand.Run overriding will be prevented.
+* Flesh out GameCommand.Run to call on the non-existent parser.
+* Create the parser.  Service?  Object?  Service is a singleton, but it that right?
+* As the parser gets fleshed out, extend object and room as needed.
+* Unit tests?
 
 Milestone 2: Containers and plurals
 -----------------------------------

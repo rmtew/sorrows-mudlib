@@ -15,7 +15,7 @@ class PlayerCommand(Command):
 
 class GameCommand(PlayerCommand):
     def Run(self, verb, argString):
-        pass
-    
+        sorrows.parser.ExecuteGameCommand(self, verb, argString)
+
 class DeveloperCommand(Command):
     pass

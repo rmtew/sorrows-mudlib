@@ -1,5 +1,5 @@
 # Bootstrapping code.
-import sys, os, stackless, gc, logging, traceback
+import sys, os, stackless, gc, logging, traceback, types
 
 dirPath = sys.path[0]
 if not len(dirPath):
@@ -30,6 +30,9 @@ def OnClassCreation(namespace, className, class_):
 
     events.ProcessClass(class_)
 
+    if bootstrapState != STATE_STARTUP:
+        events.ClassCreation(namespace, className, class_)
+
 def OnClassUpdate(class_):
     if bootstrapState != STATE_STARTUP:
         gc.collect()
@@ -39,8 +42,24 @@ def OnClassUpdate(class_):
 
     events.ProcessClass(class_)
 
+    if bootstrapState != STATE_STARTUP:
+        events.ClassUpdate(class_)
+
+def OnScriptValidation(scriptFile):
+    try:
+        from mudlib import GameCommand
+    except ImportError:
+        return
+
+    # TODO: Make this more generic.
+    for k, v in scriptFile.scriptGlobals.iteritems():
+        if type(v) in (types.ClassType, types.TypeType) and v is not GameCommand:
+            if issubclass(v, GameCommand) and "Run" in v.__dict__:
+                raise Exception("Subclasses of GameCommand cannot override Run")
 
 def Run():
+    global bootstrapState
+
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s;%(name)s;%(levelname)s;%(message)s',
@@ -85,6 +104,7 @@ def Run():
     # Broadcast an event when we receive an update.
     cr.SetClassCreationCallback(OnClassCreation)
     cr.SetClassUpdateCallback(OnClassUpdate)
+    cr.SetValidateScriptCallback(OnScriptValidation)
     cr.AddDirectory("mudlib", mudlibScriptPath)
     cr.AddDirectory("game", gameScriptPath)
 
