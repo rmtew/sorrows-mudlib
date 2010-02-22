@@ -1,7 +1,8 @@
 from mudlib import PlayerCommand
 
 class Look(PlayerCommand):
-    __verbs__ = [ 'l', 'look' ]
+    __verbs__ = [ "look" ]
+    __aliases__ = [ "l" ]
 
     def Run(self, verb, arg):
         body = self.shell.user.GetBody()

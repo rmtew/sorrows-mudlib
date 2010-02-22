@@ -1,5 +1,6 @@
 import weakref
 
+from mudlib import util
 from game.world import Container
 
 class Room(Container):
@@ -9,6 +10,7 @@ class Room(Container):
         self.exits = weakref.WeakValueDictionary()
 
     def AddExit(self, direction, room):
+        direction = util.ResolveDirection(direction)
         self.exits[direction] = room
 
     def GetExits(self):

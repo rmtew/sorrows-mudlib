@@ -1,7 +1,7 @@
-from mudlib import Command
+from mudlib import PlayerCommand
 from mudlib.services.intermud3 import Packet, ChannelMessagePacket
 
-class DynamicChannelCommand(Command):
+class DynamicChannelCommand(PlayerCommand):
     def Run(self, verb, arg):
         action = arg.strip().lower()
     

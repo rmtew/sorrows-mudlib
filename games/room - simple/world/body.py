@@ -18,7 +18,6 @@ class Body(Container):
         s += self.container.longDescription
 
         if len(self.container.contents):
-            print self.container.contents
             s += "\r\nYou can see: "+ ", ".join(ob.shortDescription for ob in self.container.contents) +"."
 
         return s

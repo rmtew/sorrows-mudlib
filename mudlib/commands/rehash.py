@@ -3,11 +3,12 @@ from mudlib import DeveloperCommand
 class Rehash(DeveloperCommand):
     __verbs__ = [ 'rehash' ]
 
-    def Run(self, verb, arg):
-        oldCommands = set(sorrows.commands.List())
+    def Run(self, verb, arg): 
+        oldCommands = sorrows.commands.List(self.shell.__access__)
         sorrows.commands.Rehash()
-        newCommands = set(sorrows.commands.List())
+        newCommands = sorrows.commands.List(self.shell.__access__)
 
+        return
         changes = True
         # Notify the user about detected command removals.
         for s in oldCommands - newCommands:

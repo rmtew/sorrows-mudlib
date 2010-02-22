@@ -1,8 +1,8 @@
 
 import math
-from mudlib import Command
+from mudlib import DeveloperCommand
 
-class CHeight(Command):
+class CHeight(DeveloperCommand):
     __verbs__ = [ 'cheight' ]
 
     def Run(self, arg):

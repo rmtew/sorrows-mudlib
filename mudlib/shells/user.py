@@ -1,5 +1,5 @@
 import string
-from mudlib import Shell, InputHandler
+from mudlib import Shell, InputHandler, COMMAND_PLAYER, COMMAND_GAME, COMMAND_DEVELOPER
 
 ##            if verb == "tell":
 ##                bits = self.arg.split(' ')
@@ -19,7 +19,7 @@ from mudlib import Shell, InputHandler
 ##                raise QuitException()
 
 class GameShell(Shell):
-    __access__ = [ "player" ]
+    __access__ = COMMAND_PLAYER | COMMAND_GAME
 
     def Setup(self, stack):
         Shell.Setup(self, stack)
@@ -65,4 +65,4 @@ class GameShell(Shell):
         return '> '
 
 class DeveloperGameShell(GameShell):
-    __access__ = GameShell.__access__ + [ "developer" ]
+    __access__ = GameShell.__access__ | COMMAND_DEVELOPER

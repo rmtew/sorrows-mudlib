@@ -1,28 +1,16 @@
-from mudlib import PlayerCommand
-
-directionNames = {
-    "n"  : "north",
-    "s"  : "south",
-    "e"  : "east",
-    "w"  : "west",
-    "ne" : "northeast",
-    "nw" : "northwest",
-    "se" : "southeast",
-    "sw" : "southwest",
-}
+from mudlib import util, PlayerCommand
 
 class Move(PlayerCommand):
-    __verbs__ = list(directionNames)
-    __verbs__.extend(directionNames.itervalues())
+    __aliases__ = util.directionAliases
+    __verbs__ = list(direction for direction in util.directionAliases.itervalues())
 
     def Run(self, verb, arg):
         body = self.shell.user.GetBody()
-        if body.MoveDirection(verb):
+        direction = util.ResolveDirection(verb)
+
+        if body.MoveDirection(direction):
             self.shell.user.Tell(body.Look())
             self.shell.user.Tell(body.GetLocality())
-        else:
-            directionName = directionNames.get(verb, None)
-            if directionName is None:
-                directionName = verb
-            self.shell.user.Tell("You can't go %s." % directionName)
+            return
 
+        self.shell.user.Tell("You can't go %s." % direction)

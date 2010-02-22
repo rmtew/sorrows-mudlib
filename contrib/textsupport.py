@@ -6,7 +6,9 @@ import StringIO
 
 def hcolumns(strings, width=80, marginSize=1, columnSize=None):
     if columnSize is None:
-        columnSize = max(len(s) for s in strings) + marginSize
+        columnSize = max(len(s) for s in strings)
+    columnSize += marginSize
+
     currentWidth = 0
     sio = StringIO.StringIO()
     for s in strings:
