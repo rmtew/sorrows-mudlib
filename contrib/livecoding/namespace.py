@@ -42,7 +42,7 @@ class ScriptFile(object):
     def Load(self, filePath):
         self.filePath = filePath
 
-        script = open(self.filePath, 'rU').read()
+        script = open(self.filePath, 'rU').read() +"\n"
         self.codeObject = compile(script, self.filePath, "exec")
 
     def GetAttributeValue(self, attributeName):
@@ -171,6 +171,7 @@ class ScriptDirectory(object):
         self.namespaces = {}
 
         self.classCreationCallback = None
+        self.validateScriptCallback = None
         self.delScriptGlobals = delScriptGlobals
 
         self.SetBaseDirectory(baseDirPath)
@@ -181,6 +182,9 @@ class ScriptDirectory(object):
 
     def SetClassCreationCallback(self, ob):
         self.classCreationCallback = ob
+
+    def SetValidateScriptCallback(self, ob):
+        self.validateScriptCallback = ob        
 
     def SetBaseDirectory(self, baseDirPath):
         self.baseDirPath = baseDirPath
@@ -352,6 +356,10 @@ class ScriptDirectory(object):
             logger.debug("RunScript failed")
             return False
 
+        # Give whatever is using the framework to analyse and reject script changes.
+        if not self.BroadcastValidateScriptEvent(scriptFile):
+            return False
+
         if self.unitTest and not scriptFile.UnitTest():
             logger.debug("RunScript tests failed or errored")
             return False
@@ -362,6 +370,20 @@ class ScriptDirectory(object):
             namespace = self.CreateNamespace(scriptFile.namespacePath, scriptFile.filePath)
             self.SetModuleAttributes(scriptFile, namespace)
 
+        return True
+
+    def BroadcastValidateScriptEvent(self, scriptFile):
+        if self.validateScriptCallback:
+            try:
+                if type(self.validateScriptCallback) is tuple:
+                    getattr(self.validateScriptCallback[0], self.validateScriptCallback[1])(scriptFile)
+                else:
+                    self.validateScriptCallback(scriptFile)
+            except ReferenceError:
+                self.validateScriptCallback = None
+            except Exception:
+                scriptFile.lastError = traceback.format_exception(*sys.exc_info())
+                return False
         return True
 
     def UnloadScript(self, scriptFile, force=False):

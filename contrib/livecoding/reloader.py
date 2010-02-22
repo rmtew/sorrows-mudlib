@@ -37,6 +37,7 @@ class CodeReloader:
         self.namespaceLeaks = {}
         self.classCreationCallback = None
         self.classUpdateCallback = None
+        self.validateScriptCallback = None
 
         if monitorFileChanges:
             # Grabbing a weakref to a method of this instance requires me to
@@ -76,6 +77,19 @@ class CodeReloader:
         for handler in self.directoriesByPath.itervalues():
             handler.SetClassCreationCallback(self.classCreationCallback)
 
+    def SetValidateScriptCallback(self, ob):
+        if type(ob) is types.MethodType:
+            self.validateScriptCallback = (weakref.proxy(ob.im_self), ob.func_name)
+        elif type(ob) is types.FunctionType:
+            self.validateScriptCallback = weakref.proxy(ob)
+        elif ob is None:
+            self.validateScriptCallback = ob           
+        else:
+            raise Exception("Bad callback")
+
+        for handler in self.directoriesByPath.itervalues():
+            handler.SetValidateScriptCallback(self.validateScriptCallback)
+
     # ------------------------------------------------------------------------
     # Directory registration support.
 
@@ -83,6 +97,8 @@ class CodeReloader:
         handler = self.scriptDirectoryClass(baseDirPath, baseNamespace, delScriptGlobals=(self.mode == MODE_UPDATE))
         if self.classCreationCallback:
             handler.SetClassCreationCallback(self.classCreationCallback)
+        if self.validateScriptCallback:
+            handler.SetValidateScriptCallback(self.validateScriptCallback)
 
         if handler.Load():
             self.directoriesByPath[baseDirPath] = handler
