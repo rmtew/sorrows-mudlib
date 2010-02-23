@@ -1,10 +1,10 @@
-from mudlib import PlayerCommand
+from mudlib import GameCommand
 
-class Look(PlayerCommand):
+class Look(GameCommand):
     __verbs__ = [ "look" ]
     __aliases__ = [ "l" ]
 
-    def Run(self, verb, arg):
+    def syntax_(self, info):
         body = self.shell.user.GetBody()
         self.shell.user.Tell(body.Look())
         if hasattr(body, "GetLocality"):

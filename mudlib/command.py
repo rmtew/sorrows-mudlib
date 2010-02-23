@@ -36,3 +36,10 @@ class GameCommand(PlayerCommand):
 
 class DeveloperCommand(BaseCommand):
     __access__ = COMMAND_DEVELOPER
+
+class CommandInfo:
+    room = None
+    body = None
+
+    verb = None
+    argString = None

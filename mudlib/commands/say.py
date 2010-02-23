@@ -1,15 +1,7 @@
-from mudlib import PlayerCommand
+from mudlib import GameCommand
 
-class Say(PlayerCommand):
+class Say(GameCommand):
     __verbs__ = [ 'say' ]
 
-    def Run(self, verb, argString):
-        if len(argString):
-            body = self.shell.user.body
-            for conn in sorrows.net.telnetConnections:
-                prefix = body.shortDescription +' says: '
-                if conn.user is self.shell.user:
-                    prefix = 'You say: '
-                conn.user.Tell(prefix + argString +'.')
-        else:
-            self.shell.user.Tell('Say what?')
+    def syntax_STRING(self, info, string):
+        info.room.Message("{0.S} {0.v}: {1}.", (info.body, info.verb), string)

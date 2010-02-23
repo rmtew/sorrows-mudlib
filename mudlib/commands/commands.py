@@ -19,8 +19,8 @@ class Commands(PlayerCommand):
                 maxWordLength = max(maxWordLength, max(len(s) for s in verbs))
                 l.append((commandLabel, verbs))
 
-        for commandLabel, verbs in l:
-            write("%s commands:" % commandLabel.capitalize())
+        for i, (commandLabel, verbs) in enumerate(l):
+            write("%s%s commands:" % ("" if i == 0 else "\r\n", commandLabel.capitalize()))
             write(textsupport.hcolumns(verbs,
                     width=self.shell.user.connection.consoleColumns,
                     columnSize=maxWordLength))

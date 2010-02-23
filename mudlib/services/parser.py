@@ -1,5 +1,6 @@
+import copy
 import pysupport
-from mudlib import Service, GameCommand
+from mudlib import Service, GameCommand, CommandInfo
 
 class ParserService(Service):
     __sorrows__ = 'parser'
@@ -66,23 +67,62 @@ class ParserService(Service):
         those arguments passing it the resolved objects that were referred to.
         """
 
-        commandName = command.__class__.__name__
+        info = CommandInfo()
+        info.verb = verb
+        info.argString = argString
+        info.user = command.shell.user
+        info.body = info.user.body
+        info.room = info.body.container
 
+        def tokens_to_string(tokens):
+            newTokens = copy.copy(tokens)
+            for i, token in enumerate(tokens):
+                if token.upper() == token:
+                    if token == "SUBJECT":
+                        token = "OBJECT"
+                    if token == "STRING":
+                        token = "TEXT"
+                    newTokens[i] = "<%s>" % token.lower()
+            return " ".join(newTokens)
+
+        commandName = command.__class__.__name__
         for funcName, tokens in self.syntaxByCommand[commandName]:
+            args = [ info ]
+
             if len(tokens) > 1:
                 self.LogError("%s.%s had too many tokens %s", commandName, funcName, tokens)
                 continue
 
-            pass
+            # Works for no tokens and 1 tokens.
 
-        if False:
-            write = command.shell.user.Tell
-            write("COMMAND %s" % command) 
-            write("VERB '%s'" % verb) 
-            write("ARGS '%s'" % argString) 
+            if len(tokens) == 1:
+                # Incorrect arguments automatically generates a usage string.
+                if argString == "":
+                    info.user.Tell("Usage: %s %s" % (verb, tokens_to_string(tokens)))
+                    return
+            
+                if tokens[0] == "SUBJECT":
+                    words = [ s.strip().lower() for s in argString.split(" ") ]
+                    noun = words.pop()
+                    adjectives = set(words)
 
+                    matches = []
+                    # Naively look inside the room and what is held or carried for now.
+                    for ob in info.room.contents:
+                        if noun.lower() in ob.nouns and ob.adjectives & adjectives == adjectives:
+                            matches.append(ob)
+                    for ob in info.body.contents:
+                        if noun.lower() in ob.nouns and ob.adjectives & adjectives == adjectives:
+                            matches.append(ob)
 
+                    if not len(matches):
+                        info.user.Tell("You cannot find any %s." % argString)
+                        return
 
+                    args.append(matches)
+                elif tokens[0] == "STRING":
+                    args.append(argString)
 
-
-
+            func = getattr(command, funcName)
+            func(*args)
+            return

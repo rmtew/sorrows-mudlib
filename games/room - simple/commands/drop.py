@@ -5,5 +5,5 @@ class Drop(GameCommand):
     
     # DROP ITEM [implicitly to ground]
 
-    def syntax_SUBJECT(self, matches):
+    def syntax_SUBJECT(self, info, matches):
         print "DROP CALL", matches
