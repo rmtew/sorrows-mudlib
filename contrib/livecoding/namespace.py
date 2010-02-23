@@ -122,8 +122,6 @@ class ScriptFile(object):
             return
 
         logger.error("Error executing script file '%s'\n%s", self.filePath, "".join(self.lastError).rstrip("\r\n"))
-        # for line in self.lastError:
-        #logger.error(line.rstrip("\r\n"))
 
         if flush:
             self.lastError = None
@@ -150,7 +148,7 @@ class ScriptFile(object):
                 if v.__module__ != "__builtin__":
                     exportable = False
                 # Skip actual builtin objects.
-                elif v in builtinValues:
+                elif v in builtinValues or issubclass(v, unittest.TestCase):
                     exportable = False
 
             yield k, v, valueType, exportable
