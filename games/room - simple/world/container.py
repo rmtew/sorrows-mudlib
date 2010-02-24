@@ -11,3 +11,12 @@ class Container(Object):
 
     def RemoveObject(self, ob):
         self.contents.remove(ob)
+
+    def LookString(self, viewer):
+        s = Object.LookString(self, viewer)
+        if len(self.contents):
+            contentsString = ", ".join(ob.shortDescription for ob in self.contents)
+        else:
+            contentsString = "Nothing"
+        s += "\r\nIt contains: "+ contentsString +"."
+        return s

@@ -4,8 +4,10 @@ class Look(GameCommand):
     __verbs__ = [ "look" ]
     __aliases__ = [ "l" ]
 
-    def syntax_(self, info):
-        body = self.shell.user.GetBody()
-        self.shell.user.Tell(body.Look())
-        if hasattr(body, "GetLocality"):
-            self.shell.user.Tell(body.GetLocality())
+    @staticmethod
+    def syntax_(context):
+        context.user.Tell(context.room.LookString(context.body))
+
+    @staticmethod
+    def syntax_SUBJECT(context, smatches):
+        context.user.Tell(smatches[0].LookString(context.body))

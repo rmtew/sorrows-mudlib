@@ -13,7 +13,7 @@ class Body(Object):
     # ------------------------------------------------------------------------
     # Methods body subclasses need to override.
 
-    def Look(self):
+    def LookString(self):
         """ Stub: Interpret the world description for the viewer.  """
         raise NotImplementedError
 

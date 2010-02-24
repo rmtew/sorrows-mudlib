@@ -1,4 +1,3 @@
-import weakref
 import mudlib
 
 class Object(mudlib.Object):
@@ -42,6 +41,9 @@ class Object(mudlib.Object):
     def GetLongDescription(self):
         return self.longDescription
 
+    def LookString(self, viewer):
+        return self.longDescription
+
     # ------------------------------------------------------------------------
 
     def MoveTo(self, dest):
@@ -49,5 +51,5 @@ class Object(mudlib.Object):
             self.container.RemoveObject(self)
 
         dest.AddObject(self)
-        self.container = weakref.proxy(dest)
+        self.container = dest
 

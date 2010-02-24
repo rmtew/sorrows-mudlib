@@ -21,7 +21,7 @@ class Body(mudlib.Body):
     # ------------------------------------------------------------------------
     # Look - Interpret the world position for the viewer
     # ------------------------------------------------------------------------
-    def Look(self):
+    def LookString(self):
         extra = ""
         foundSelf = False
         if self.service.objectsByPosition.has_key(self.position):

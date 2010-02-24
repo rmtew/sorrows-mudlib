@@ -1,5 +1,5 @@
 import pysupport
-from mudlib import Service, BaseCommand, commandLabelsByAccessMask
+from mudlib import Service, BaseCommand, commandLabelsByAccessMask, CommandContext
 
 class CommandService(Service):
     __sorrows__ = 'commands'
@@ -66,11 +66,8 @@ class CommandService(Service):
     def Execute(self, shell, verb, argString, accessMask):
         class_ = self.GetCommandClass(verb, accessMask)
         if class_ is not None:
-            cmd = class_(shell)
-            try:
-                cmd.Run(verb, argString)
-            finally:
-                cmd.Release()
+            context = CommandContext(class_, verb, argString, shell)
+            class_.Run(context)
             return True
 
         return False

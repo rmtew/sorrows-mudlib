@@ -1,6 +1,6 @@
 import copy
 import pysupport
-from mudlib import Service, GameCommand, CommandInfo
+from mudlib import Service, GameCommand
 
 class ParserService(Service):
     __sorrows__ = 'parser'
@@ -44,6 +44,13 @@ class ParserService(Service):
 
         commandName = class_.__name__
 
+        def Weighting(tokenEntry):
+            """ More complex syntax handled first. """
+            weight = -(len(tokenEntry[1]) * 10)
+            if tokens[0] != "STRING":
+                weight -= 1
+            return weight
+
         patterns = []
         for k, v in class_.__dict__.iteritems():
             if k.startswith("syntax_"):
@@ -57,22 +64,22 @@ class ParserService(Service):
                     tokens = syntaxText.split("_")
 
                 patterns.append((k, tokens))
+
+        patterns.sort(lambda x, y: cmp(Weighting(x), Weighting(y)))
+
+        # Sorting order:
+        # - Longer lengths of tokens.
+        # - Objects.
+        # - Strings.
                 
         self.syntaxByCommand[commandName] = patterns
 
-    def ExecuteGameCommand(self, command, verb, argString):
+    def ExecuteGameCommand(self, context):
         """
         Called by the GameCommand class to handle parsing the arguments that
         were passed to the class, and invoking the correct syntax handler for
         those arguments passing it the resolved objects that were referred to.
         """
-
-        info = CommandInfo()
-        info.verb = verb
-        info.argString = argString
-        info.user = command.shell.user
-        info.body = info.user.body
-        info.room = info.body.container
 
         def tokens_to_string(tokens):
             newTokens = copy.copy(tokens)
@@ -85,44 +92,97 @@ class ParserService(Service):
                     newTokens[i] = "<%s>" % token.lower()
             return " ".join(newTokens)
 
-        commandName = command.__class__.__name__
+        from game.world import Container
+
+        commandName = context.commandClass.__name__
+        argString = context.argString
+        failures = []
         for funcName, tokens in self.syntaxByCommand[commandName]:
-            args = [ info ]
+            args = [ context ]
 
-            if len(tokens) > 1:
-                self.LogError("%s.%s had too many tokens %s", commandName, funcName, tokens)
-                continue
+            def MatchObjects(context, string, *containers):
+                words = [ s.strip().lower() for s in string.split(" ") ]
+                noun = words.pop()
+                adjectives = set(words)
 
-            # Works for no tokens and 1 tokens.
+                matches = []
+                # Naively look inside the room and what is held or carried for now.
+                for container in containers:
+                    for ob in container.contents:
+                        if noun.lower() in ob.nouns and ob.adjectives & adjectives == adjectives:
+                            matches.append(ob)
+                return matches
 
             if len(tokens) == 1:
                 # Incorrect arguments automatically generates a usage string.
                 if argString == "":
-                    info.user.Tell("Usage: %s %s" % (verb, tokens_to_string(tokens)))
-                    return
+                    failures.append((tokens, ""))
+                    continue
             
                 if tokens[0] == "SUBJECT":
-                    words = [ s.strip().lower() for s in argString.split(" ") ]
-                    noun = words.pop()
-                    adjectives = set(words)
-
-                    matches = []
-                    # Naively look inside the room and what is held or carried for now.
-                    for ob in info.room.contents:
-                        if noun.lower() in ob.nouns and ob.adjectives & adjectives == adjectives:
-                            matches.append(ob)
-                    for ob in info.body.contents:
-                        if noun.lower() in ob.nouns and ob.adjectives & adjectives == adjectives:
-                            matches.append(ob)
-
+                    matches = MatchObjects(context, argString, context.room, context.body)
                     if not len(matches):
-                        info.user.Tell("You cannot find any %s." % argString)
-                        return
+                        failures.append((tokens, "You cannot find any %s." % argString))
+                        continue
+                    if len(matches) > 1:
+                        failures.append((tokens, "Which %s?" % argString))
+                        continue
 
                     args.append(matches)
                 elif tokens[0] == "STRING":
                     args.append(argString)
+            elif len(tokens) == 3:
+                preposition = tokens[1]
+                if preposition.lower() != preposition:
+                    continue
 
-            func = getattr(command, funcName)
-            func(*args)
-            return
+                substring = " %s " % preposition
+                idx = argString.find(substring)
+                if idx == -1:
+                    continue
+                
+                subjectString = argString[:idx]
+                objectString = argString[idx+len(substring):]
+
+                omatches = MatchObjects(context, objectString, context.room, context.body)
+                if len(omatches) == 0:
+                    failures.append((tokens, "You cannot find any %s." % objectString))
+                    continue
+                    
+                ocontainers = [ context.body ]
+                if preposition in [ "from", "in" ]:
+                    omatches = [ ob for ob in omatches if isinstance(ob, Container) ]
+                    if len(omatches) == 0:
+                        failures.append((tokens, "You cannot find any %s." % objectString))
+                        continue
+                    if len(omatches) > 1:
+                        failures.append((tokens, "Which %s?" % objectString))
+                        continue
+
+                    if preposition == "from":
+                        ocontainers = omatches
+
+                smatches = MatchObjects(context, subjectString, *ocontainers)
+                if len(smatches) == 0:
+                    failures.append((tokens, "You cannot find any %s." % subjectString))
+                    continue
+                
+                args.append(smatches)
+                args.append(omatches)
+            elif len(tokens) == 0:
+                if len(argString) > 0:
+                    failures.append((tokens, "You cannot find any %s." % argString))
+                    continue
+            else:
+                context.user.Tell("Case %d: no handling for %s" % (len(tokens), funcName))
+                continue
+
+            getattr(context.commandClass, funcName)(*args)
+            break
+        else:
+            if len(failures):
+                failureMessage = failures[0][-1]
+                context.user.Tell(failureMessage)
+            else:
+                context.user.Tell("Unexpected command failure.")
+

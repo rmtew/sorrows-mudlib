@@ -14,32 +14,41 @@ commandLabelsByAccessMask = {
     COMMAND_DEVELOPER: "developer",
 }
 
+
 class BaseCommand:
-    def __init__(self, shell):
-        self.shell = shell
+    def __init__(self):
+        raise Exception("This class should not be instantiated")
 
-    def Release(self):
-        del self.shell
-
-    def Run(self, verb, argString):
+    @staticmethod
+    def Run(context):
         pass
 
 
 class PlayerCommand(BaseCommand):
     __access__ = COMMAND_PLAYER
 
+
 class GameCommand(PlayerCommand):
     __access__ = COMMAND_GAME
 
-    def Run(self, verb, argString):
-        sorrows.parser.ExecuteGameCommand(self, verb, argString)
+    @staticmethod
+    def Run(context):
+        sorrows.parser.ExecuteGameCommand(context)
+
 
 class DeveloperCommand(BaseCommand):
     __access__ = COMMAND_DEVELOPER
 
-class CommandInfo:
-    room = None
-    body = None
 
-    verb = None
-    argString = None
+class CommandContext:
+    def __init__(self, commandClass, verb, argString, shell):
+        self.commandClass = commandClass
+        self.userAccessMask = shell.__access__
+
+        self.verb = verb
+        self.argString = argString
+
+        self.user = shell.user
+        self.body = self.user.body
+        self.room = self.body.container
+

@@ -1,6 +1,6 @@
 
 from mudlib import Service
-from game.world import Body, Room, Object
+from game.world import Body, Room, Object, Container
 
 class WorldService(Service):
     __sorrows__ = 'world'
@@ -15,8 +15,12 @@ class WorldService(Service):
         ob = Object()
         ob.SetShortDescription("brown pants")
         ob.SetLongDescription("This is a pair of brown pants.")
-        
         ob.MoveTo(room)
+
+        ob = Container()
+        ob.SetShortDescription("chest")
+        ob.SetLongDescription("This is a chest.")
+        ob.MoveTo(room)        
 
     def AddUser(self, user):
         if self.bodiesByUsername.has_key(user.name):

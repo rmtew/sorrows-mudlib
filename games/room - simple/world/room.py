@@ -42,11 +42,22 @@ class Room(Container):
         direction = util.ResolveDirection(direction)
         self.exits[direction] = room
 
-    def GetExits(self):
-        return self.exits.keys()
-
     def GetExitRoom(self, direction):
         return self.exits.get(direction, None)
+
+    def LookString(self, viewer):
+        s = self.shortDescription +"\r\n"
+        s += Container.LookString(self, viewer)
+
+        exitNames = self.exits.keys()
+        exitNames.sort()
+        if len(exitNames):
+            t = ", ".join(exitNames)
+        else:
+            t = "None"
+        s += "\r\nExits: "+ t
+
+        return s
 
     def Message(self, msgfmt, *args):
         args = list(args)

@@ -21,7 +21,7 @@ class Body(mudlib.Body):
     # ------------------------------------------------------------------------
     # Look - Interpret the world position for the viewer
     # ------------------------------------------------------------------------
-    def Look(self):
+    def LookString(self):
         try:
             tile = self.service.GetTile(self.position)
         except IndexError:

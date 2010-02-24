@@ -4,10 +4,11 @@ from mudlib import PlayerCommand, commandLabels, commandLabelsByAccessMask
 class Commands(PlayerCommand):
     __verbs__ = [ 'commands' ]
 
-    def Run(self, verb, arg):
-        commandsByAccessMask = sorrows.commands.List(self.shell.__access__)
-        aliases = sorrows.commands.ListAliases(self.shell.__access__)
-        write = self.shell.user.Tell
+    @staticmethod
+    def Run(context):
+        commandsByAccessMask = sorrows.commands.List(context.userAccessMask)
+        aliases = sorrows.commands.ListAliases(context.userAccessMask)
+        write = context.user.Tell
 
         l = []
         maxWordLength = 0
@@ -22,5 +23,5 @@ class Commands(PlayerCommand):
         for i, (commandLabel, verbs) in enumerate(l):
             write("%s%s commands:" % ("" if i == 0 else "\r\n", commandLabel.capitalize()))
             write(textsupport.hcolumns(verbs,
-                    width=self.shell.user.connection.consoleColumns,
+                    width=context.user.connection.consoleColumns,
                     columnSize=maxWordLength))

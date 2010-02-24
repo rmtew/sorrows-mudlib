@@ -297,31 +297,42 @@ of pants.
 Milestone 2: Containers and plurals
 -----------------------------------
 
-Containers.
+This is composed of four commands:
 
-OPEN CONTAINER
-CLOSE CONTAINER
-LOOK CONTAINER
+* put <subject> in <object>
+* take <subject> from <object>
+* look <object>
+* open <object>
+* close <object>
 
-Use of plurals.
+In addition, it includes the extension of objects and the parser to specifying and using plurals.
+
+This milestone is not very detailed because at face value, the work involved seems straightforward.
+
+Scenario
+^^^^^^^^
+
+Taking the scenario from milestone 1 and adding a container to it, and also adding another object with the same noun, should do it.
+
+So, adding a chest, and a pair of differently coloured pants.
 
 Milestone 3: Character item exchange
 ------------------------------------
 
 Character item exchange.
 
-GIVE ITEM TO LIVING
-TAKE ITEM FROM LIVING
-DEMAND ITEM FROM LIVING
-REQUEST ITEM FROM LIVING
-OFFER ITEM TO LIVING
+* give <item> to <living>
+* take <item> to <living>
+* demand <item> from <living>
+* request <item> from <living>
+* offer <item> to <living>
 
 Milestone 4: Declared nuances
 -----------------------------
 
 Declared nuances.
 
-OFFER ITEM TO LIVING unwillingly
+* offer <item> to <living> unwillingly
 
 Working Notes
 =============
@@ -329,22 +340,61 @@ Working Notes
 Milestone 1: The room
 ---------------------
 
-* Moved WorldCommand into the sandbox game.
-* Made a new subclass of PlayerCommand called GameCommand.
-* GameCommand.Run should dispatch the parsing of a game command usage.
-* Subclasses of GameCommand should not override Run.  Thinking about enforcing this.
-* Was going to enforce this in __init__, but this is too late.  Need to do it at the definition stage, rather than the later usage stage.
-* TODO: Consider how GameCommand.Run overriding will be prevented.
-* Flesh out GameCommand.Run to call on the non-existent parser.
-* Create the parser.  Service?  Object?  Service is a singleton, but it that right?
-* As the parser gets fleshed out, extend object and room as needed.
-* Unit tests?
+A lot of the work involved in this, has been rewriting existing code, or moving code that is sandbox game specific under that game directory.  In fact, maintaining the sandbox code has become impractical and at some later point it needs to be revisited and reconciled with the mudlib and the simple room game.
+
+Notes
+^^^^^
+
+* Many the existing game-related commands derived from WorldCommand.  This was a legacy of the sandbox, where the world was switchable through the 'world' command.  As this is no longer relevant to the mudlib, or the simple room game, it has been moved into the sandbox directory,
+* Created a new subclass of PlayerCommand called GameCommand.  The goal is that no game command defines a Run method to handle the command execution, instead it defines the syntax handlers described in the design for this milestone.  Ideally defining a Run method on subclasses of GameCommand should be prevented.
+* GameCommand.Run calls the new parser service.
+* Extended the livecoding framework to allow a callback to be set, where the callback gives the encompassing framework a chance to analyse and reject changed scripts.  This is now used to reject subclasses of GameCommand that define a Run method.
+* Each of the Command subclasses (not BaseCommand) defines a required access mask.
+* Refactored the Command service to index commands by their access mask (e.g. COMMAND_GAME), which is better than the indexing under labels (e.g. "developer") which it had before.  It can also have aliases defined for each command (e.g. "n" -> "north").
+* The simple room game world service now creates a starting room and moves newly logged in bodies there.  It contains a pants object.  A new inheritance hierarchy of Room -> Container -> Object and Body -> Container -> Object facilitates this.
+* Added an Object.MoveTo function that is used to move objects into a container.  It takes care of removing them from any container they are already located within before adding them into the next one.  The container of an object is stored on the object as a weakref.
+* The parser service was extended to handle the one argument case, where the argument was either an object (take sword) or a string (say something).
+* All the existing game-related commands that can be are moved to GameCommand.  The exceptions are 'look' and 'move' which require the no argument case to work.
+* The parser service was extended to handle the no argument case, and this meant that 'look' and 'move' could be converted over to use the GameCommand subclass.
+* Aliases no longer appear in the list of commands shown in by the 'commands' command.
+
+Further work
+^^^^^^^^^^^^
+
+* One argument syntaxes that match objects, have to look for those objects in all naturally reachable containers (the actor's body and the room).  Given that the command knows what locations should be searched and has to do the filtering anyway, this creates complexity.  There needs to be a way to specify scope for tokens in a command syntax, and given how well the function naming approach is working, it will most likely have to be special token names for this one argument case.
+* The syntax handlers and the parser need work to allow them to handle use of plurals, and qualifiers like "all" and "every".  Maybe even "first", "second", etc.  This shows in the design decisions made, like in the case of multiple matches failing with a message asking "Which SUBJECT?" or whatever.  And in the implementation of syntax handlers where the code just dumps some helpless text at the user.
+* Articles.  The short descriptions need to be qualified with the appropriate article for the context in which they feature.  I am not sure how to go about this for now, and am willing to leave it to a later stage.
 
 Milestone 2: Containers and plurals
 -----------------------------------
 
+With most of the mudlib cleanup work having been done in the previous milestone, this one was relatively straightforward.
+
+Notes
+^^^^^
+
+* Added an extra syntax to 'take' for '<subject> from <object>', and an extra syntax to 'put' for '<subject> in <object>'.  At this point they just display the matches for each token to the user.
+* Extended the parser to handle the three argument case, with the requirement that the second argument is a preposition.  This allows the new 'take' and 'put' syntaxes to display the matches their usage results in.
+* The parser is hitting the more simplistic syntaxes before the more complex ones, so 'take pants from chest' results in a failure message of "You can't find any pants from chest." as the '<subject>' syntax is hit rather than the '<subject> from <object>' syntax.  This is fixed by sorting the list of handled syntax for a given command into order of decreasing complexity, with number of tokens being most important, and use of the string token being least important.
+* The parser is generating a failure message for the more complex syntax of "take <subject> from <object>"), when the least complex usage is actually tried ("take <subject>").  This is fixed by collecting failure messages for each syntax tried.  If a syntax is valid, then its handler is called and the failures are discarded.  Otherwise, the failure message for the most complex syntax is displayed.  This seems to work for now.
+* The use of the preposition "from" implies where to look for the subject, and in this case the set of reachable objects is considered to be the matches for the object.
+* There is a problem with the use of weakref for the reference to the container an object is in.  It means that comparisons like 'ob is context.room' fails, because 'ob' is a proxied weakref object.  Removed the use of weakref proxy objects for this purpose and just store a normal object reference now.
+* The 'take' and 'put' commands now work for all desired syntaxes.
+* Generation of the look description for the room a body was in, was on the body.  Now it has been moved to the room.  And it incorporates the look description of the container, which incorporates the look description of the object.  Each of these is generated by the object being described.
+* Extended 'look' to handle the 'look <object>' case.  Through the look description generation process already established, it shows the object description and reflects the contents of the object if it is a container.
+* The 'look' command now works for all desired syntaxes.
+
+Further work
+^^^^^^^^^^^^
+
+* Consider the scenario where there are pants and a chest in the room.  The user enters "put pants in chest" and they see a message along the lines of "What pants?".  This is because the 'put' command filters out subject matches that are not located in the body.  Wouldn't the correct behaviour here be implicit actions, where the actor would try and perform a "take pants" first, then would proceed with their placement?
+
 Milestone 3: Character item exchange
 ------------------------------------
 
+TBD
+
 Milestone 4: Declared nuances
 -----------------------------
+
+TBD
