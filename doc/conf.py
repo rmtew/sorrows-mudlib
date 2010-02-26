@@ -7,6 +7,7 @@ copyright = '2003-%s, Richard Tew' % time.strftime('%Y')
 version = release = "3.0"
 
 exclude_trees = [ "Sphinx-0.6.4", "build" ]
+highlight_language = "python"
 
 # -- Options for HTML output ---------------------------------------------------
 

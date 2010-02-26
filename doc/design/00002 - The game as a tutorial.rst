@@ -1,6 +1,6 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
- 00002 - The game as a tutorial
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%
+ The game as a tutorial
+%%%%%%%%%%%%%%%%%%%%%%%%
 
 FLESH ME OUT WHEN YOU GET TIME
 

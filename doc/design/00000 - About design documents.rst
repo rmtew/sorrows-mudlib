@@ -1,6 +1,6 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
- 00000 - About design documents
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%
+ Design document notes
+%%%%%%%%%%%%%%%%%%%%%%%
 
 The goal of these documents, are to preserve the reasons decisions were made
 and to document the lessons learned.  I have worked on both games and

@@ -1,22 +1,12 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
- 00001 - Commands, items and parsing
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-Design
-======
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ Commands, items and parsing
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Like most areas of development, it is easy to get bogged down in the
 possibilities.  To aim for the most interesting implementation that can be
 conceived, delaying work on it until the design is fully fleshed out.  So,
 the goal of this document is to lay out the plan for the implementation of
 item handling related commands.
-
-Milestones:
-
-#. Interaction with the room.
-#. Interaction with containers and use of plurals.
-#. Interaction with other characters.
-#. Declared nuances.
 
 Milestone 1: The room
 ---------------------
@@ -63,8 +53,8 @@ moving objects into the player's hands.  Therefore it will subsequently
 filter out the objects that are already in the player's hands, and those that
 remain in the parsers list, are candidates for movement.
 
-Objects and Parsing
-^^^^^^^^^^^^^^^^^^^
+Parsing
+^^^^^^^
 
 The parser will narrow down the list of relevant items.  It will take into
 account any adjectives that the actor provides in their command.  The pants
@@ -175,8 +165,8 @@ These syntax handling methods remind me of the MudOS parser.  It might be a
 good idea to go back (after this is implemented) and see what inspiration can
 be drawn from it.
 
-Objects and Displaying
-^^^^^^^^^^^^^^^^^^^^^^
+Displaying
+^^^^^^^^^^
 
 Traditionally, objects have two types of descriptions.  The 'short'
 description that is used to represent it in passing, whether in a room
@@ -277,7 +267,7 @@ get side-tracked, should the onus be on the method to ignore objects from
 the wrong container?  For lack of a better idea, this will have to be the way
 it will work.
 
-Scenario
+Use Case
 ^^^^^^^^
 
 Up to this point, the scope of what has been defined is how rooms, objects and
@@ -294,56 +284,9 @@ Staging the scenario:
 Okay, I am going to keep this really simple.  The object is going to be a pair
 of pants.
 
-Milestone 2: Containers and plurals
------------------------------------
-
-This is composed of four commands:
-
-* put <subject> in <object>
-* take <subject> from <object>
-* look <object>
-* open <object>
-* close <object>
-
-In addition, it includes the extension of objects and the parser to specifying and using plurals.
-
-This milestone is not very detailed because at face value, the work involved seems straightforward.
-
-Scenario
-^^^^^^^^
-
-Taking the scenario from milestone 1 and adding a container to it, and also adding another object with the same noun, should do it.
-
-So, adding a chest, and a pair of differently coloured pants.
-
-Milestone 3: Character item exchange
-------------------------------------
-
-Character item exchange.
-
-* give <item> to <living>
-* take <item> to <living>
-* demand <item> from <living>
-* request <item> from <living>
-* offer <item> to <living>
-
-Milestone 4: Declared nuances
------------------------------
-
-Declared nuances.
-
-* offer <item> to <living> unwillingly
-
 Working Notes
-=============
-
-Milestone 1: The room
----------------------
-
+^^^^^^^^^^^^^
 A lot of the work involved in this, has been rewriting existing code, or moving code that is sandbox game specific under that game directory.  In fact, maintaining the sandbox code has become impractical and at some later point it needs to be revisited and reconciled with the mudlib and the simple room game.
-
-Notes
-^^^^^
 
 * Many the existing game-related commands derived from WorldCommand.  This was a legacy of the sandbox, where the world was switchable through the 'world' command.  As this is no longer relevant to the mudlib, or the simple room game, it has been moved into the sandbox directory,
 * Created a new subclass of PlayerCommand called GameCommand.  The goal is that no game command defines a Run method to handle the command execution, instead it defines the syntax handlers described in the design for this milestone.  Ideally defining a Run method on subclasses of GameCommand should be prevented.
@@ -368,10 +311,135 @@ Further work
 Milestone 2: Containers and plurals
 -----------------------------------
 
-With most of the mudlib cleanup work having been done in the previous milestone, this one was relatively straightforward.
+This is composed of four commands:
 
-Notes
-^^^^^
+* put <subject> in <object>
+* take <subject> from <object>
+* look <object>
+* open <object>
+* close <object>
+
+In addition, it includes the extension of objects and the parser to specifying and using plurals.
+
+This milestone is not very detailed because at face value, the work involved seems straightforward.
+
+Plurals
+^^^^^^^
+
+What are the repercussions of plurals on the parser?  Currently I match objects based on the noun used, but this does not take into the plural form.  If someone says "take swords", then this means that it should be attempted to take all the swords they can reach.  And if someone says "take sword", then this means that they should take one sword.  But what if the plural form is the same as the singular form?
+
+There are also adjectives that the player might use that would affect the range of items addressed, like "every" or "all".  "take every sword".  "take all swords".  Hmm, "all" requires a plural, and if someone is taking swords, then they are already implicitly taking all of them.  So "every" is the form which I would need to handle.  A quick Google says that this type of adjective are called distributive determiners.
+
+Reading about types of determiners brings some other ideas up, like part of the scope of handling plurals might be selection, like how many of the matches to take.  Let's say there are five nuts and the player only needs two, they might do "take two nuts".
+
+Parsing
+^^^^^^^
+
+I need to add storage of plurals to objects and I need to have the parser check against those plurals when I am doing the parsing.  Now the simple approach would be to require the content creator to specify the plural form of any singular noun they used.  But if this can be done automatically on their behalf, then not to do it adds an unnecessary burden on the user.
+
+Potential code::
+
+  class Object:
+      def __init__(self):
+          self.nouns = set()
+          self.plurals = set()
+
+      def AddNoun(self, noun):
+          noun = noun.strip().lower()
+          self.nouns.add(noun)
+          plural = textsupport.Pluralise(noun)
+          self.plurals.add(plural)
+
+      def AddPlural(self, plural):
+          self.plurals.add(plural.strip().lower())
+
+The grammatical rules for pluralisation are documented on various web sites.
+
+Potential code::
+
+  def Pluralise(noun):
+      plural = {
+          "bison": "bison",
+          "goose": "geese",  # Irregular nouns
+          "moose": "moose",
+          "mouse": "mice",
+          "ox":    "oxen",
+          "sheep": "sheep",
+          "foot":  "feet",
+          "tooth": "teeth",
+          "man":   "men",
+          "woman": "women",
+          "child": "children",
+      }.get(noun, None)
+      if plural is not None:
+          return plural
+  
+      sEnding = noun[-2:]
+      pEnding = {
+          "ss": "sses",   # bus      -> busses
+          "zz": "zzes",   # ?
+          "sh": "shes",   # bush     -> bushes
+          "ch": "ches",   # branch   -> branches
+          "fe": "ves",	  # knife    -> knives
+          "ff": "ffs",	  # cliff    -> cliffs
+
+          "ay": "ays",	  # <vowel>y -> <vowel>ys
+          "ey": "eys",	  # 
+          "iy": "iys",	  # 
+          "oy": "oys",	  # 
+          "uy": "uys",	  # 
+      }.get(sEnding, None)
+      if pEnding is not None:
+          return noun[:-2] + pEnding
+
+      sEnding = noun[-1]
+      pEnding = {
+          "y": "ies",     # family   -> families
+          "f": "ves",     # loaf     -> loaves
+      }.get(sEnding, None)
+      if pEnding is not None:
+          return noun[:-1] + pEnding
+
+      pEnding = {
+          "s": "",        # pants    -> pants
+          "x": "es",      # fox      -> foxes
+      }.get(sEnding, None)
+      if pEnding is not None:
+          return noun + pEnding
+
+      # Fallback case.
+      logger.error("Failed to pluralise '%s'", noun)
+      return noun +"s"
+      
+  Pluralize = Pluralise   # American <- English
+
+
+Descriptions
+^^^^^^^^^^^^
+
+How should a container describe that it contains multiple similar objects?  The straightforward approach is simply to list them all.
+
+  "You see: An old sword, a new sword, a long sword, a broadsword and a short sword."
+
+What if similar objects were when displayed in passing, described in a collective form.
+
+  "You see: A variety of swords."
+
+.. note::
+
+    I think this is definitely worth exploring at a later point, but it is getting into the realm of fancy extras that overcomplicate things at this early state.
+
+Use Case
+^^^^^^^^
+
+Taking the scenario from milestone 1 and adding a container to it, and also adding another object with the same noun, should do it.
+
+So, adding a chest, and a pair of differently coloured pants.
+
+Working Notes
+^^^^^^^^^^^^^
+
+With most of the mudlib cleanup work having been done in the previous milestone, this one was relatively straightforward.
 
 * Added an extra syntax to 'take' for '<subject> from <object>', and an extra syntax to 'put' for '<subject> in <object>'.  At this point they just display the matches for each token to the user.
 * Extended the parser to handle the three argument case, with the requirement that the second argument is a preposition.  This allows the new 'take' and 'put' syntaxes to display the matches their usage results in.
@@ -392,9 +460,17 @@ Further work
 Milestone 3: Character item exchange
 ------------------------------------
 
-TBD
+Character item exchange.
+
+* give <item> to <living>
+* take <item> to <living>
+* demand <item> from <living>
+* request <item> from <living>
+* offer <item> to <living>
 
 Milestone 4: Declared nuances
 -----------------------------
 
-TBD
+Declared nuances.
+
+* offer <item> to <living> unwillingly

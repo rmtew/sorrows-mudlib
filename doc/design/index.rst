@@ -4,5 +4,6 @@
 
 .. toctree::
    :glob:
+   :maxdepth: 1
 
    0*

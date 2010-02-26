@@ -1,6 +1,6 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
- 00003 - Character background
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%
+ Character background
+%%%%%%%%%%%%%%%%%%%%%%
 
 FLESH ME OUT WHEN YOU GET TIME
 
