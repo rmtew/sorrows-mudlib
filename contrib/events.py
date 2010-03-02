@@ -170,6 +170,11 @@ class EventHandler(object):
     def ProcessClass(self, class_):
         """ Detect changes in the events this class infers instances of itself will
         be subscribed for. """
+
+        # These cannot be hashed.  Just do not support events on them.
+        if issubclass(class_, (dict, list, tuple, set)):
+            return
+
         oldEvents = class_.__events__
 
         newEventData = dict(
