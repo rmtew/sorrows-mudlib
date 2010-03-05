@@ -520,6 +520,10 @@ Success messages
 
 One of the entries in the future work of the last milestone, was to look at moving success messages from a given command into the parser to be handled generally.  To do this while making a composite success messages, would probably be worthwhile.  Otherwise, each command is going to have to add a lot of boilerplate and custom handling.
 
+In order for the parser to be able to display success or failure messages, depending on how the syntax handler is able to work on the matched objects, 
+
+This means the syntax handler that the parser calls needs to give it suitable feedback such that the parser can display success or failure, and the reasons why.  The pl
+
 Use Case
 ^^^^^^^^
 
