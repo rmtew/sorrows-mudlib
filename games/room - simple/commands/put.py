@@ -10,4 +10,4 @@ class Put(GameCommand):
         container = omatches[0]
         for ob in smatches:
             ob.MoveTo(container)
-        context.user.Tell("Ok.")
+            context.room.Message("{0.S} {0.v} {1.s} in {2.s}.", (context.body, context.verb), ob, container)

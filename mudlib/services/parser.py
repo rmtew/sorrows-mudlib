@@ -1,6 +1,42 @@
-import copy
+import copy, sys
 import pysupport
 from mudlib import Service, GameCommand
+
+
+distributiveDeterminers = set([ "all", "every" ])
+cardinalNumberDeterminers = set([
+    "one",
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight",
+    "nine",
+    "ten",
+    "eleven",
+    "twelve",
+    "thirteen",
+    "fourteen",
+    "fifteen",
+    "sixteen",
+    "seventeen",
+    "eighteen",
+    "nineteen",
+    "twenty",
+    "thirty",
+    "fourty",
+    "fifty",
+    "sixty",
+    "seventy",
+    "eighty",
+    "ninety",
+    "hundred",
+    "thousand",
+])
+determiners = distributiveDeterminers | cardinalNumberDeterminers
+
 
 class ParserService(Service):
     __sorrows__ = 'parser'
@@ -81,17 +117,6 @@ class ParserService(Service):
         those arguments passing it the resolved objects that were referred to.
         """
 
-        def tokens_to_string(tokens):
-            newTokens = copy.copy(tokens)
-            for i, token in enumerate(tokens):
-                if token.upper() == token:
-                    if token == "SUBJECT":
-                        token = "OBJECT"
-                    if token == "STRING":
-                        token = "TEXT"
-                    newTokens[i] = "<%s>" % token.lower()
-            return " ".join(newTokens)
-
         from game.world import Container
 
         commandName = context.commandClass.__name__
@@ -100,36 +125,33 @@ class ParserService(Service):
         for funcName, tokens in self.syntaxByCommand[commandName]:
             args = [ context ]
 
-            def MatchObjects(context, string, *containers):
-                words = [ s.strip().lower() for s in string.split(" ") ]
-                noun = words.pop()
-                adjectives = set(words)
-
-                matches = []
-                # Naively look inside the room and what is held or carried for now.
-                for container in containers:
-                    for ob in container.contents:
-                        if noun.lower() in ob.nouns and ob.adjectives & adjectives == adjectives:
-                            matches.append(ob)
-                return matches
-
             if len(tokens) == 1:
                 # Incorrect arguments automatically generates a usage string.
                 if argString == "":
                     failures.append((tokens, ""))
                     continue
-            
-                if tokens[0] == "SUBJECT":
+
+                token = tokens[0]
+                if token.startswith("SUBJECT"):
                     matches = MatchObjects(context, argString, context.room, context.body)
+
+                    # SUBJECTR: Look for a subject object that is in the room.
+                    # SUBJECTB: Look for a subject object that is being carried.
+                    filterType = token[7:]
+                    if filterType == "R":
+                        matches[:] = (match for match in matches if match.container is context.room)
+                    elif filterType == "B":
+                        matches[:] = (match for match in matches if match.container is context.body)
+
                     if not len(matches):
                         failures.append((tokens, "You cannot find any %s." % argString))
                         continue
-                    if len(matches) > 1:
+                    if len(matches) > 1 and matches.desiredAmount < len(matches):
                         failures.append((tokens, "Which %s?" % argString))
                         continue
 
                     args.append(matches)
-                elif tokens[0] == "STRING":
+                elif token == "STRING":
                     args.append(argString)
             elif len(tokens) == 3:
                 preposition = tokens[1]
@@ -140,7 +162,7 @@ class ParserService(Service):
                 idx = argString.find(substring)
                 if idx == -1:
                     continue
-                
+
                 subjectString = argString[:idx]
                 objectString = argString[idx+len(substring):]
 
@@ -149,13 +171,13 @@ class ParserService(Service):
                     failures.append((tokens, "You cannot find any %s." % objectString))
                     continue
                     
-                ocontainers = [ context.body ]
+                ocontainers = [ context.body, context.room ]
                 if preposition in [ "from", "in" ]:
-                    omatches = [ ob for ob in omatches if isinstance(ob, Container) ]
+                    omatches[:] = (ob for ob in omatches if isinstance(ob, Container))
                     if len(omatches) == 0:
                         failures.append((tokens, "You cannot find any %s." % objectString))
                         continue
-                    if len(omatches) > 1:
+                    if len(omatches) > 1 and omatches.desiredAmount < len(omatches):
                         failures.append((tokens, "Which %s?" % objectString))
                         continue
 
@@ -165,6 +187,9 @@ class ParserService(Service):
                 smatches = MatchObjects(context, subjectString, *ocontainers)
                 if len(smatches) == 0:
                     failures.append((tokens, "You cannot find any %s." % subjectString))
+                    continue
+                if len(smatches) > 1 and smatches.desiredAmount < len(smatches):
+                    failures.append((tokens, "Which %s?" % subjectString))
                     continue
                 
                 args.append(smatches)
@@ -186,3 +211,35 @@ class ParserService(Service):
             else:
                 context.user.Tell("Unexpected command failure.")
 
+
+class Matches(list):
+    desiredAmount = 1
+
+def MatchObjects(context, string, *containers):
+    words = [ s.strip().lower() for s in string.split(" ") ]
+    noun = words.pop()
+    allAdjectives = set(words)
+    adjectives = allAdjectives.difference(determiners)
+
+    matches = Matches()
+    # Naively look inside the room and what is held or carried for now.
+    for container in containers:
+        for ob in container.contents:
+            if ob.IdentifiedBy(noun) and ob.DescribedBy(adjectives):
+                matches.append(ob)
+
+    if allAdjectives & distributiveDeterminers:
+        matches.desiredAmount = sys.maxint
+
+    return matches
+
+def tokens_to_string(tokens):
+    newTokens = copy.copy(tokens)
+    for i, token in enumerate(tokens):
+        if token.upper() == token:
+            if token.startswith("SUBJECT"):
+                token = "OBJECT"
+            if token == "STRING":
+                token = "TEXT"
+            newTokens[i] = "<%s>" % token.lower()
+    return " ".join(newTokens)

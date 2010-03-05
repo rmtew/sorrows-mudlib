@@ -8,6 +8,8 @@ class WorldService(Service):
     def Run(self):
         self.bodiesByUsername = {}
         
+        ## World content.
+        
         room = self.startingRoom = Room()
         room.SetShortDescription("A room")
         room.SetLongDescription("This is a room.")
@@ -15,6 +17,11 @@ class WorldService(Service):
         ob = Object()
         ob.SetShortDescription("brown pants")
         ob.SetLongDescription("This is a pair of brown pants.")
+        ob.MoveTo(room)
+
+        ob = Object()
+        ob.SetShortDescription("green pants")
+        ob.SetLongDescription("This is a pair of green pants.")
         ob.MoveTo(room)
 
         ob = Container()
@@ -31,7 +38,7 @@ class WorldService(Service):
         user.SetBody(body)
 
         body.MoveTo(self.startingRoom)
-        body.SetShortDescription(user.name.capitalize())
+        body.SetName(user.name.capitalize())
 
         return body
 

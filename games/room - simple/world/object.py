@@ -1,24 +1,43 @@
+import textsupport
 import mudlib
 
 class Object(mudlib.Object):
     container = None
 
     primaryNoun = None
+    name = ""
     shortDescription = "UNDESCRIBED"
     longDescription = "THIS OBJECT IS UNDESCRIBED"
 
     def __init__(self, shortDescription=None):
         self.nouns = set()
+        self.plurals = set()
         self.adjectives = set()
 
         if shortDescription is not None:
             self.SetShortDescription(shortDescription)
 
-    def AddNoun(self, noun):
-        self.nouns.add(noun.strip().lower())
+    def IdentifiedBy(self, noun):
+        return noun in self.nouns or noun in self.plurals
+
+    def DescribedBy(self, adjectives):
+        return self.adjectives & adjectives == adjectives
+
+    def AddNoun(self, noun, clean=False):
+        if not clean:
+            noun = noun.strip().lower()
+        self.nouns.add(noun)
+        if noun != self.name:
+            plural = textsupport.pluralise(noun)
+            self.plurals.add(plural)
 
     def AddAdjective(self, adjective):
         self.adjectives.add(adjective.strip().lower())
+
+    def SetName(self, name):
+        self.name = name.lower()
+        self.shortDescription = name
+        self.AddNoun(self.name, clean=True)
 
     def SetShortDescription(self, shortDescription):
         self.shortDescription = shortDescription
@@ -27,7 +46,7 @@ class Object(mudlib.Object):
 
         # The last word is the noun.
         self.primaryNoun = words.pop().strip()
-        self.nouns.add(self.primaryNoun)
+        self.AddNoun(self.primaryNoun, clean=True)
 
         for word in words:
             self.adjectives.add(word.strip())

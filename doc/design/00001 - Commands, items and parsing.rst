@@ -8,8 +8,8 @@ conceived, delaying work on it until the design is fully fleshed out.  So,
 the goal of this document is to lay out the plan for the implementation of
 item handling related commands.
 
-Milestone 1: The room
----------------------
+Milestone: The room
+-------------------
 
 This is composed of two commands:
 
@@ -308,8 +308,8 @@ Further work
 * The syntax handlers and the parser need work to allow them to handle use of plurals, and qualifiers like "all" and "every".  Maybe even "first", "second", etc.  This shows in the design decisions made, like in the case of multiple matches failing with a message asking "Which SUBJECT?" or whatever.  And in the implementation of syntax handlers where the code just dumps some helpless text at the user.
 * Articles.  The short descriptions need to be qualified with the appropriate article for the context in which they feature.  I am not sure how to go about this for now, and am willing to leave it to a later stage.
 
-Milestone 2: Containers and plurals
------------------------------------
+Milestone: Containers and plurals
+---------------------------------
 
 This is composed of four commands:
 
@@ -326,11 +326,15 @@ This milestone is not very detailed because at face value, the work involved see
 Plurals
 ^^^^^^^
 
-What are the repercussions of plurals on the parser?  Currently I match objects based on the noun used, but this does not take into the plural form.  If someone says "take swords", then this means that it should be attempted to take all the swords they can reach.  And if someone says "take sword", then this means that they should take one sword.  But what if the plural form is the same as the singular form?
+What are the repercussions of plurals on the parser?  Currently I match objects based on the noun used, but this does not take into the plural form.  If someone says "take swords", then this means that it should be attempted to take all the swords they can reach.  And if someone says "take sword", then this means that they should take one sword.
 
-There are also adjectives that the player might use that would affect the range of items addressed, like "every" or "all".  "take every sword".  "take all swords".  Hmm, "all" requires a plural, and if someone is taking swords, then they are already implicitly taking all of them.  So "every" is the form which I would need to handle.  A quick Google says that this type of adjective are called distributive determiners.
+What if the plural form is the same as the singular form?  If the parser knows whether the match was to the use of a plural, or a singular noun, then it might act on it.  But how it should act in this ambiguous case is unclear.  Perhaps players should be required to use determiners (all, every, ..) to indicate that an action relates to multiple items.
+
+Now looking at adjectives which are determiners.  "take every sword".  "take all swords".  Hmm, "all" requires a plural, and if someone is taking swords, then they are already implicitly taking all of them.  So "every" is the form which I would need to handle.  A quick Google says that this type of adjective are called distributive determiners.
 
 Reading about types of determiners brings some other ideas up, like part of the scope of handling plurals might be selection, like how many of the matches to take.  Let's say there are five nuts and the player only needs two, they might do "take two nuts".
+
+As I have no idea how to resolve the problems mentioned above, I am going to choose a simplistic solution for now.  Nouns are going to be interpreted as meaning one item, regardless of whether they are singular or plural.  To shift the intepretation to more than one item, will require the player provide a distributive determiner adjective.  If a numeric qualifier is specified, then it overrides the determiner.
 
 Parsing
 ^^^^^^^
@@ -413,7 +417,6 @@ Potential code::
       
   Pluralize = Pluralise   # American <- English
 
-
 Descriptions
 ^^^^^^^^^^^^
 
@@ -432,9 +435,7 @@ What if similar objects were when displayed in passing, described in a collectiv
 Use Case
 ^^^^^^^^
 
-Taking the scenario from milestone 1 and adding a container to it, and also adding another object with the same noun, should do it.
-
-So, adding a chest, and a pair of differently coloured pants.
+As it stands from milestone 1, the starting room has a pair of brown pants in it.  In order to handle the testing of containers, and the use of commands to interact with them, a container is needed.  In this case, the container will be a chest.  In order to bring into play the plural parser behaviour, there needs to be multiple objects present with the same noun.  This will be an additional pair of pants, although green rather than brown, to differentiate them.
 
 Working Notes
 ^^^^^^^^^^^^^
@@ -451,14 +452,81 @@ With most of the mudlib cleanup work having been done in the previous milestone,
 * Generation of the look description for the room a body was in, was on the body.  Now it has been moved to the room.  And it incorporates the look description of the container, which incorporates the look description of the object.  Each of these is generated by the object being described.
 * Extended 'look' to handle the 'look <object>' case.  Through the look description generation process already established, it shows the object description and reflects the contents of the object if it is a container.
 * The 'look' command now works for all desired syntaxes.
+* Extended the object class to track plurals, using the new 'pluralise' function.
+* Added two functions to the object class to help the parser to match it, 'IdentifiedBy' which takes a noun and indicates whether it relates to the given object either as in the singular or plural forms, and 'DescribedBy' which takes a set of adjectives and indicates whether the given object is described by all of them.  These are now used for matching, rather than direct use of an objects 'nouns' and 'adjectives' attributes.
+* If the "all" or "every" adjectives are used, the parser notes that the desired amount of matches are effectively as many as have been found, as noted in the design otherwise this is one desired match.
+* If the parser finds multiple matches and the number of matches found is higher than the desired amount of matches, then the user is asked which of the matches they want.
+* Objects can now have names.  If the name of the object is the same as its short, the plural form of the noun is not automatically generated and added.  This is to handle cases where short descriptions are actually names, like the player's name for instance.
+* 'take <object>' and 'drop <object>' have implied locations which the given object resides in.  For 'drop' this is in the player's inventory.  For 'take' this is in the room.  To remove ambiguity, two new syntax tokens have been added, both forms of 'SUBJECT'.  'SUBJECTR' indicates an object that is located in the room.  'SUBJECTB' indicates an object that is located in the player.
 
 Further work
 ^^^^^^^^^^^^
+* Object names. These were added to differentiate between names of objects and descriptions of objects.  Is this really needed?
+* The new parser syntax tokens 'SUBJECTR' and 'SUBJECTB'.  These address the problem they were meant to solve, but the use of an extra letter to indicate context is not the clearest of solutions.  It might be worth creating longer more explicit tokens to use at a later stage, or.. something.
+* Parser match objects and the event system. The matched objects found by the parser, are collected in a 'Match' class which is a subclass of 'list'.  The automatic dispatching of events hashes instances of classes, and it turns out that instances of classes like 'list' are not hashable, so the event system chokes on instantiation of these classes.  For now, the event system ignores subclasses like these, but that is not the correct solution.
+* Parser failure messages.  At the moment the parser failure messages are simple, but they could be clearer and more useful.  For instance, rather than saying 'Which <object>?" as a failure message when multiple matches are found, it might say "Which <object>?  There are two <common description> here."
+* Parser success messages.  Most of the success messages for commands so far, are ones that the parser could easily generate in much the same way as it supplies the chosen failure message.  That is, rather than having the command generate them.  Also, the messages should use short descriptions that are not just the noun, for instance with the correct article provided.  The parser would have to have some sort of feedback from the commands that indicated what objects the command operated on successfully, and which it did not.
+* Safe object movement.  At the moment there is no protection against race conditions when actions are performed on multiple objects.  For instance, most of the game commands iterate over the matched objects.  If some of the objects the iteration has not yet reached have in the meantime been moved (perhaps taken by another player) then the iteration will proceed to operate on them regardless.
 
-* Consider the scenario where there are pants and a chest in the room.  The user enters "put pants in chest" and they see a message along the lines of "What pants?".  This is because the 'put' command filters out subject matches that are not located in the body.  Wouldn't the correct behaviour here be implicit actions, where the actor would try and perform a "take pants" first, then would proceed with their placement?
+Milestone: An acceptable level of polish
+----------------------------------------
 
-Milestone 3: Character item exchange
-------------------------------------
+This milestone was inserted to get work done that is more important than the milestones that follow.  The previous milestones have introduced a basic set of desired functionality and while the goal is not to overcomplicate things, a certain level of polish is needed for that basic set to be considered finished and usable.
+
+* Articles [#farticles]_ not added to the short description of objects.  If it is, then the text in which those descriptions appear, would appear more natural and less out of place.
+* Parser failure messages are simple.  But it is important that enough information is given that the user can work out why the given message appeared.  Each parser message should be improved if improvement is possible.
+* Success messages are dumb.  For each object that a command is applied to, a separate message is displayed.  It is entirely possible to collect the objects operated on, and to display a composite message.
+
+Articles
+^^^^^^^^
+
+No article applies to when the short description is a name.  "the" applies when there is only one of an item.  "a" / "an" apply when there are more than one items and only one is being used.
+
+Hypothetical usage::
+
+  There are five swords.
+  > take one sword
+  You take a sword.
+  
+  There is a sword.
+  > take sword
+  You take the sword.
+
+  You see: Five swords, an apple, Pete and a dog.
+
+So, "the" applies to specific items.  And "a" or "an" apply to any items.
+
+Failure messages
+^^^^^^^^^^^^^^^^
+
+At this time, there are two failure messages used by the parser:
+
+* "You cannot find any STRING.": Used when looking for an object that matches STRING, but unable to find any.
+* "Which STRING?": Used when looking for an object that matches STRING, but more than one are found when only one is wanted.
+
+First considering "You cannot find any STRING."  A first thought is that STRING could be broken down and the noun extracted, and the pluralised form of that noun used in place of STRING in this message.  So where STRING is "any red sword", the correct displayable form of STRING might be "swords".  "You cannot find any swords."  Actually, that would be confusing if there were swords, just no red ones.  So the distributive adjectives might be stripped, and the attributive ones like "red" kept.  "You cannot find any red swords."  Another variant might be "There are no red swords here."  If "here" is to be interpreted as the room, then if the expected location of the item is carried by the actor, alternately something more specific like "You are not carrying a red sword."  It might be worth experimenting with how varying the message depending on context works in practice.
+
+Next considering "Which STRING?"  In this case we have matches, just too many.  We would want to use the attributive adjectives with the noun.  "take red sword" -> "Which red sword?"  Or "There are two red swords, which one do you want to take?"
+
+It is all very well to write about these things here, but doing so shows that the concepts need to be tried out.  One way which would demonstrate the range of cases that need to be supported and show how they work, would be to write unit tests for the parser.  In fact, that seems to be the most obvious lesson that this exploration of concepts shows.
+
+Unit tests::
+
+    class ParserTests(unittest.TestCase):
+        pass
+
+Success messages
+^^^^^^^^^^^^^^^^
+
+One of the entries in the future work of the last milestone, was to look at moving success messages from a given command into the parser to be handled generally.  To do this while making a composite success messages, would probably be worthwhile.  Otherwise, each command is going to have to add a lot of boilerplate and custom handling.
+
+Use Case
+^^^^^^^^
+
+In the previous milestones, the use cases were aimed at providing a minimal scenario on which the functionality being implemented could be tested.  What I am wondering now, is whether a more extensive scenario would be useful.  Not going for broke and fleshing out a game world, but rather a minimal game world that would allow a better insight into how well the existing functionality works.  In fact, not only does it makes sense for better looking at the existing functionality, but it would give a better environment for inspiring ideas for future functionality.
+
+Milestone: Character item exchange
+----------------------------------
 
 Character item exchange.
 
@@ -468,9 +536,24 @@ Character item exchange.
 * request <item> from <living>
 * offer <item> to <living>
 
-Milestone 4: Declared nuances
------------------------------
+Working Notes
+^^^^^^^^^^^^^
+
+* I now consider this milestone to be outside the scope of this design.  It should be moved into another design.
+
+Milestone: Declared nuances
+---------------------------
 
 Declared nuances.
 
 * offer <item> to <living> unwillingly
+
+Working Notes
+^^^^^^^^^^^^^
+
+* I now consider this milestone to be outside the scope of this design.  It should be moved into another design.
+
+Footnotes
+---------
+
+.. [#farticles] http://owl.english.purdue.edu/owl/resource/540/01/
