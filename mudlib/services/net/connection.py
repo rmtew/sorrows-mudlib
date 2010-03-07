@@ -4,8 +4,8 @@ from errno import EBADF
 class Connection:
     released = False
 
-    def __init__(self, socket):
-        self.socket = socket
+    def __init__(self, _socket):
+        self.socket = _socket
 
     def Setup(self, service, connectionID=None):
         self.service = service

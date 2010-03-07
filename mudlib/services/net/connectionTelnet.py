@@ -45,6 +45,10 @@ class TelnetConnection(Connection):
             service.LogDebug("TERMINAL SIZE(%s)%s[%s]", self.user.name, self.clientAddress, str((rows, columns)))
             self.consoleRows = rows
             self.consoleColumns = columns
+            # TODO: This callback needs to be done cleanly.
+            handler = self.user.inputstack.stack[-1]
+            if hasattr(handler.shell, "OnTerminalSizeChanged"):
+                handler.shell.OnTerminalSizeChanged(rows, columns)
         self.telneg.set_terminal_size_cb(terminal_size_cb)
 
         self.telneg.request_will_echo()
@@ -53,9 +57,18 @@ class TelnetConnection(Connection):
 
     def ManageConnection(self):
         while not self.released:
-            line = self.readline()
-            if line is not None:
-                self.user.ReceiveInput(line)
+            if not self._ManageConnection():
+                break
+
+    def _ManageConnection(self):
+        if self.optionLineMode:
+            input = self.readline()
+        else:
+            input = self.read(65536)
+        if input is None:
+            return False
+        self.user.ReceiveInput(input)
+        return True
 
     def OnDisconnection(self):
         # Notify the service of the disconnection.
@@ -66,6 +79,16 @@ class TelnetConnection(Connection):
 
     def SetPasswordMode(self, flag):
         self.passwordMode = flag
+
+    def read(self, bytes):
+        s = self.recv(65536)
+        if s == "":
+            return None
+
+        buf = ""
+        for s in self.telneg.feed(s):
+            buf += s
+        return buf
 
     # -----------------------------------------------------------------------
     # readline
