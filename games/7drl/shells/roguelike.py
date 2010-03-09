@@ -152,22 +152,21 @@ class RoguelikeShell(Shell):
                 self.playerX = newX
                 self.playerY = newY
 
-        elif s == "\x1b[A": # Up cursor key.
-            if self.playerY <= self.titleOffset + 1:
-                pass # skip
-        elif s == "\x1b[B": # Down cursor key.
-            if self.playerY >= self.statusOffset - 1:
-                pass # skip
-        elif s == "\x1b[C": # Right cursor key.
-            if self.playerX < self.user.connection.consoleColumns:        
-                pass # skip
-        elif s == "\x1b[D": # Left cursor key.
-            if self.playerX > 1:        
-                pass # skip
-                self.oldPlayerX = self.playerX
-                self.oldPlayerY = self.playerY
-                self.playerX -= 1
-                self.UpdateView()
+        if False:
+            # Kept this in case I wanted to preserve the hard limits,
+            # should the tile check fail.
+            elif s == "\x1b[A": # Up cursor key.
+                if self.playerY <= self.titleOffset + 1:
+                    pass # skip
+            elif s == "\x1b[B": # Down cursor key.
+                if self.playerY >= self.statusOffset - 1:
+                    pass # skip
+            elif s == "\x1b[C": # Right cursor key.
+                if self.playerX >= self.user.connection.consoleColumns:        
+                    pass # skip
+            elif s == "\x1b[D": # Left cursor key.
+                if self.playerX <= 1:        
+                    pass # skip
 
         # Fallthrough.
         t = str([ ord(c) for c in s ])
@@ -201,26 +200,28 @@ class RoguelikeShell(Shell):
         self.UpdateStatusBar(self.lastStatusBar)
 
     def UpdateView(self):
-        
+        # REUSE?  Useful for centering of the world or view or something.
+        #
+        # playerX = self.playerX = self.user.connection.consoleColumns / 2
+        # playerY = self.playerY = self.windowOffset + windowLength/2
 
-        playerX = getattr(self, "playerX", None)
-        if playerX is None:
-            windowLength = self.windowEndOffset - self.windowOffset + 1
-            playerX = self.playerX = self.user.connection.consoleColumns / 2
-            playerY = self.playerY = self.windowOffset + windowLength/2
-            oldPlayerX = self.oldPlayerX = playerX
-            oldPlayerY = self.oldPlayerY = playerY
-        else:
-            playerY = self.playerY
-            oldPlayerX = self.oldPlayerX
-            oldPlayerY = self.oldPlayerY
+        # TODO: BROKEN OR IN NEED OF REFACTORING
+        #
+        # - The cursor movement should use positions that are projected from
+        #   world space to view space.
+        # - The positions should be stored on the objects, not on this object.
+        #   body.position = (X, Y)
+        # - Movement of the player should not update the view, but should rather
+        #   simply reset the position they moved from, and update the position
+        #   they moved to.
 
         # Incremental update of the player position.
-        if oldPlayerX != playerX or oldPlayerY != playerY:
-            self.MoveCursor(oldPlayerX, oldPlayerY)
-            self.user.Write(" ")
+        if self.oldPlayerX != self.playerX or self.oldPlayerY != self.playerY:
+            self.MoveCursor(self.oldPlayerX, self.oldPlayerY)
+            tile = self.mapRows[newY][newX]
+            self.user.Write(tile)
 
-        self.MoveCursor(playerX, playerY)
+        self.MoveCursor(self.playerX, self.playerY)
         self.user.Write("@")
 
     def UpdateTitle(self):
