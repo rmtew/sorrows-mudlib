@@ -1,7 +1,7 @@
+import random
 import uthread
 from mudlib import Shell, InputHandler
 
-ROWS = 25
 
 EC_CLEAR_LINE        = "\x1b[2K"
 EC_CLEAR_SCREEN      = "\x1b[2J"
@@ -11,6 +11,54 @@ EC_REVERSE_VIDEO_ON  = "\x1b[7m"
 EC_REVERSE_VIDEO_OFF = "\x1b[27m"
 EC_SCROLL_UP         = "\x1bM"
 EC_SCROLL_DOWN       = "\x1bD"
+
+# D - Door
+# @ - Player starting location
+# X - Solid rock
+
+map = """\
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXX     X     XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXX     X     XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXX     X     XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXDXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX           D              X XXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXX     XXXXXDXXXXXDXXXX XXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXX XXXXX     X     X  X   XXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX  @  XXXXX XXXXX     X     X XX   XXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXX XXXXX     X     X X    XXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXX XXXXDXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXX      XXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"""
 
 
 class RoguelikeShell(Shell):
@@ -39,11 +87,11 @@ class RoguelikeShell(Shell):
     # ------------------------------------------------------------------------
 
     def OnRemovalFromStack(self):
-        msg = ""
-
         self.user.connection.optionLineMode = self.oldOptionLineMode
         self.user.connection.telneg.request_will_echo()
-        self.user.Tell(EC_RESET_TERMINAL + EC_CLEAR_SCREEN + msg)
+        self.user.Write(EC_RESET_TERMINAL)
+        self.ScrollWindowUp()
+        self.MoveCursor(0, self.statusOffset)
 
     def OnTerminalSizeChanged(self, rows, columns):
         self.DisplayScreen()
@@ -57,10 +105,14 @@ class RoguelikeShell(Shell):
             self.user.ManualDisconnection()
             return
 
-        if s == chr(18):
+        if s == chr(5):
+            # Putty ID
+            self.user.Write(chr(5))
+        elif s == chr(18):
             self.lastStatusBar = " Screen refreshed"
             self.DisplayScreen()
-            return
+            del self.playerX
+            self.UpdateView()
         elif s == "\x1b[A": # Up cursor key.
             if self.playerY > self.titleOffset + 1:
                 self.oldPlayerX = self.playerX
@@ -125,6 +177,61 @@ class RoguelikeShell(Shell):
             playerY = self.playerY = self.windowOffset + windowLength/2
             oldPlayerX = self.oldPlayerX = playerX
             oldPlayerY = self.oldPlayerY = playerY
+
+            if False:
+                self.MoveCursor(1, self.windowOffset)
+
+                def SendValue(v, sio):
+                    sio.write(chr(v))
+                    if v == 255:
+                        sio.write(chr(v))            
+
+                self.user.Write("\x1b%G")
+
+                import StringIO
+                sio = StringIO.StringIO()
+                for i in range(0, 30):
+                    start = 0xC280 + i * 0x100
+                    for i in range(0, 64):
+                        value = start + i
+                        svalue = (value >> 16) & 0xFF
+                        if svalue:
+                            SendValue(svalue, sio)
+                        SendValue((value >> 8) & 0xFF, sio)
+                        SendValue((value >> 0) & 0xFF, sio)
+                self.user.Write(sio.getvalue())
+                print hex(start)
+
+            if False:
+                self.user.Write("\x1b)U") # G1 = SCO alternate character set
+
+                self.user.Write(chr(14))
+                self.user.Write("\rG1:") # Display the escape code.
+                col = 3
+                for i in range(ord(' '), 256):
+                    col += 1
+                    if col % self.user.connection.consoleColumns == 0:
+                        self.user.Write('\r\n')
+                    self.user.Write(chr(i))
+                self.user.Write("\r\n")
+
+                self.user.Write(chr(15))
+                self.user.Write("\rG0:") # Display the escape code.
+                col = 3
+                for i in range(ord(' '), 256):
+                    col += 1
+                    if col % self.user.connection.consoleColumns == 0:
+                        self.user.Write('\r\n')
+                    self.user.Write(chr(i))
+                self.user.Write("\r\n")
+
+            if False:
+                for xi in range(10):
+                    xi -= 5
+                    for yi in range(10):
+                        yi -= 5
+                        self.MoveCursor(playerX + xi, playerY + yi)
+                        self.user.Write(random.choice([chr(244), chr(187)]))
         else:
             playerY = self.playerY
             oldPlayerX = self.oldPlayerX
@@ -132,7 +239,7 @@ class RoguelikeShell(Shell):
 
         if oldPlayerX != playerX or oldPlayerY != playerY:
             self.MoveCursor(oldPlayerX, oldPlayerY)
-            self.EraseCharacters(1)
+            self.user.Write(" ")
 
         self.MoveCursor(playerX, playerY)
         self.user.Write("@")
@@ -179,13 +286,22 @@ class RoguelikeShell(Shell):
     def SetScrollingRows(self, yLow, yHigh):
         self.user.Write("\x1b[%d;%dr" % (yLow, yHigh))
 
+    def ResetScrollingRows(self):
+        self.user.Write("\x1b[r")
+
     def ScrollWindowUp(self):
-        self.MoveCursor(self.windowOffset + 2)
+        self.MoveCursor(0, self.windowOffset + 2)
         self.user.Write(EC_SCROLL_UP)
 
     def ScrollWindowDown(self):
-        self.MoveCursor(self.windowOffset)
+        self.MoveCursor(0, self.windowOffset)
         self.user.Write(EC_SCROLL_DOWN)
+
+    def InsertCharacters(self, times=1):
+        self.user.Write("\x1b[%d@" % times)
+
+    def DeleteCharacters(self, times=1):
+        self.user.Write("\x1b[%dP" % times)
 
     # ANSI Attribute ---------------------------------------------------------
 

@@ -41,6 +41,13 @@ class TelnetConnection(Connection):
             service.LogDebug("TERMINAL TYPE(%s)%s[%s]", self.user.name, self.clientAddress, data)
         self.telneg.set_terminal_type_cb(terminal_type_cb)
 
+        def terminal_type_selection_cb(termTypes):
+            service.LogDebug("TERMINAL TYPES(%s)%s[%s]", self.user.name, self.clientAddress, termTypes)
+            if "ansi" in termTypes:
+                return "ansi"
+            return termTypes[0]
+        self.telneg.set_terminal_type_selection_cb(terminal_type_selection_cb)
+
         def terminal_size_cb(rows, columns):
             service.LogDebug("TERMINAL SIZE(%s)%s[%s]", self.user.name, self.clientAddress, str((rows, columns)))
             self.consoleRows = rows
@@ -54,6 +61,7 @@ class TelnetConnection(Connection):
         self.telneg.request_will_echo()
         self.telneg.request_will_compress()
         self.telneg.request_naws()
+        self.telneg.request_terminal_type()
 
     def ManageConnection(self):
         while not self.released:
