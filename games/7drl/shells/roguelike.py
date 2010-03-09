@@ -16,7 +16,7 @@ EC_SCROLL_DOWN       = "\x1bD"
 # @ - Player starting location
 # X - Solid rock
 
-map = """\
+levelMap = """
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -58,7 +58,8 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"""
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+"""
 
 
 class RoguelikeShell(Shell):
@@ -82,6 +83,27 @@ class RoguelikeShell(Shell):
 
         self.user.connection.telneg.password_mode_on()
         self.ShowCursor(False)
+
+        # Process the map.
+        self.mapRows = [
+            line.strip()
+            for line in levelMap.split("\n")
+            if len(line) and line[0] == 'X'
+        ]
+        for i, line in self.mapRows:
+            x = line.find("@")
+            if x != -1:
+               self.playerStartX = x
+               self.playerStartY = i
+               break
+        else:
+            raise Exception("Map did not provide a player starting position")
+
+        self.playerX = self.playerStartX
+        self.playerY = self.playerStartY
+        self.oldPlayerX = self.playerX
+        self.oldPlayerY = self.playerY
+
         self.DisplayScreen()
 
     # ------------------------------------------------------------------------
@@ -106,33 +128,42 @@ class RoguelikeShell(Shell):
             return
 
         if s == chr(5):
-            # Putty ID
+            # Putty responds to CTRL-E with its ID.
             self.user.Write(chr(5))
         elif s == chr(18):
             self.lastStatusBar = " Screen refreshed"
             self.DisplayScreen()
-            del self.playerX
-            self.UpdateView()
+
+        movementShift = {
+            "\x1b[A": ( 0,-1),
+            "\x1b[B": ( 0, 1),
+            "\x1b[C": ( 1, 0),
+            "\x1b[D": (-1, 0),
+        }.get(s, None)
+            
+        if movementShift is not None:
+            newX = self.playerX + movementShift[0]
+            newY = self.playerY + movementShift[1]
+            # For now, can only move into empty spaces.
+            tile = self.mapRows[newY][newX]
+            if tile == " ":
+                self.oldPlayerX = self.playerX
+                self.oldPlayerY = self.playerY
+                self.playerX = newX
+                self.playerY = newY
+
         elif s == "\x1b[A": # Up cursor key.
-            if self.playerY > self.titleOffset + 1:
-                self.oldPlayerX = self.playerX
-                self.oldPlayerY = self.playerY
-                self.playerY -= 1
-                self.UpdateView()
+            if self.playerY <= self.titleOffset + 1:
+                pass # skip
         elif s == "\x1b[B": # Down cursor key.
-            if self.playerY < self.statusOffset - 1:
-                self.oldPlayerX = self.playerX
-                self.oldPlayerY = self.playerY
-                self.playerY += 1
-                self.UpdateView()
+            if self.playerY >= self.statusOffset - 1:
+                pass # skip
         elif s == "\x1b[C": # Right cursor key.
             if self.playerX < self.user.connection.consoleColumns:        
-                self.oldPlayerX = self.playerX
-                self.oldPlayerY = self.playerY
-                self.playerX += 1
-                self.UpdateView()
+                pass # skip
         elif s == "\x1b[D": # Left cursor key.
             if self.playerX > 1:        
+                pass # skip
                 self.oldPlayerX = self.playerX
                 self.oldPlayerY = self.playerY
                 self.playerX -= 1
@@ -170,6 +201,8 @@ class RoguelikeShell(Shell):
         self.UpdateStatusBar(self.lastStatusBar)
 
     def UpdateView(self):
+        
+
         playerX = getattr(self, "playerX", None)
         if playerX is None:
             windowLength = self.windowEndOffset - self.windowOffset + 1
@@ -177,66 +210,12 @@ class RoguelikeShell(Shell):
             playerY = self.playerY = self.windowOffset + windowLength/2
             oldPlayerX = self.oldPlayerX = playerX
             oldPlayerY = self.oldPlayerY = playerY
-
-            if False:
-                self.MoveCursor(1, self.windowOffset)
-
-                def SendValue(v, sio):
-                    sio.write(chr(v))
-                    if v == 255:
-                        sio.write(chr(v))            
-
-                self.user.Write("\x1b%G")
-
-                import StringIO
-                sio = StringIO.StringIO()
-                for i in range(0, 30):
-                    start = 0xC280 + i * 0x100
-                    for i in range(0, 64):
-                        value = start + i
-                        svalue = (value >> 16) & 0xFF
-                        if svalue:
-                            SendValue(svalue, sio)
-                        SendValue((value >> 8) & 0xFF, sio)
-                        SendValue((value >> 0) & 0xFF, sio)
-                self.user.Write(sio.getvalue())
-                print hex(start)
-
-            if False:
-                self.user.Write("\x1b)U") # G1 = SCO alternate character set
-
-                self.user.Write(chr(14))
-                self.user.Write("\rG1:") # Display the escape code.
-                col = 3
-                for i in range(ord(' '), 256):
-                    col += 1
-                    if col % self.user.connection.consoleColumns == 0:
-                        self.user.Write('\r\n')
-                    self.user.Write(chr(i))
-                self.user.Write("\r\n")
-
-                self.user.Write(chr(15))
-                self.user.Write("\rG0:") # Display the escape code.
-                col = 3
-                for i in range(ord(' '), 256):
-                    col += 1
-                    if col % self.user.connection.consoleColumns == 0:
-                        self.user.Write('\r\n')
-                    self.user.Write(chr(i))
-                self.user.Write("\r\n")
-
-            if False:
-                for xi in range(10):
-                    xi -= 5
-                    for yi in range(10):
-                        yi -= 5
-                        self.MoveCursor(playerX + xi, playerY + yi)
-                        self.user.Write(random.choice([chr(244), chr(187)]))
         else:
             playerY = self.playerY
             oldPlayerX = self.oldPlayerX
             oldPlayerY = self.oldPlayerY
 
+        # Incremental update of the player position.
         if oldPlayerX != playerX or oldPlayerY != playerY:
             self.MoveCursor(oldPlayerX, oldPlayerY)
             self.user.Write(" ")
