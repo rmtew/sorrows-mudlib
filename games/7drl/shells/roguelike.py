@@ -13,6 +13,8 @@ EC_SCROLL_UP         = "\x1bM"
 EC_SCROLL_DOWN       = "\x1bD"
 EC_ERASE_DOWN        = "\x1b[J"
 EC_ERASE_UP          = "\x1b[1J"
+EC_GFX_BLUE_FG       = "\x1b[34m"
+EC_GFX_OFF           = "\x1b[0m"
 
 # D - Door
 # @ - Player starting location
@@ -27,18 +29,18 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXX     X     XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXX     X     XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXX     X     XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXDXXXXXDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX           D              D XXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXX     XXXXXDXXXXXDXXXX XXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXX XXXXX     X     X  X   XXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXX                      D XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXX X XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXDXDXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXX D    XXXXXXXXXX             XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXX    X                      XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXX D    X XXXXXXXX             XXXXXXXXXXXXXXXX XXXXX     X     XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXX    D XXXXXXXX             XXXXXXXXXXXXXXXX XXXXX     X     XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXX D    X XXXXXXXX             XXXXXXXXXXXXXXXX XXXXX     X     XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXX    X                      XXXXXXXXXXXXXX     XXXXXDXXXXXDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXX D    XXXXXXXXXX             XXXXXXXX           D              D XXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXDXDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXX     XXXXXDXXXXXDXXXX XXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXX X XXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXX XXXXX     X     X  X   XXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX  @  XXXXX XXXXX     X     X XX   XXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXX XXXXX     X     X X    XXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXX XXXXDXXXXXXXXXXXXXXXXXXXXXX
@@ -69,9 +71,9 @@ FLOOR_TILE = " "
 DOOR_TILE = "D"
 
 displayTiles = {
-    CHAR_TILE: ".",
-    WALL_TILE: chr(0xB0),
-    FLOOR_TILE: ".",
+    CHAR_TILE: chr(250),
+    WALL_TILE: chr(219),
+    FLOOR_TILE: chr(250),
     DOOR_TILE: "D",
 }
 
@@ -79,6 +81,20 @@ TILE_VISIBLE = 1
 TILE_OPEN = 2
 
 VIEW_RADIUS = 4
+
+MODE_GAMEPLAY = 1
+
+MODE_FIRST_MENU = 2
+MODE_ESCAPE_MENU = 2
+MODE_DEBUG_MENU = 3
+MODE_KEYBOARD_MENU = 4
+MODE_TELNETCLIENT_MENU = 5
+MODE_LAST_MENU = 5
+
+MODE_FIRST_DISPLAY = 10
+MODE_DEBUG_DISPLAY = 10
+MODE_LAST_DISPLAY = 10
+
 
 class RoguelikeShell(Shell):
     def Setup(self, stack):
@@ -90,6 +106,11 @@ class RoguelikeShell(Shell):
 
         self.oldOptionLineMode = self.user.connection.optionLineMode
         self.user.connection.optionLineMode = False
+
+        # Defaults..
+        self.keyboard = "computer"
+        self.menuOptions = []
+        self.menuSelection = 0
 
         self.status = "-"
         self.lastStatusBar = "-"
@@ -121,12 +142,14 @@ class RoguelikeShell(Shell):
 
         rows = self.user.connection.consoleRows
         cols = self.user.connection.consoleColumns
-        self.OnTerminalSizeChanged(rows, cols)
+        self.OnTerminalSizeChanged(rows, cols, redraw=False)
         self.RecalculateWorldView()
 
-        self.DisplayScreen()
+        self.UpdateTitle()
+        self.UpdateStatusBar("")
+        self.EnterKeyboardMenu()
 
-    # ------------------------------------------------------------------------
+    # Events ------------------------------------------------------------------
 
     def OnRemovalFromStack(self):
         self.user.connection.optionLineMode = self.oldOptionLineMode
@@ -135,7 +158,7 @@ class RoguelikeShell(Shell):
         self.ScrollWindowUp()
         self.MoveCursor(0, self.statusOffset)
 
-    def OnTerminalSizeChanged(self, rows, columns):
+    def OnTerminalSizeChanged(self, rows, columns, redraw=True):
         # Window partitioning offsets and sizes.
         self.titleOffset = 1
         self.statusOffset = rows
@@ -152,15 +175,68 @@ class RoguelikeShell(Shell):
 
         self.SetScrollingRows(self.windowYStartOffset, self.windowYEndOffset)
 
-        self.DisplayScreen()
+        if redraw:
+            self.DisplayScreen()
 
     def ReceiveInput(self, s):
-        self._ReceiveInput(s)
+        if self.mode == MODE_GAMEPLAY:
+            self.ReceiveInput_Gameplay(s)
+        elif MODE_FIRST_MENU <= self.mode <= MODE_LAST_MENU:
+            self.ReceiveInput_Menu(s)
+        elif MODE_FIRST_DISPLAY <= self.mode <= MODE_LAST_DISPLAY:
+            self.ReceiveInput_DisplayPage(s)
 
-    def _ReceiveInput(self, s):
+    # Input -------------------------------------------------------------------
+
+    def ReceiveInput_DisplayPage(self, s):
+        # Any keypress returns to the previous mode.
+        self.MenuActionBack()
+
+    def ReceiveInput_Menu(self, s):
+        movementShift = {
+            "\x1b[A": -1,
+            "\x1b[B":  1,
+        }
+
+        def MenuAction(label):
+            f = getattr(self, "MenuAction"+ label, None)
+            if f is not None:
+                f()
+
         if s == chr(27): # Escape
-            self.stack.Pop()
-            self.user.ManualDisconnection()
+            self.MenuActionBack()
+        elif s == chr(18): # CTRL-r
+            self.DisplayMenu(self.mode, self.menuOptions, selected=self.menuSelection)
+        elif s in movementShift:
+            shift = movementShift[s]
+            lastOffset = len(self.menuOptions) - 1
+            if shift == -1 and self.menuSelection == 0:
+                self.menuSelection = lastOffset
+            elif shift == 1 and self.menuSelection == lastOffset:
+                self.menuSelection = 0
+            else:
+                self.menuSelection += shift
+
+            self.DisplayMenu(self.mode, self.menuOptions, selected=self.menuSelection, redraw=False)
+        elif s == "\r\n":
+            option = self.menuOptions[self.menuSelection]
+            MenuAction(option[1])
+        else:
+            # Otherwise, the action is specified by the menu.
+            for t in self.menuOptions:
+                hotkey = t[0].lower()
+                if hotkey == s:
+                    MenuAction(t[1])
+
+        # Fallthrough.
+        t = str([ ord(c) for c in s ])
+        s = s.replace('\x1b', 'ESC')
+        s = "".join(c for c in s if ord(c) >= 32)
+        self.UpdateStatusBar(" Input: \"%s\" %s" % (s, t))
+
+    def ReceiveInput_Gameplay(self, s):
+        if s == chr(27): # Escape
+            self.EnterEscapeMenu()
             return
 
         if s == chr(5):
@@ -212,7 +288,7 @@ class RoguelikeShell(Shell):
                     scrollDirection = "UP  "
 
                     # Account for the view range and the line the player is on.
-                    blankLines = (self.playerY - self.worldViewY) - VIEW_RADIUS - 1
+                    blankLines = (self.playerY - self.worldViewY) - 1 # VIEW_RADIUS - 1
                     self.UpdateLineByWorldPosition(self.worldViewY, cnt=blankLines, sio=sio)
                 else:
                     ldistance = worldViewLowerY - self.playerY
@@ -224,8 +300,8 @@ class RoguelikeShell(Shell):
                         scrollDirection = "DOWN"
 
                         # Account for the view range and the line the player is on.
-                        blankLines = yShift
-                        self.UpdateLineByWorldPosition(self.playerY + VIEW_RADIUS, cnt=blankLines, sio=sio)
+                        blankLines = yShift + VIEW_RADIUS - 1
+                        self.UpdateLineByWorldPosition(self.playerY, cnt=blankLines, sio=sio)
 
                 args = scrollDirection, self.playerX, self.playerY, self.worldViewX, self.worldViewY, worldViewLowerY
                 self.UpdateStatusBar("%s [%03d %03d] [%03d %03d-%03d]" % args, sio=sio)
@@ -234,22 +310,6 @@ class RoguelikeShell(Shell):
 
                 self.user.Write(sio.getvalue())
             return
-
-        if False:
-            # Kept this in case I wanted to preserve the hard limits,
-            # should the tile check fail.
-            if s == "\x1b[A": # Up cursor key.
-                if self.playerY <= self.titleOffset + 1:
-                    pass # skip
-            elif s == "\x1b[B": # Down cursor key.
-                if self.playerY >= self.statusOffset - 1:
-                    pass # skip
-            elif s == "\x1b[C": # Right cursor key.
-                if self.playerX >= self.user.connection.consoleColumns:        
-                    pass # skip
-            elif s == "\x1b[D": # Left cursor key.
-                if self.playerX <= 1:        
-                    pass # skip
 
         # Fallthrough.
         t = str([ ord(c) for c in s ])
@@ -491,3 +551,256 @@ class RoguelikeShell(Shell):
 
     def EraseCharacters(self, times=1):
         self.user.Write("\x1b[%dX" % times)
+
+    # Menu / Paging Support ---------------------------------------------------
+
+    def DisplayMenu(self, mode, options, selected=0, redraw=True):
+        # options = [
+        #     (hotkey, label, description)
+        # ]
+        self.mode = mode
+        self.menuOptions = options
+        self.menuSelection = selected
+
+        screenWidth = self.user.connection.consoleColumns
+    
+        maxLabelSize = 0
+        maxDescSize = 0
+        for t in options:
+            maxLabelSize = max(maxLabelSize, len(t[1]))
+            maxDescSize = max(maxDescSize, len(t[2]))
+
+        menuHeight = 2 + len(options) + len(options) - 1 + 2
+        optionWidth = 2 + 1 + 3 + maxLabelSize + 3 + maxDescSize + 2
+        screenXStart = (screenWidth - optionWidth) / 2
+        screenYStart = self.windowYStartOffset + ((self.windowHeight / 2) - menuHeight / 2)
+
+        screenY = screenYStart
+
+        sio = StringIO.StringIO()
+
+        if redraw:
+            # Clear the screen.
+            self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset, sio=sio)
+            sio.write(EC_SCROLL_UP * self.windowHeight)
+
+            # Menu top border.
+            self.MoveCursor(screenXStart, screenY, sio=sio)
+            sio.write(EC_GFX_BLUE_FG)
+            sio.write(chr(218))
+            sio.write(chr(196) * optionWidth)
+            sio.write(chr(191))
+            sio.write(EC_GFX_OFF)
+
+        screenY += 1
+
+        for i, t in enumerate(options):
+            hotkey, label, description = t[:3]
+
+            if redraw:
+                # Menu top space.
+                self.MoveCursor(screenXStart, screenY, sio=sio)
+                sio.write(EC_GFX_BLUE_FG)
+                sio.write(chr(179))
+                sio.write(" " * optionWidth)
+                sio.write(chr(179))
+                sio.write(EC_GFX_OFF)
+
+            screenY += 1
+            self.MoveCursor(screenXStart, screenY, sio=sio)
+            sio.write(EC_GFX_BLUE_FG)
+            sio.write(chr(179))
+            sio.write(EC_GFX_OFF)
+            sio.write(" ")
+            if i == selected:
+                sio.write(EC_REVERSE_VIDEO_ON)
+            sio.write(" %s   %-*s   %-*s " % (hotkey, maxLabelSize, label.upper(), maxDescSize, description))
+            if i == selected:
+                sio.write(EC_REVERSE_VIDEO_OFF)
+            sio.write(" ")
+            sio.write(EC_GFX_BLUE_FG)
+            sio.write(chr(179))
+            sio.write(EC_GFX_OFF)
+            screenY += 1
+
+        if redraw:
+            # Menu bottom space.
+            self.MoveCursor(screenXStart, screenY, sio=sio)
+            sio.write(EC_GFX_BLUE_FG)
+            sio.write(chr(179))
+            sio.write(" " * optionWidth)
+            sio.write(chr(179))
+            sio.write(EC_GFX_OFF)
+            screenY += 1
+
+            # Menu bottom border.
+            self.MoveCursor(screenXStart, screenY, sio=sio)
+            sio.write(EC_GFX_BLUE_FG)
+            sio.write(chr(192))
+            sio.write(chr(196) * optionWidth)
+            sio.write(chr(217))
+            sio.write(EC_GFX_OFF)
+            screenY += 1
+
+        self.user.Write(sio.getvalue())
+
+    def EnterGame(self):
+        self.mode = MODE_GAMEPLAY
+        self.DisplayScreen()
+
+    def EnterKeyboardMenu(self):
+        options = []
+        options.append(("L", "Laptop",    "No numeric keypad"))
+        options.append(("C", "Computer",  "With a numeric keypad"))
+        options.append(("Q", "Quit",      "Disconnect from the game"))
+        self.DisplayMenu(MODE_KEYBOARD_MENU, options)        
+
+    def EnterEscapeMenu(self):
+        options = []
+        options.append(("B", "Back",   "Return to the game"))
+        options.append(("D", "Debug",  "Debug options"))
+        options.append(("Q", "Quit",   "Disconnect from the game"))
+        self.DisplayMenu(MODE_ESCAPE_MENU, options)
+
+    def EnterDebugMenu(self):
+        options = []
+        options.append(("B", "Back",         "Return to the previous menu"))
+        options.append(("C", "Client",       "Telnet client options"))
+        self.DisplayMenu(MODE_DEBUG_MENU, options)
+
+    def EnterTelnetClientMenu(self):
+        options = []
+        options.append(("B", "Back",         "Return to the previous menu"))
+        options.append(("D", "Characters",   "Display the full character set"))
+        options.append(("C", "Charsets",     "Display the supported character sets"))
+        self.DisplayMenu(MODE_TELNETCLIENT_MENU, options)
+
+    def MenuActionQuit(self):
+        self.stack.Pop()
+        self.user.ManualDisconnection()
+
+    def MenuActionDebug(self):
+        self.EnterDebugMenu()
+
+    def MenuActionClient(self):
+        self.EnterTelnetClientMenu()
+
+    def MenuActionBack(self):
+        if self.mode == MODE_ESCAPE_MENU:
+            self.EnterGame()
+        elif self.mode == MODE_DEBUG_MENU:
+            self.EnterEscapeMenu()
+        elif self.mode == MODE_TELNETCLIENT_MENU:
+            self.EnterDebugMenu()
+        elif self.mode == MODE_DEBUG_DISPLAY:
+            self.EnterTelnetClientMenu()
+
+    def MenuActionLaptop(self):
+        self.keyboard = "laptop"
+        self.EnterGame()
+
+    def MenuActionComputer(self):
+        self.keyboard = "computer"
+        self.EnterGame()
+
+    def MenuActionCharacters(self):
+        self.mode = MODE_DEBUG_DISPLAY
+        self.UpdateStatusBar("Press any key to return to the previous menu..")
+
+        firstOrd = 32
+        lastOrd = 255
+        cellWidth = 6
+        cellCount = (lastOrd + 1) - firstOrd
+        rowCount = self.windowHeight - 2
+
+        sio = StringIO.StringIO()
+        self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset, sio=sio)
+        sio.write(EC_ERASE_DOWN)
+
+        rows = []
+        while len(rows) < rowCount:
+            rows.append([])
+
+        rowOffset = 0
+        currentOrd = firstOrd
+        while currentOrd <= lastOrd:
+            c = self.DisplayCharacter(currentOrd)
+            s = " %03d %s" % (currentOrd, c)
+            rows[rowOffset].append(s)
+
+            rowOffset += 1
+            rowOffset %= rowCount
+            currentOrd += 1
+            
+        self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset + 1, sio=sio)
+        for row in rows:
+            sio.write("".join(row))
+            if row is not rows[-1]:
+                sio.write("\r\n")
+        self.user.Write(sio.getvalue())
+
+    def MenuActionCharsets(self):
+        self.mode = MODE_DEBUG_DISPLAY
+        self.UpdateStatusBar("Press any key to return to the previous menu..")
+
+        sio = StringIO.StringIO()
+        self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset, sio=sio)
+        sio.write(EC_ERASE_DOWN)
+
+        firstOrd = 32
+        lastOrd = 255
+        # Less top spacer, bottom spacer, label line, label spacer
+        rowCount = self.windowHeight - 4
+
+        rows = []
+        while len(rows) < rowCount:
+            rows.append([])
+
+        charsetCodes = [
+            "\x1b(A",
+            "\x1b(B",
+            "\x1b(0",
+            "\x1b(U",
+        ]
+
+        rowOffset = 0
+        for charsetCode in charsetCodes:
+            while rowOffset % rowCount != 0:
+                rows[rowOffset % rowCount].append(" ")
+                rowOffset += 1
+
+            charsetRowOffset = rowOffset
+            currentOrd = firstOrd
+            while currentOrd <= lastOrd:
+                c = self.DisplayCharacter(currentOrd)
+                s = "%s" % c
+                if rowOffset < charsetRowOffset + rowCount:
+                    s = charsetCode +" "+ s
+                rows[rowOffset % rowCount].append(s)
+
+                rowOffset += 1
+                currentOrd += 1
+
+        titleRow = []
+        charsetWidth = (lastOrd - firstOrd) / rowCount
+        for charsetCode in charsetCodes:
+            label = " %-*s" % (charsetWidth + 1, charsetCode.replace("\x1b", "ESC"))
+            titleRow.append(label)
+            
+        self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset + 1, sio=sio)
+        rows.insert(0, [])
+        rows.insert(0, titleRow)
+        for row in rows:
+            sio.write("".join(row))
+            if row is not rows[-1]:
+                sio.write("\r\n")
+        self.user.Write(sio.getvalue())
+
+    def DisplayCharacter(self, v):
+        if v in (127, 255):
+            # 127: Backspace - not suitable for display
+            # 255: IAC - special telnet negotiation token
+            return " "
+
+        return chr(v)
+
