@@ -2,6 +2,15 @@ import random, array, math, StringIO, time
 import uthread, fov
 from mudlib import Shell, InputHandler
 
+# TODO LIST -------------------------------------------------------------------
+
+# FEATURE:  Input filter for keyboard mode.  Make laptop key mapping work.
+# REFACTOR: Move the movement view update code out of the input handler.
+# REFACTOR: Revise the movement view update code to be understandable.
+
+# ASCII CODES -----------------------------------------------------------------
+
+# Escape codes.
 
 ESC_CLEAR_LINE        = "\x1b[2K"
 ESC_CLEAR_SCREEN      = "\x1b[2J"
@@ -9,14 +18,20 @@ ESC_HOME_CURSOR       = "\x1b[1;1H"
 ESC_RESET_TERMINAL    = "\x1bc"
 ESC_REVERSE_VIDEO_ON  = "\x1b[7m"
 ESC_REVERSE_VIDEO_OFF = "\x1b[27m"
+ESC_CURSOR_DOWN       = "\x1b[B"
 ESC_SCROLL_UP         = "\x1bM"
 ESC_SCROLL_DOWN       = "\x1bD"
-ESC_ERASE_DOWN        = "\x1b[J"
-ESC_ERASE_UP          = "\x1b[1J"
+ESC_ERASE_LINE        = "\x1b[K"
+ESC_ERASE_DOWN        = "\x1b[J"    # WARNING: Does not respect scrolling regions.
+ESC_ERASE_UP          = "\x1b[1J"   # WARNING: Does not respect scrolling regions.
 ESC_GFX_BLUE_FG       = "\x1b[34m"
 ESC_GFX_OFF           = "\x1b[0m"
 
-CTRL_E                = chr(5)
+# Control codes.
+
+CTRL_E                = chr(5)  # ENQ
+
+# MAP -------------------------------------------------------------------------
 
 # D - Door
 # @ - Player starting location
@@ -38,24 +53,24 @@ XXXXX D    XXXXXXXXXX             XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXX    X                      XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXX D    X XXXXXXXX             XXXXXXXXXXXXXXXX XXXXX     X     XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXX    D XXXXXXXX             XXXXXXXXXXXXXXXX XXXXX     X     XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXX D    X XXXXXXXX             XXXXXXXXXXXXXXXX XXXXX     X     XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXX    X                      XXXXXXXXXXXXXX     XXXXXDXXXXXDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXX D    XXXXXXXXXX             XXXXXXXX           D              D XXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXDXDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXX     XXXXXDXXXXXDXXXX XXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXX X XXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXX XXXXX     X     X  X   XXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX  @  XXXXX XXXXX     X     X XX   XXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXX XXXXX     X     X X    XXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXX XXXXDXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXX      XXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+X     D    X XXXXXXXX             XXXXXXXXXXXXXXXX XXXXX     X     XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXX    X                      XXXXXXXXXXXXXX     XXXXXDXXXXXDXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
+XXXXX D    XXXXXXXXXX             XXXXXXXX           D              D XXXXXXXXXXXXXXXXXXXXXXXX X
+XXXXXXXXDXDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXX     XXXXXDXXXXXDXXXX XXXXXXXXXXXXXXXXXXXXXXXX X
+XXXXXXXX X XXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXX XXXXX     X     X  X   XXXXXXXXXXXXXXXXXXXX X
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX  @  XXXXX XXXXX     X     X XX   XXXXXXXXXXXXXXXXXXXX X
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXX XXXXX     X     X X    XXXXXXXXXXXXXXXXXXXX X
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXX XXXXDXXXXXXXXXXXXXXXXXXXX X
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXX                           X
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -278,11 +293,21 @@ class RoguelikeShell(Shell):
             return
 
         if s == chr(5):
-            # Putty responds to CTRL-E with its ID.
-            self.user.Write(chr(5))
+            windowUpperDistance = self.playerY - self.worldViewY
+            worldViewLowerY = self.worldViewY + self.windowHeight
+            windowLowerDistance = worldViewLowerY - self.playerY
+
+            sio = StringIO.StringIO()
+            self.SaveCursorPosition(sio=sio)
+            args = self.playerX, self.playerY, self.worldViewX, self.worldViewY, worldViewLowerY
+            self.UpdateStatusBar(" [%03d %03d] [%03d %03d-%03d]" % args, sio=sio)
+            self.RestoreCursorPosition(sio=sio)
+            self.user.Write(sio.getvalue())
+            return
         elif s == chr(18):
             self.lastStatusBar = " Screen refreshed"
             self.DisplayScreen()
+            return
 
         movementShift = {
             "\x1b[A": ( 0,-1),
@@ -301,52 +326,7 @@ class RoguelikeShell(Shell):
             passableTile = tile in (" ", "@")
             passableTile = passableTile or tile == "D" and (True or flags & TILE_OPEN)
             if passableTile:
-                sio = StringIO.StringIO()
-                tile = self.GetDisplayTile(self.playerX, self.playerY)
-                self.UpdateViewByWorldPosition(self.playerX, self.playerY, tile, sio=sio)
-
-                self.playerX = newX
-                self.playerY = newY
-
-                if self.playerX - self.worldViewX < VIEW_RADIUS:
-                    xShift = self.windowWidth - self.playerX - self.worldViewX
-                    self.worldViewX += xShift
-                elif self.worldViewX + self.windowWidth - self.playerX < VIEW_RADIUS:
-                    xShift = self.windowWidth - self.worldViewX + self.windowWidth - self.playerX
-                    self.worldViewX += xShift
-
-                scrollDirection = "    "
-                udistance = self.playerY - self.worldViewY
-                ldistance = 99
-                worldViewLowerY = self.worldViewY + self.windowHeight
-                if udistance <= VIEW_RADIUS:
-                    yShift = (self.windowHeight / 2) - udistance + 1
-                    self.worldViewY -= yShift
-                    self.ScrollWindowUp(yShift+2, sio=sio)
-                    scrollDirection = "UP  "
-
-                    # Account for the view range and the line the player is on.
-                    blankLines = (self.playerY - self.worldViewY) - 1 # VIEW_RADIUS - 1
-                    self.UpdateLineByWorldPosition(self.worldViewY, cnt=blankLines, sio=sio)
-                else:
-                    ldistance = worldViewLowerY - self.playerY
-                    if ldistance < VIEW_RADIUS:
-                        yShift = (self.windowHeight / 2) - ldistance - 1
-                        self.worldViewY += yShift
-                        self.ScrollWindowDown(yShift, sio=sio)
-                        sio.write(ESC_ERASE_DOWN)
-                        scrollDirection = "DOWN"
-
-                        # Account for the view range and the line the player is on.
-                        blankLines = yShift + VIEW_RADIUS - 1
-                        self.UpdateLineByWorldPosition(self.playerY, cnt=blankLines, sio=sio)
-
-                args = scrollDirection, self.playerX, self.playerY, self.worldViewX, self.worldViewY, worldViewLowerY
-                self.UpdateStatusBar("%s [%03d %03d] [%03d %03d-%03d]" % args, sio=sio)
-
-                self.UpdateView(sio=sio)
-
-                self.user.Write(sio.getvalue())
+                self.GameActionMove(newX, newY)
             return
 
         # Fallthrough.
@@ -375,30 +355,7 @@ class RoguelikeShell(Shell):
         self.UpdateTitle()
         self.UpdateStatusBar(self.lastStatusBar)
 
-    def GetTile(self, x, y):
-        return self.mapRows[y][x]
-
-    def TranslateTileForDisplay(self, tile):
-        dtile = displayTiles.get(tile, None)
-        if dtile is not None:
-            return dtile
-        return tile
-        
-    def GetDisplayTile(self, x, y):
-        tile = self.mapRows[y][x]
-        return self.TranslateTileForDisplay(tile)
-
     def UpdateView(self, sio=None):
-        # REUSE?  Useful for centering of the world or view or something.
-
-        # TODO: BROKEN OR IN NEED OF REFACTORING
-        #
-        # - The positions should be stored on the objects, not on this object.
-        #   body.position = (X, Y)
-        # - Movement of the player should not update the view, but should rather
-        #   simply reset the position they moved from, and update the position
-        #   they moved to.
-
         self.drawRanges = {}
 
         def fVisited(x, y):
@@ -431,9 +388,11 @@ class RoguelikeShell(Shell):
             vMaxX = (maxX - self.worldViewX) + 1
             if vMinX < 1 or vMaxX > self.windowWidth:
                 continue
+
             vy = (y - self.worldViewY) + 1
             if vy < self.windowYStartOffset or vy > self.windowYEndOffset:
                 continue
+
             self.MoveCursor(vMinX, vy, sio=sio_)
             arr = array.array('c', (self.ViewedTile(x, y) for x in range(minX, maxX+1)))
             sio_.write(arr.tostring())
@@ -460,7 +419,14 @@ class RoguelikeShell(Shell):
                 continue
 
             xStart = self.worldViewX
+            # Do not go outside the LHS bounds of the map.
+            if xStart < 0:
+                xStart = 0
+
             xEnd = xStart + self.windowWidth - 1
+            # Do not go outside the RHS bounds of the map.
+            if xEnd >= self.mapWidth:
+                xEnd = self.mapWidth - 1
 
             rowOffset = yi * self.mapWidth
             for x in range(xStart, xEnd + 1):
@@ -468,8 +434,6 @@ class RoguelikeShell(Shell):
                 if flags & TILE_VISIBLE:
                     xStart = x
                     break
-            else:
-                pass
 
             for x in range(xEnd, xStart - 1, -1):
                 flags = self.mapArray[rowOffset + x]
@@ -489,12 +453,6 @@ class RoguelikeShell(Shell):
                 self.user.Write(arr.tostring())
             else:
                 sio.write(arr.tostring())
-
-    def ViewedTile(self, x, y, flag=False):
-        flags = self.mapArray[y * self.mapWidth + x]
-        if flags & TILE_VISIBLE:
-            return self.GetDisplayTile(x, y)
-        return " "
 
     def UpdateViewByWorldPosition(self, x, y, c, sio=None):
         vx = (x - self.worldViewX) + 1
@@ -531,6 +489,33 @@ class RoguelikeShell(Shell):
             sio.write(s)
         self.MoveCursor(0, self.statusOffset, clear=False, sio=sio)
 
+    # Map Support ------------------------------------------------------------
+
+    def ViewedTile(self, x, y, flag=False):
+        flags = self.mapArray[y * self.mapWidth + x]
+        if flags & TILE_VISIBLE:
+            return self.GetDisplayTile(x, y)
+        return " "
+
+    def GetTile(self, x, y):
+        return self.mapRows[y][x]
+
+    def TranslateTileForDisplay(self, tile):
+        dtile = displayTiles.get(tile, None)
+        if dtile is not None:
+            return dtile
+        return tile
+        
+    def GetDisplayTile(self, x, y):
+        if y < 0 or y >= len(self.mapRows):
+            print "TILE ERROR/y", x, y
+            return "?"
+        if x < 0 or x >= len(self.mapRows[y]):
+            print "TILE ERROR/x", x, y
+            return "?"
+        tile = self.mapRows[y][x]
+        return self.TranslateTileForDisplay(tile)
+
     # ANSI Cursor ------------------------------------------------------------
 
     def ShowCursor(self, flag=True):
@@ -549,11 +534,19 @@ class RoguelikeShell(Shell):
         else:
             sio.write(s)
 
-    def SaveCursorPosition(self):
-        self.user.Write("\x1b[s")
+    def SaveCursorPosition(self, sio=None):
+        s = "\x1b[s"
+        if sio is None:
+            self.user.Write(s)
+        else:
+            sio.write(s)
         
-    def RestoreCursorPosition(self):
-        self.user.Write("\x1b[u")
+    def RestoreCursorPosition(self, sio=None):
+        s = "\x1b[u"
+        if sio is None:
+            self.user.Write(s)
+        else:
+            sio.write(s)
 
     # ANSI Scrolling ---------------------------------------------------------
 
@@ -563,8 +556,18 @@ class RoguelikeShell(Shell):
     def ResetScrollingRows(self):
         self.user.Write("\x1b[r")
 
+    def ScrollWindowLeft(self, margin, sio=None):
+        for i in xrange(self.windowHeight):
+            self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset + i, sio=sio)
+            self.DeleteCharacters(margin, sio=sio)
+
+    def ScrollWindowRight(self, margin, sio=None):
+        for i in xrange(self.windowHeight):
+            self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset + i, sio=sio)
+            self.InsertCharacters(margin, sio=sio)
+
     def ScrollWindowUp(self, cnt=1, sio=None):
-        self.MoveCursor(0, self.windowYStartOffset + 2, sio=sio)
+        self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset, sio=sio)
         s = ESC_SCROLL_UP * cnt
         if sio is None:
             self.user.Write(s)
@@ -572,18 +575,26 @@ class RoguelikeShell(Shell):
             sio.write(s)
 
     def ScrollWindowDown(self, cnt=1, sio=None):
-        self.MoveCursor(0, self.windowYEndOffset, sio=sio)
+        self.MoveCursor(self.windowXStartOffset, self.windowYEndOffset, sio=sio)
         s = ESC_SCROLL_DOWN * cnt
         if sio is None:
             self.user.Write(s)
         else:
             sio.write(s)
 
-    def InsertCharacters(self, times=1):
-        self.user.Write("\x1b[%d@" % times)
+    def InsertCharacters(self, times=1, sio=None):
+        s = "\x1b[%d@" % times
+        if sio is None:
+            self.user.Write(s)
+        else:
+            sio.write(s)
 
-    def DeleteCharacters(self, times=1):
-        self.user.Write("\x1b[%dP" % times)
+    def DeleteCharacters(self, times=1, sio=None):
+        s = "\x1b[%dP" % times
+        if sio is None:
+            self.user.Write(s)
+        else:
+            sio.write(s)
 
     # ANSI Attribute ---------------------------------------------------------
 
@@ -599,6 +610,71 @@ class RoguelikeShell(Shell):
                 self.user.Write(self.charsetResetSequence)
             else:
                 sio.write(self.charsetResetSequence)
+
+    # Gameplay Support --------------------------------------------------------
+
+    def GameActionMove(self, x, y):
+        sio = StringIO.StringIO()
+
+        if False: # Obsoleted by FoV.
+            # Restore the tile under the player's old position.
+            tile = self.GetDisplayTile(self.playerX, self.playerY)
+            self.UpdateViewByWorldPosition(self.playerX, self.playerY, tile, sio=sio)
+
+        self.playerX = x
+        self.playerY = y
+
+        windowLeftDistance = self.playerX - self.worldViewX
+        halfWidth = self.windowWidth / 2
+
+        if windowLeftDistance < VIEW_RADIUS:
+            xShift = halfWidth - windowLeftDistance + 1
+            self.worldViewX -= xShift
+            self.ScrollWindowRight(xShift, sio=sio)
+        else:
+            windowRightDistance = (self.worldViewX + self.windowWidth) - self.playerX
+            
+            if windowRightDistance <= VIEW_RADIUS:
+                xShift = halfWidth - windowRightDistance - 1
+                self.worldViewX += xShift
+                self.ScrollWindowLeft(xShift, sio=sio)
+
+        windowUpperDistance = self.playerY - self.worldViewY
+        halfHeight = self.windowHeight / 2
+
+        # Has the player moved so their view falls outside the screen?
+        # The player's line is counted in this calculation.
+        if windowUpperDistance <= VIEW_RADIUS:
+            # Distance needed to shift the player to the window center.
+            # +1 to put them further from the side they are moving towards.
+            yShift = halfHeight - windowUpperDistance + 1
+            self.worldViewY -= yShift
+            self.ScrollWindowUp(yShift, sio=sio)
+
+            # Account for the remaining viewed distance (less the line the player is on).
+            blankLines = (self.playerY - self.worldViewY) - 1
+            self.UpdateLineByWorldPosition(self.worldViewY, cnt=blankLines, sio=sio)
+        else:
+            windowLowerDistance = (self.worldViewY + self.windowHeight) - self.playerY
+
+            # Has the player moved so their view falls outside the screen?
+            # The player's line is not counted in this calculation.
+            if windowLowerDistance < VIEW_RADIUS:
+                # Distance needed to shift the player to the window center.
+                # -1 to put them further from the side they are moving towards.
+                yShift = halfHeight - windowLowerDistance - 1
+                self.worldViewY += yShift
+                self.ScrollWindowDown(yShift, sio=sio)
+
+                # Account for the view range and the line the player is on.
+                blankLines = yShift + VIEW_RADIUS - 1
+                self.UpdateLineByWorldPosition(self.playerY, cnt=blankLines, sio=sio)
+
+        # Add an FoV update over the scrolled and filled in output.
+        self.UpdateView(sio=sio)
+
+        # Write the collected output to the player.
+        self.user.Write(sio.getvalue())
 
     # Menu / Paging Support ---------------------------------------------------
 
@@ -757,10 +833,10 @@ class RoguelikeShell(Shell):
 
     def MenuActionCharacters(self, charsetCode=None, inUnicode=False):
         if inUnicode:
-            state = "Characters (UTF-8)"
+            state = "UTF-8"
         else:
-            state = "Characters (CP437)"
-        self.SetMode(MODE_DEBUG_DISPLAY, state)
+            state = "CP437"
+        self.SetMode(MODE_DEBUG_DISPLAY, "Characters (%s)" % state)
 
         self.UpdateStatusBar("Press any key to return to the previous menu..")
 
