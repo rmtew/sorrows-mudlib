@@ -41,21 +41,42 @@ class TelnetConnection(Connection):
             service.LogDebug("TERMINAL TYPE(%s)%s[%s]", self.user.name, self.clientAddress, data)
         self.telneg.set_terminal_type_cb(terminal_type_cb)
 
+        def terminal_type_selection_cb(termTypes):
+            service.LogDebug("TERMINAL TYPES(%s)%s[%s]", self.user.name, self.clientAddress, termTypes)
+            if "ansi" in termTypes:
+                return "ansi"
+            return termTypes[0]
+        self.telneg.set_terminal_type_selection_cb(terminal_type_selection_cb)
+
         def terminal_size_cb(rows, columns):
             service.LogDebug("TERMINAL SIZE(%s)%s[%s]", self.user.name, self.clientAddress, str((rows, columns)))
             self.consoleRows = rows
             self.consoleColumns = columns
+            # TODO: This callback needs to be done cleanly.
+            handler = self.user.inputstack.stack[-1]
+            if hasattr(handler.shell, "OnTerminalSizeChanged"):
+                handler.shell.OnTerminalSizeChanged(rows, columns)
         self.telneg.set_terminal_size_cb(terminal_size_cb)
 
         self.telneg.request_will_echo()
         self.telneg.request_will_compress()
         self.telneg.request_naws()
+        self.telneg.request_terminal_type()
 
     def ManageConnection(self):
         while not self.released:
-            line = self.readline()
-            if line is not None:
-                self.user.ReceiveInput(line)
+            if not self._ManageConnection():
+                break
+
+    def _ManageConnection(self):
+        if self.optionLineMode:
+            input = self.readline()
+        else:
+            input = self.read(65536)
+        if input is None:
+            return False
+        self.user.ReceiveInput(input)
+        return True
 
     def OnDisconnection(self):
         # Notify the service of the disconnection.
@@ -66,6 +87,16 @@ class TelnetConnection(Connection):
 
     def SetPasswordMode(self, flag):
         self.passwordMode = flag
+
+    def read(self, bytes):
+        s = self.recv(65536)
+        if s == "":
+            return None
+
+        buf = ""
+        for s in self.telneg.feed(s):
+            buf += s
+        return buf
 
     # -----------------------------------------------------------------------
     # readline

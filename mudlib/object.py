@@ -1,2 +1,3 @@
 class Object:
-    pass
+    def Release(self):
+        pass

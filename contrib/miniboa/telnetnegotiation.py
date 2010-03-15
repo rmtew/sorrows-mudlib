@@ -93,6 +93,7 @@ TTYPE       = chr( 24)      # Terminal Type
 NAWS        = chr( 31)      # Negotiate About Window Size
 LINEMODE    = chr( 34)      # Line Mode
 OLD_ENVIRON = chr( 36)      # Old - Environment variables
+CHARSET     = chr( 42)      # 
 
 #--[ Extra Shit ]--------------------------------------------------------------
 
@@ -131,14 +132,21 @@ class TelnetNegotiation(object):
         self.telnet_got_sb = False  # Are we inside a subnegotiation?
         self.telnet_opt_dict = {}   # Mapping for up to 256 TelnetOptions
         self.telnet_sb_buffer = ''  # Buffer for sub-negotiations
+        
+        self.terminal_types = []
+        self.desired_terminal_type = None
 
         # Callback functions.
-        self.terminal_type_cb = None    # lambda termtype: "terminal type: %s" % termtype
-        self.terminal_size_cb = None    # lambda rows, columns: "rows: %d, columns: %d" % (rows, columns)
-        self.echo_cb = None             # lambda flag: "echo" if flag else "do not echo"
-        self.send_cb = None             # lambda data: "data to be sent to the client: %s" % data
-        self.compress2_cb = None        # lambda flag: "compress" if flag else "do not compress"
-        
+        self.terminal_type_selection_cb = None  # lambda termtypes: ...
+        self.terminal_type_cb = None            # lambda termtype: "terminal type: %s" % termtype
+        self.terminal_size_cb = None            # lambda rows, columns: "rows: %d, columns: %d" % (rows, columns)
+        self.echo_cb = None                     # lambda flag: "echo" if flag else "do not echo"
+        self.send_cb = None                     # lambda data: "data to be sent to the client: %s" % data
+        self.compress2_cb = None                # lambda flag: "compress" if flag else "do not compress"
+
+    def set_terminal_type_selection_cb(self, f):
+        self.terminal_type_selection_cb = f
+
     def set_terminal_type_cb(self, f):
         self.terminal_type_cb = f
 
@@ -414,20 +422,26 @@ class TelnetNegotiation(object):
                     self._note_remote_option(option, False)
                     # No no, bad DE!
                     self._iac_dont(option)
-            elif option == (NAWS, SGA): ## Accept.
+            elif option in (NAWS, SGA): ## Accept.
                 if self._check_reply_pending(option):
                     self._note_reply_pending(option, False)
                     self._note_remote_option(option, True)
                     ## NAWS: Nothing else to do, client follow with SB
-                    ## TTYPE: Tell them to send their terminal type
-                    if option == TTYPE and self.send_cb:
-                        self.send_cb('%c%c%c%c%c%c' % (IAC, SB, TTYPE, SEND, IAC, SE))
 
                 elif (self._check_remote_option(option) == False or
                         self._check_remote_option(option) == UNKNOWN):
                     self._note_remote_option(option, True)
                     self._iac_do(option)
                     ## NAWS: Client should respond with SB
+            elif option == TTYPE:
+                # Putty sends this unbidden.    
+                if self._check_reply_pending(option):
+                    self._note_reply_pending(option, False)
+                self._note_remote_option(option, True)
+
+                ## TTYPE: Tell them to send their terminal type
+                if self.send_cb:
+                    self.send_cb('%c%c%c%c%c%c' % (IAC, SB, TTYPE, SEND, IAC, SE))
 
         elif cmd == WONT:
             if option in (ECHO, COMPRESS2):
@@ -456,8 +470,34 @@ class TelnetNegotiation(object):
         bloc = self.telnet_sb_buffer
         if len(bloc) > 2:
             if bloc[0] == TTYPE and bloc[1] == IS:
-                if self.terminal_type_cb:
-                    self.terminal_type_cb(bloc[2:])
+                # Basically each one we are informed of is a selection.  So we
+                # need to select each offered one to identify the range, and then
+                # reselect until we have our preferred one selected.
+            
+                terminal_type = bloc[2:].lower()
+                if self.desired_terminal_type is None:
+                    # Select terminal types until we have covered all the options.
+                    if terminal_type not in self.terminal_types:
+                        self.terminal_types.append(terminal_type)
+                        # Ask for the next terminal type.
+                        self.send_cb('%c%c%c%c%c%c' % (IAC, SB, TTYPE, SEND, IAC, SE))
+                    else:
+                        # Ask the application which terminal type to use.
+                        self.desired_terminal_type = self.terminal_type_selection_cb(self.terminal_types)
+                        if self.desired_terminal_type == terminal_type:
+                            # Bingo.  The preferred terminal type has been selected.
+                            if self.terminal_type_cb:
+                                self.terminal_type_cb(terminal_type)
+                        else:
+                            # Start the terminal type selection process again.
+                            self.request_terminal_type()
+                elif terminal_type != self.desired_terminal_type:
+                    # If the current terminal type is not the preferred one, ask for the next.
+                    self.send_cb('%c%c%c%c%c%c' % (IAC, SB, TTYPE, SEND, IAC, SE))
+                else:
+                    # Bingo.  The preferred terminal type has been selected.
+                    if self.terminal_type_cb:
+                        self.terminal_type_cb(terminal_type)
 
             elif bloc[0] == NAWS:
                 if len(bloc) != 5:

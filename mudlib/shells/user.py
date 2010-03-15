@@ -33,7 +33,9 @@ class GameShell(Shell):
         sorrows.world.AddUser(self.user)
 
         self.currentDirectory = (None, None) # parent, current
-        self.user.Tell('You are logged in as "'+ self.user.name +'".')
+        
+        if self.stack.stack[-1] is handler:
+            self.user.Tell('You are logged in as "'+ self.user.name +'".')
 
     def OnRemovalFromStack(self):
         sorrows.world.RemoveUser(self.user)
