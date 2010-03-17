@@ -59,7 +59,7 @@ class TelnetConnection(Connection):
         self.telneg.set_terminal_size_cb(terminal_size_cb)
 
         self.telneg.request_will_echo()
-        self.telneg.request_will_compress()
+        # self.telneg.request_will_compress()
         self.telneg.request_naws()
         self.telneg.request_terminal_type()
 
@@ -75,7 +75,10 @@ class TelnetConnection(Connection):
             input = self.read(65536)
         if input is None:
             return False
-        self.user.ReceiveInput(input)
+        try:
+            self.user.ReceiveInput(input)
+        except Exception:
+            self.service.LogException("Error dispatching input")
         return True
 
     def OnDisconnection(self):

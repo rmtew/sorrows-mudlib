@@ -56,5 +56,6 @@ class NetworkService(Service):
 
     def OnTelnetDisconnection(self, connection):
         self.LogInfo("Telnet disconnection #%s Address=%s", connection.connectionID, connection.clientAddress)
-        self.telnetConnections.remove(connection)
+        if connection in self.telnetConnections:
+            self.telnetConnections.remove(connection)
         connection.Release()

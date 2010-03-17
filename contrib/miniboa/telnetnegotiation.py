@@ -97,8 +97,10 @@ CHARSET     = chr( 42)      #
 
 #--[ Extra Shit ]--------------------------------------------------------------
 
-COMPRESS1 = chr( 85)
-COMPRESS2 = chr( 86)
+COMPRESS1   = chr( 85)      # MCCP - Mud Client Compression Protocol, v1
+COMPRESS2   = chr( 86)      # MCCP - Mud Client Compression Protocol, v2
+MCP         = chr( 90)      # MSP  - Mud Sound Protocol
+MXP         = chr( 91)      # MXP  - Mud eXtension Protocol
 
 #-----------------------------------------------------------------Telnet Option
 
@@ -213,12 +215,21 @@ class TelnetNegotiation(object):
         self._iac_wont(ECHO)
         self._note_reply_pending(ECHO, True)
 
-    def request_mccp(self):
+    #def request_mccp(self):
+    #    """
+    #    Request to MUD Client Compression Protocol.
+    #    http://mccp.smaugmuds.org/protocol.html
+    #    """
+    #    self._iac_do(NAWS)
+
+    def request_mxp(self):
         """
-        Request to MUD Client Compression Protocol.
-        http://mccp.smaugmuds.org/protocol.html
+        Request to use Mud Extension Protocol.
+        http://www.zuggsoft.com/zmud/mxp.htm
+        http://www.mushclient.com/mushclient/mxp.htm
         """
-        self._iac_do(NAWS)
+        self._iac_do(MXP)
+        self._note_reply_pending(MXP, True)
 
     def request_naws(self):
         """

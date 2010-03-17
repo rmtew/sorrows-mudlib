@@ -201,7 +201,7 @@ class RoguelikeShell(Shell):
         self.user.connection.optionLineMode = self.oldOptionLineMode
         self.user.connection.telneg.request_will_echo()
         self.user.Write(ESC_RESET_TERMINAL)
-        self.ScrollWindowUp()
+        self.ScrollWindowVertically(-1)
         self.MoveCursor(0, self.statusOffset)
 
     def OnTerminalSizeChanged(self, rows, columns, redraw=True):
@@ -350,12 +350,16 @@ class RoguelikeShell(Shell):
     def DisplayScreen(self):
         self.user.Write(ESC_CLEAR_SCREEN)
 
-        self.UpdateView()
+        self.RedrawView()
 
         self.UpdateTitle()
         self.UpdateStatusBar(self.lastStatusBar)
 
-    def UpdateView(self, sio=None):
+    def RedrawView(self, sio=None):
+        self.UpdateLineByWorldPosition(yStart=self.worldViewY, yCount=self.windowHeight, sio=sio)
+        self.UpdatePlayer(sio)
+
+    def UpdateFoV(self, sio=None):
         self.drawRanges = {}
 
         def fVisited(x, y):
@@ -402,28 +406,36 @@ class RoguelikeShell(Shell):
         if sio is None:
             self.user.Write(sio_.getvalue())
 
-    def UpdateLineByWorldPosition(self, y, cnt=1, sio=None):
+    def UpdateLineByWorldPosition(self, xStart=None, xCount=None, yStart=None, yCount=1, sio=None, highlight=False):
         # Find the map line.
         # Find the start and end of the map line parts to examine.
         # Find the first visible and last visible characters in the given line.
         # Clear the line.
         # Display the display tiles for that character range.
+        if xStart is None:
+            xStart = self.worldViewX
+        if xCount is None:
+            xCount = self.windowWidth
+        _xStart = xStart
+        _xWidth = xCount
 
-        screenY = (y - self.worldViewY) + self.windowYStartOffset
-        for i in xrange(cnt):
-            yi = (y + 1) + i
+        screenY = (yStart - self.worldViewY) + self.windowYStartOffset
+        for i in xrange(yCount):
+            yi = (yStart + 1) + i
 
             if yi < 0 or yi >= self.mapHeight:
                 #self.MoveCursor(self.windowXStartOffset + self.windowWidth/2 - 1, screenY + i, sio=sio)
                 #sio.write("&&&")                
                 continue
 
-            xStart = self.worldViewX
+            xStart = _xStart
+            xWidth = _xWidth
             # Do not go outside the LHS bounds of the map.
             if xStart < 0:
+                xWidth += xStart # Adjust the refreshed width for the lost area.
                 xStart = 0
 
-            xEnd = xStart + self.windowWidth - 1
+            xEnd = xStart + xWidth - 1
             # Do not go outside the RHS bounds of the map.
             if xEnd >= self.mapWidth:
                 xEnd = self.mapWidth - 1
@@ -448,11 +460,14 @@ class RoguelikeShell(Shell):
             screenX = (xStart - self.worldViewX) + self.windowXStartOffset
             self.MoveCursor(screenX, screenY + i, sio=sio)
 
-            arr = array.array('c', (self.ViewedTile(x, yi, flag=True) for x in xrange(xStart, xEnd + 1)))
+            arr = array.array('c', (self.ViewedTile(x, yi) for x in xrange(xStart, xEnd + 1)))
+            s = arr.tostring()
+            if highlight:
+                s = ESC_GFX_BLUE_FG + s + ESC_GFX_OFF
             if sio is None:
-                self.user.Write(arr.tostring())
+                self.user.Write(s)
             else:
-                sio.write(arr.tostring())
+                sio.write(s)
 
     def UpdateViewByWorldPosition(self, x, y, c, sio=None):
         vx = (x - self.worldViewX) + 1
@@ -491,7 +506,7 @@ class RoguelikeShell(Shell):
 
     # Map Support ------------------------------------------------------------
 
-    def ViewedTile(self, x, y, flag=False):
+    def ViewedTile(self, x, y):
         flags = self.mapArray[y * self.mapWidth + x]
         if flags & TILE_VISIBLE:
             return self.GetDisplayTile(x, y)
@@ -556,27 +571,24 @@ class RoguelikeShell(Shell):
     def ResetScrollingRows(self):
         self.user.Write("\x1b[r")
 
-    def ScrollWindowLeft(self, margin, sio=None):
-        for i in xrange(self.windowHeight):
-            self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset + i, sio=sio)
-            self.DeleteCharacters(margin, sio=sio)
-
-    def ScrollWindowRight(self, margin, sio=None):
-        for i in xrange(self.windowHeight):
-            self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset + i, sio=sio)
-            self.InsertCharacters(margin, sio=sio)
-
-    def ScrollWindowUp(self, cnt=1, sio=None):
-        self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset, sio=sio)
-        s = ESC_SCROLL_UP * cnt
-        if sio is None:
-            self.user.Write(s)
+    def ScrollWindowHorizontally(self, margin, sio=None):
+        if margin < 0:
+            margin = -margin
+            f = self.InsertCharacters
         else:
-            sio.write(s)
+            f = self.DeleteCharacters
 
-    def ScrollWindowDown(self, cnt=1, sio=None):
-        self.MoveCursor(self.windowXStartOffset, self.windowYEndOffset, sio=sio)
-        s = ESC_SCROLL_DOWN * cnt
+        for i in xrange(self.windowHeight):
+            self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset + i, sio=sio)
+            f(margin, sio=sio)
+
+    def ScrollWindowVertically(self, margin, sio=None):
+        if margin < 0:
+            self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset, sio=sio)
+            s = ESC_SCROLL_UP * -margin
+        else:
+            self.MoveCursor(self.windowXStartOffset, self.windowYEndOffset, sio=sio)
+            s = ESC_SCROLL_DOWN * margin
         if sio is None:
             self.user.Write(s)
         else:
@@ -627,33 +639,31 @@ class RoguelikeShell(Shell):
         windowLeftDistance = self.playerX - self.worldViewX
         halfWidth = self.windowWidth / 2
 
+        xShift = 0
         if windowLeftDistance < VIEW_RADIUS:
             xShift = halfWidth - windowLeftDistance + 1
             self.worldViewX -= xShift
-            self.ScrollWindowRight(xShift, sio=sio)
+            # self.ScrollWindowRight(xShift, sio=sio)
+            xShift = -xShift # Indicate negative movement on the horizontal axis.
         else:
             windowRightDistance = (self.worldViewX + self.windowWidth) - self.playerX
             
             if windowRightDistance <= VIEW_RADIUS:
                 xShift = halfWidth - windowRightDistance - 1
                 self.worldViewX += xShift
-                self.ScrollWindowLeft(xShift, sio=sio)
 
         windowUpperDistance = self.playerY - self.worldViewY
         halfHeight = self.windowHeight / 2
 
         # Has the player moved so their view falls outside the screen?
         # The player's line is counted in this calculation.
+        yShift = 0
         if windowUpperDistance <= VIEW_RADIUS:
             # Distance needed to shift the player to the window center.
             # +1 to put them further from the side they are moving towards.
             yShift = halfHeight - windowUpperDistance + 1
             self.worldViewY -= yShift
-            self.ScrollWindowUp(yShift, sio=sio)
-
-            # Account for the remaining viewed distance (less the line the player is on).
-            blankLines = (self.playerY - self.worldViewY) - 1
-            self.UpdateLineByWorldPosition(self.worldViewY, cnt=blankLines, sio=sio)
+            yShift = -yShift # Indicate negative movement on the vertical axis.
         else:
             windowLowerDistance = (self.worldViewY + self.windowHeight) - self.playerY
 
@@ -664,14 +674,36 @@ class RoguelikeShell(Shell):
                 # -1 to put them further from the side they are moving towards.
                 yShift = halfHeight - windowLowerDistance - 1
                 self.worldViewY += yShift
-                self.ScrollWindowDown(yShift, sio=sio)
 
+        numLinesRedrawn = 0
+        if yShift:
+            self.ScrollWindowVertically(yShift, sio=sio)
+
+            # Redraw the area that moved on screen.
+            if yShift < 0:
+                # Account for the remaining viewed distance (less the line the player is on).
+                numLinesRedrawn = (self.playerY - self.worldViewY) - 1
+                self.UpdateLineByWorldPosition(yStart=self.worldViewY, yCount=numLinesRedrawn, sio=sio)
+            else:
                 # Account for the view range and the line the player is on.
-                blankLines = yShift + VIEW_RADIUS - 1
-                self.UpdateLineByWorldPosition(self.playerY, cnt=blankLines, sio=sio)
+                numLinesRedrawn = yShift + VIEW_RADIUS - 1
+                self.UpdateLineByWorldPosition(yStart=self.playerY, yCount=numLinesRedrawn, sio=sio)
+
+        if xShift:
+            self.ScrollWindowHorizontally(xShift, sio=sio)
+            
+            if numLinesRedrawn:
+                pass # TODO: Only refresh what didn't get redrawn vertically.
+
+            # Redraw the area that moved on screen.
+            if xShift < 0:
+                self.UpdateLineByWorldPosition(xStart=self.worldViewX, xCount=-xShift, yStart=self.worldViewY, yCount=self.windowHeight, sio=sio)
+            else:
+                xStart = self.worldViewX + self.windowWidth - xShift
+                self.UpdateLineByWorldPosition(xStart=xStart, xCount=xShift, yStart=self.worldViewY, yCount=self.windowHeight, sio=sio)
 
         # Add an FoV update over the scrolled and filled in output.
-        self.UpdateView(sio=sio)
+        self.UpdateFoV(sio=sio)
 
         # Write the collected output to the player.
         self.user.Write(sio.getvalue())
@@ -770,6 +802,7 @@ class RoguelikeShell(Shell):
 
     def EnterGame(self):
         self.SetMode(MODE_GAMEPLAY)
+        self.UpdateFoV()
         self.DisplayScreen()
 
     def EnterKeyboardMenu(self):
@@ -834,6 +867,7 @@ class RoguelikeShell(Shell):
 
     def MenuAction256Colours(self):
         self.SetMode(MODE_DEBUG_DISPLAY, "xterm's 256 color extension")
+        self.UpdateStatusBar("Press any key to return to the previous menu..")
 
         sio = StringIO.StringIO()
         self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset, sio=sio)
