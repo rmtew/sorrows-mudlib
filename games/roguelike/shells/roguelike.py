@@ -132,7 +132,7 @@ class RoguelikeShell(Shell):
         self.user.connection.optionLineMode = False
 
         # Defaults..
-        self.keyboard = "computer"
+        self.keyboard = None
         self.menuOptions = []
         self.menuSelection = 0
 
@@ -174,7 +174,9 @@ class RoguelikeShell(Shell):
         self.charsetResetSequence = None
 
         self.UpdateTitle()
-        self.UpdateStatusBar("")
+        self.UpdateStatusBar("Use the up and down cursor keys to choose an option, and enter to select it.")
+        
+        self.enteredGame = False
         self.EnterKeyboardMenu()
 
     def QueryClientName(self):
@@ -207,7 +209,10 @@ class RoguelikeShell(Shell):
     def OnTerminalSizeChanged(self, rows, columns, redraw=True):
         # Window partitioning offsets and sizes.
         self.titleOffset = 1
+        self.titleWidth = columns
+
         self.statusOffset = rows
+        self.statusWidth = columns
 
         self.windowXStartOffset = 1
         self.windowXEndOffset = columns - 1
@@ -309,13 +314,7 @@ class RoguelikeShell(Shell):
             self.DisplayScreen()
             return
 
-        movementShift = {
-            "\x1b[A": ( 0,-1),
-            "\x1b[B": ( 0, 1),
-            "\x1b[C": ( 1, 0),
-            "\x1b[D": (-1, 0),
-        }.get(s, None)
-            
+        movementShift = self.movementKeys.get(s, None)            
         if movementShift is not None:            
             newX = self.playerX + movementShift[0]
             newY = self.playerY + movementShift[1]
@@ -497,7 +496,13 @@ class RoguelikeShell(Shell):
         self.lastStatusBar = s
 
         self.MoveCursor(0, self.statusOffset, clear=True, sio=sio)
-        s = ESC_REVERSE_VIDEO_ON + s + (" " * (self.user.connection.consoleColumns - len(s))) + ESC_REVERSE_VIDEO_OFF
+        spaceCount = self.statusWidth - len(s)
+        sideSpaceCount = spaceCount / 2
+        t = " " * sideSpaceCount
+        s = t + s + t
+        if len(s) < self.statusWidth:
+            s += " " * (self.statusWidth - len(s))
+        s = ESC_REVERSE_VIDEO_ON + s + ESC_REVERSE_VIDEO_OFF
         if sio is None:
             self.user.Write(s)
         else:
@@ -801,12 +806,18 @@ class RoguelikeShell(Shell):
         self.user.Write(sio.getvalue())
 
     def EnterGame(self):
-        self.SetMode(MODE_GAMEPLAY)
+        if not self.enteredGame:
+            self.lastStatusBar = "Press the Escape key to get the options menu."
+            self.enteredGame = True
+
+        self.SetMode(MODE_GAMEPLAY, "In-game")
         self.UpdateFoV()
         self.DisplayScreen()
 
     def EnterKeyboardMenu(self):
         options = []
+        if self.enteredGame:
+            options.append(("B", "Back",         "Return to the previous menu"))
         options.append(("L", "Laptop",    "No numeric keypad (yuhjklbn)"))
         options.append(("C", "Computer",  "With a numeric keypad"))
         self.DisplayMenu(MODE_KEYBOARD_MENU, options)        
@@ -848,7 +859,11 @@ class RoguelikeShell(Shell):
         self.EnterTelnetClientMenu()
 
     def MenuActionBack(self):
-        if self.mode == MODE_ESCAPE_MENU:
+        if self.mode == MODE_KEYBOARD_MENU:
+            # Ignore if the player has not entered the game yet.
+            if self.enteredGame:
+                self.EnterEscapeMenu()
+        elif self.mode == MODE_ESCAPE_MENU:
             self.EnterGame()
         elif self.mode == MODE_DEBUG_MENU:
             self.EnterEscapeMenu()
@@ -857,11 +872,40 @@ class RoguelikeShell(Shell):
         elif self.mode == MODE_DEBUG_DISPLAY:
             self.EnterTelnetClientMenu()
 
+    movementKeys = {
+        "\x1b[A": ( 0,-1),
+        "\x1b[B": ( 0, 1),
+        "\x1b[C": ( 1, 0),
+        "\x1b[D": (-1, 0),
+    }
+
     def MenuActionLaptop(self):
+        self.movementKeys = self.__class__.movementKeys.copy()
+        self.movementKeys.update({
+            "u": ( 1,-1),
+            "k": ( 0,-1),
+            "y": (-1,-1),
+            "l": ( 1, 0),
+            "h": (-1, 0),
+            "n": ( 1, 1),
+            "j": ( 0, 1),
+            "b": (-1, 1),
+        })
         self.keyboard = "laptop"
         self.EnterGame()
 
     def MenuActionComputer(self):
+        self.movementKeys = self.__class__.movementKeys.copy()
+        self.movementKeys.update({
+            "9": ( 1,-1),
+            "8": ( 0,-1),
+            "7": (-1,-1),
+            "6": ( 1, 0),
+            "4": (-1, 0),
+            "3": ( 1, 1),
+            "2": ( 0, 1),
+            "1": (-1, 1),
+        })
         self.keyboard = "computer"
         self.EnterGame()
 
