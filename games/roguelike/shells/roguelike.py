@@ -144,27 +144,10 @@ class RoguelikeShell(Shell):
         self.ShowCursor(False)
         self.QueryClientName()
 
-        # Process the map.
-        self.mapRows = [
-            line.strip()
-            for line in levelMap.split("\n")
-            if len(line) and line[0] == 'X'
-        ]
-        for i, line in enumerate(self.mapRows):
-            x = line.find("@")
-            if x != -1:
-               self.playerStartX = x
-               self.playerStartY = i
-               break
-        else:
-            raise Exception("Map did not provide a player starting position")
+        self.mapArray = array.array('B', (0 for i in xrange(sorrows.world.mapHeight * sorrows.world.mapWidth)))
 
-        self.mapWidth = len(self.mapRows[0])
-        self.mapHeight = len(self.mapRows)
-        self.mapArray = array.array('B', (0 for i in xrange(self.mapHeight * self.mapWidth)))
-
-        self.playerX = self.playerStartX
-        self.playerY = self.playerStartY
+        self.playerX = sorrows.world.playerStartX
+        self.playerY = sorrows.world.playerStartY
 
         rows = self.user.connection.consoleRows
         cols = self.user.connection.consoleColumns
@@ -320,8 +303,8 @@ class RoguelikeShell(Shell):
             newY = self.playerY + movementShift[1]
 
             # For now, can only move into empty spaces.
-            tile = self.mapRows[newY][newX]
-            flags = self.mapArray[self.mapWidth * newY + newX]
+            tile = sorrows.world.GetTile(newX, newY)
+            flags = self.mapArray[sorrows.world.mapWidth * newY + newX]
             passableTile = tile in (" ", "@")
             passableTile = passableTile or tile == "D" and (True or flags & TILE_OPEN)
             if passableTile:
@@ -362,7 +345,7 @@ class RoguelikeShell(Shell):
         self.drawRanges = {}
 
         def fVisited(x, y):
-            self.mapArray[y * self.mapWidth + x] |= TILE_VISIBLE
+            self.mapArray[y * sorrows.world.mapWidth + x] |= TILE_VISIBLE
 
             if x < self.worldViewX or x > self.worldViewX + self.windowWidth:
                 return
@@ -376,10 +359,10 @@ class RoguelikeShell(Shell):
                 self.drawRanges[y] = [ x, x ]
 
         def fBlocked(x, y):
-            tile = self.mapRows[y][x]
+            tile = sorrows.world.GetTile(x, y)
             return tile not in (CHAR_TILE, " ")
 
-        fov.fieldOfView(self.playerX, self.playerY, self.mapWidth, self.mapHeight, VIEW_RADIUS, fVisited, fBlocked)
+        fov.fieldOfView(self.playerX, self.playerY, sorrows.world.mapWidth, sorrows.world.mapHeight, VIEW_RADIUS, fVisited, fBlocked)
 
         if sio is None:
             sio_ = StringIO.StringIO()
@@ -422,7 +405,7 @@ class RoguelikeShell(Shell):
         for i in xrange(yCount):
             yi = (yStart + 1) + i
 
-            if yi < 0 or yi >= self.mapHeight:
+            if yi < 0 or yi >= sorrows.world.mapHeight:
                 #self.MoveCursor(self.windowXStartOffset + self.windowWidth/2 - 1, screenY + i, sio=sio)
                 #sio.write("&&&")                
                 continue
@@ -436,10 +419,10 @@ class RoguelikeShell(Shell):
 
             xEnd = xStart + xWidth - 1
             # Do not go outside the RHS bounds of the map.
-            if xEnd >= self.mapWidth:
-                xEnd = self.mapWidth - 1
+            if xEnd >= sorrows.world.mapWidth:
+                xEnd = sorrows.world.mapWidth - 1
 
-            rowOffset = yi * self.mapWidth
+            rowOffset = yi * sorrows.world.mapWidth
             for x in range(xStart, xEnd + 1):
                 flags = self.mapArray[rowOffset + x]
                 if flags & TILE_VISIBLE:
@@ -512,13 +495,10 @@ class RoguelikeShell(Shell):
     # Map Support ------------------------------------------------------------
 
     def ViewedTile(self, x, y):
-        flags = self.mapArray[y * self.mapWidth + x]
+        flags = self.mapArray[y * sorrows.world.mapWidth + x]
         if flags & TILE_VISIBLE:
             return self.GetDisplayTile(x, y)
         return " "
-
-    def GetTile(self, x, y):
-        return self.mapRows[y][x]
 
     def TranslateTileForDisplay(self, tile):
         dtile = displayTiles.get(tile, None)
@@ -527,13 +507,13 @@ class RoguelikeShell(Shell):
         return tile
         
     def GetDisplayTile(self, x, y):
-        if y < 0 or y >= len(self.mapRows):
+        if y < 0 or y >= sorrows.world.mapHeight:
             print "TILE ERROR/y", x, y
             return "?"
-        if x < 0 or x >= len(self.mapRows[y]):
+        if x < 0 or x >= sorrows.world.mapWidth:
             print "TILE ERROR/x", x, y
             return "?"
-        tile = self.mapRows[y][x]
+        tile = sorrows.world.GetTile(x, y)
         return self.TranslateTileForDisplay(tile)
 
     # ANSI Cursor ------------------------------------------------------------
