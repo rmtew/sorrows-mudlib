@@ -3,14 +3,15 @@ class User:
         self.connection = connection
         self.name = name
 
+        self.worldServiceName = None
+        self.body = None
+        self.properties = {}
+
+    def SetupInputStack(self):
         from mudlib import InputStack
         self.inputstack = InputStack()
         self.inputstack.Setup(self)
         self.inputstack.WritePrompt()
-
-        self.worldServiceName = None
-        self.body = None
-        self.properties = {}
 
     def OnTelnetDisconnection(self):
         self.inputstack.Release()

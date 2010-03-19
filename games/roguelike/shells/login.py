@@ -1,6 +1,9 @@
 import logging
+import uthread
 from mudlib import InputHandler, Shell
 import mudlib.shells
+
+# TODO: Rewrite this to detect graphical capability and to handle it appropriately.
 
 # Enter login name.
 # - User exists.
@@ -37,12 +40,6 @@ class LoginShell(Shell):
     def Setup(self, stack):
         Shell.Setup(self, stack)
 
-        telneg = self.user.connection.telneg
-        #telneg.request_will_echo()
-        telneg.request_naws()
-        telneg.request_do_echo()
-        #telneg.request_terminal_type()
-
         self.userName = None
         self.password = None
 
@@ -53,6 +50,13 @@ class LoginShell(Shell):
         handler = InputHandler()
         handler.Setup(self, self.ReceiveInput, self.WritePrompt, 0)
         self.stack.SetShell(handler)
+
+        uthread.new(self.StartTelnetNegotiation)
+
+    def StartTelnetNegotiation(self):
+        telneg = self.user.connection.telneg
+        telneg.request_naws()
+        telneg.request_terminal_type()
 
     def ExecuteCommand(self):
         s = self.raw.strip()

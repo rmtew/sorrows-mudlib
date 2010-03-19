@@ -2,12 +2,6 @@ import random, array, math, StringIO, time
 import uthread, fov
 from mudlib import Shell, InputHandler
 
-# TODO LIST -------------------------------------------------------------------
-
-# FEATURE:  Input filter for keyboard mode.  Make laptop key mapping work.
-# REFACTOR: Move the movement view update code out of the input handler.
-# REFACTOR: Revise the movement view update code to be understandable.
-
 # ASCII CODES -----------------------------------------------------------------
 
 # Escape codes.

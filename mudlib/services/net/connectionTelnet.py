@@ -16,9 +16,6 @@ class TelnetConnection(Connection):
         self.optionLineMode = True
         self.readBufferString = ""
 
-        self.user = User(self, "login")
-        uthread.new(self.ManageConnection)
-
         # -- state --
         self.telneg = miniboa.telnetnegotiation.TelnetNegotiation()
 
@@ -58,10 +55,10 @@ class TelnetConnection(Connection):
                 handler.shell.OnTerminalSizeChanged(rows, columns)
         self.telneg.set_terminal_size_cb(terminal_size_cb)
 
-        self.telneg.request_will_echo()
-        # self.telneg.request_will_compress()
-        self.telneg.request_naws()
-        self.telneg.request_terminal_type()
+        self.user = User(self, "login")
+        self.user.SetupInputStack()
+
+        uthread.new(self.ManageConnection)
 
     def ManageConnection(self):
         while not self.released:
@@ -139,7 +136,7 @@ class TelnetConnection(Connection):
             s = self.recv(65536)
             if s == "":
                 return None
-            # print "INPUT-RECEIVED", [ ord(c) for c in ret ]
+            # print "INPUT-RECEIVED", [ ord(c) for c in s ]
 
             for s2 in self.telneg.feed(s):            
                 # This is so not optimal yet, but it is correct which is good for now.

@@ -146,6 +146,9 @@ class TelnetNegotiation(object):
         self.send_cb = None                     # lambda data: "data to be sent to the client: %s" % data
         self.compress2_cb = None                # lambda flag: "compress" if flag else "do not compress"
 
+        # Data
+        self.negotiationByteCount = 0
+
     def set_terminal_type_selection_cb(self, f):
         self.terminal_type_selection_cb = f
 
@@ -282,6 +285,8 @@ class TelnetNegotiation(object):
         that indicates whether the character was negotiation related.
         """
 
+        # logger.debug("Negotiation %d", ord(byte))
+
         ## Are we not currently in an IAC sequence coming from the DE?
         if self.telnet_got_iac == False:
             if byte == IAC:
@@ -328,6 +333,7 @@ class TelnetNegotiation(object):
 
         # logger.debug("Telnet negotiation character %d", ord(byte))
                     
+        self.negotiationByteCount += 1
         return True
 
     def _two_byte_cmd(self, cmd):

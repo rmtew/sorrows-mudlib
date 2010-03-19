@@ -18,7 +18,13 @@ class InputStack:
         self.stack = []
 
         # Default to the login shell (they have to login first!).
-        from mudlib.shells import LoginShell
+        shell = None
+        
+        try:
+            from game.shells import LoginShell
+        except ImportError:
+            from mudlib.shells import LoginShell
+        
         shell = LoginShell()
         shell.Setup(self)
 
