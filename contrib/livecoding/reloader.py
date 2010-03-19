@@ -8,7 +8,7 @@ import weakref
 import time
 
 logger = logging.getLogger("reloader")
-#logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 # TODO: rename 'namespace.py' to 'namespaces.py' ... need to think about it...
 import namespace as namespaces
@@ -292,7 +292,8 @@ class CodeReloader:
                 self.UpdateClass(scriptFile, oldValue, newValue, globals_)
 
                 # If there was an old value, it is updated.
-                if oldValue is not None:
+                if oldValue and oldValue is not NonExistentValue:
+                    logger.debug("Encountered existing class '%s' %s", attrName, oldValue)
                     namespaceContributions.add(attrName)
                     continue
 
