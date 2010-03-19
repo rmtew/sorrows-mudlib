@@ -8,6 +8,7 @@ import weakref
 import time
 
 logger = logging.getLogger("reloader")
+#logger.setLevel(logging.DEBUG)
 
 # TODO: rename 'namespace.py' to 'namespaces.py' ... need to think about it...
 import namespace as namespaces
@@ -288,7 +289,7 @@ class CodeReloader:
                 continue
 
             if newType is types.ClassType or newType is types.TypeType:
-                self.UpdateClass(oldValue, newValue, globals_)
+                self.UpdateClass(scriptFile, oldValue, newValue, globals_)
 
                 # If there was an old value, it is updated.
                 if oldValue is not None:
@@ -320,11 +321,13 @@ class CodeReloader:
         scriptFile.AddNamespaceContributions(namespaceContributions)
         newScriptFile.SetNamespaceContributions(namespaceContributions)
 
-    def UpdateClass(self, value, newValue, globals_):
-        if value is None or value is NonExistentValue:
-            value = newValue
-
+    def UpdateClass(self, scriptFile, value, newValue, globals_):
         logger.debug("Updating class %s:%s from %s:%s", value, hex(id(value)), newValue, hex(id(newValue)))
+
+        if value is None or value is NonExistentValue:
+            authoritativeValue = newValue
+        else:
+            authoritativeValue = value
 
         for attrName, attrValue in newValue.__dict__.iteritems():
             if isinstance(attrValue, types.FunctionType):
@@ -339,22 +342,26 @@ class CodeReloader:
                 if attrName in ("__doc__", "__dict__", "__module__", "__weakref__"):
                     continue
 
-                if value is newValue:
+                if authoritativeValue is newValue:
                     continue
 
             logger.debug("setting %s %s", attrName, attrValue)
-            setattr(value, attrName, attrValue)
+            setattr(authoritativeValue, attrName, attrValue)
 
-        if self.classUpdateCallback:
-            try:
-                if type(self.classUpdateCallback) is tuple:
-                    getattr(self.classUpdateCallback[0], self.classUpdateCallback[1])(value)
-                else:
-                    self.classUpdateCallback(value)
-            except ReferenceError:
-                self.classUpdateCallback = None
-            except Exception:
-                logger.exception("Error broadcasting class update")
+        if value is None or value is NonExistentValue:
+            scriptDirectory = self.FindDirectory(scriptFile.filePath)    
+            scriptDirectory.BroadcastClassCreationEvent(newValue)
+        else:
+            if self.classUpdateCallback:
+                try:
+                    if type(self.classUpdateCallback) is tuple:
+                        getattr(self.classUpdateCallback[0], self.classUpdateCallback[1])(value)
+                    else:
+                        self.classUpdateCallback(value)
+                except ReferenceError:
+                    self.classUpdateCallback = None
+                except Exception:
+                    logger.exception("Error broadcasting class update")
 
     # ------------------------------------------------------------------------
     # Leaked attribute support

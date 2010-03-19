@@ -15,7 +15,7 @@ import logging
 import unittest
 
 logger = logging.getLogger("namespace")
-# logger.setLevel(logging.DEBUG)
+#logger.setLevel(logging.DEBUG)
 
 class ScriptFile(object):
     lastError = None
@@ -421,7 +421,7 @@ class ScriptDirectory(object):
             namespaceContributions.add(k)
 
             if type(v) in (types.TypeType, types.ClassType):
-                self.BroadcastClassCreationEvent(namespace, k, v)
+                self.BroadcastClassCreationEvent(v)
             # print namespace, k, type(v)
 
         scriptFile.SetNamespaceContributions(namespaceContributions)
