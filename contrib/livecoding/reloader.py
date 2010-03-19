@@ -8,7 +8,7 @@ import weakref
 import time
 
 logger = logging.getLogger("reloader")
-logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.DEBUG)
 
 # TODO: rename 'namespace.py' to 'namespaces.py' ... need to think about it...
 import namespace as namespaces
