@@ -18,7 +18,7 @@ STATE_SHUTDOWN = 2
 
 bootstrapState = STATE_STARTUP
 
-def OnClassCreation(namespace, className, class_):
+def OnClassCreation(class_):
     class_.__instances__ = classmethod(pysupport.FindClassInstances)
     if not hasattr(class_, "__subclasses__"):
         class_.__subclasses__ = classmethod(pysupport.FindClassSubclasses)
@@ -26,12 +26,12 @@ def OnClassCreation(namespace, className, class_):
     class_.__events__ = set()
 
     if bootstrapState != STATE_STARTUP:
-        print "CREATE", namespace, className, class_
+        print "CREATE", class_
 
     events.ProcessClass(class_)
 
     if bootstrapState != STATE_STARTUP:
-        events.ClassCreation(namespace, className, class_)
+        events.ClassCreation(class_)
 
 def OnClassUpdate(class_):
     if bootstrapState != STATE_STARTUP:
@@ -129,6 +129,23 @@ def Run():
         print
         print '** EXITING: Server manually stopping.'
         print
+        
+        if stackless.runcount > 1:
+            print "Scheduled tasklets:", stackless.runcount
+            uthread2.PrintTaskletChain(stackless.current)
+            print
+
+        if uthread.yieldChannel.queue:
+            print "Yielded tasklets:"
+            uthread2.PrintTaskletChain(uthread.yieldChannel.queue)
+            print
+
+        for timestamp, channel in uthread.sleepingTasklets:
+            if channel.queue:
+                print "Sleep channel (%d) tasklets:" % id(channel)
+                uthread2.PrintChannel(channel.queue)
+                print
+
         manualShutdown = True
     finally:
         cr.EndMonitoring()

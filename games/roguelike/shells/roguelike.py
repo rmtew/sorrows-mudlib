@@ -134,7 +134,7 @@ class RoguelikeShell(Shell):
         self.lastStatusBar = "-"
 
         # Send client-side information.
-        self.user.connection.telneg.password_mode_on()
+        self.user.connection.telneg.will_echo()
         self.ShowCursor(False)
         self.QueryClientName()
 
@@ -145,7 +145,7 @@ class RoguelikeShell(Shell):
 
         rows = self.user.connection.consoleRows
         cols = self.user.connection.consoleColumns
-        self.OnTerminalSizeChanged(rows, cols, redraw=False)
+        self.OnTerminalSizeChanged(cols, rows, redraw=False)
         self.RecalculateWorldView()
 
         self.charsetResetSequence = None
@@ -178,12 +178,12 @@ class RoguelikeShell(Shell):
 
     def OnRemovalFromStack(self):
         self.user.connection.optionLineMode = self.oldOptionLineMode
-        self.user.connection.telneg.request_will_echo()
+        self.user.connection.telneg.will_echo()
         self.user.Write(ESC_RESET_TERMINAL)
         self.ScrollWindowVertically(-1)
         self.MoveCursor(0, self.statusOffset)
 
-    def OnTerminalSizeChanged(self, rows, columns, redraw=True):
+    def OnTerminalSizeChanged(self, columns, rows, redraw=True):
         # Window partitioning offsets and sizes.
         self.titleOffset = 1
         self.titleWidth = columns

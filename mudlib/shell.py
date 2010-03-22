@@ -24,6 +24,3 @@ class Shell:
 
     def ExecuteCommand(self):
         raise NameError, 'ExecuteCommand not found in the inheriting shell object'
-
-    def Broadcast(self, msg):
-        pass

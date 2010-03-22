@@ -75,3 +75,7 @@ class InputStack:
         if self.user:
             self.WritePrompt()
 
+    def OnTerminalSizeChanged(self, columns, rows):
+        for shell in self.stack:
+            if hasattr(shell, "OnTerminalSizeChanged"):
+                shell.OnTerminalSizeChanged(columns, rows)

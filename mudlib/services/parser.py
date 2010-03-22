@@ -51,7 +51,7 @@ class ParserService(Service):
 
     # ------------------------------------------------------------------------
 
-    def event_ClassCreation(self, namespace, className, class_):
+    def event_ClassCreation(self, class_):
         """
         When a developer programming against the running framework saves a
         file with a newly created class inside it, this event occurs for that
