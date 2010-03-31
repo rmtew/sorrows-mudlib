@@ -31,17 +31,18 @@ def PrintChannel(c):
         tasklet = tasklet.next
         idx += 1
 
-def PrintTaskletChain(t):
+def PrintTaskletChain(tasklet):
     """ xxx """
-    first = t
-    tasklet = first.next
     idx = 0
-    while first is not tasklet:
+    seen = {}
+    while tasklet and tasklet not in seen:
         # Can't print main, as it has a cframe or something.
         if tasklet is not stackless.main:
             print "  TASKLET %3d:" % idx, tasklet
             traceback.print_stack(tasklet.frame)        
         else:
+            print "  TASKLET %3d (MAIN):" % idx, tasklet
             idx += 1
 
+        seen[tasklet] = True
         tasklet = tasklet.next

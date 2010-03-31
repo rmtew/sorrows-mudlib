@@ -53,7 +53,10 @@ class ChangeHandler:
     def DispatchFileChange(self, filePath, added=False, changed=False, deleted=False):
         try:
             self.callback(filePath, added=added, changed=changed, deleted=deleted)
-        except:
+        except Exception:
+            # Richard: I added Exception here so that TaskletExit would raise and
+            # kill the thread.  But I have a suspicion that I had these being
+            # caught for a reason.
             logger.exception("Problem executing callback")
 
     def ShouldIgnorePathEntry(self, path):

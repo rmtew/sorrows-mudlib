@@ -55,9 +55,10 @@ class LoginShell(Shell):
 
     def StartTelnetNegotiation(self):
         telneg = self.user.connection.telneg
+        # telneg.do_linemode()
         telneg.do_naws()
-        telneg.do_ttype()
         telneg.do_new_environ()
+        telneg.do_ttype()
 
     def ExecuteCommand(self):
         s = self.raw.strip()

@@ -56,7 +56,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         #    elif path == "/mud-send":
         #        self.mud_send(kwargs["nickname"][0], kwargs["text"][0])
         if path in self.server.pages:
-            body = open(self.server.pages[path], "r").read()
+            body = open(self.server.pages[path], "rb").read()
 
             insert = ""
             for k, v in self.headers.items():

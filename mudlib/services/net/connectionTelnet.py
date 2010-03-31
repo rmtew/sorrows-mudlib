@@ -39,11 +39,11 @@ class TelnetConnection(Connection):
             # self.telneg.wont_echo()
 
     def TelnetNegotiationSend(self, data):
-        self.service.LogDebug("SEND(%s)%s%s", self.user.name, self.clientAddress, [ord(c) for c in data])
+        self.service and self.service.LogDebug("SEND(%s)%s%s", self.user.name, self.clientAddress, [ord(c) for c in data])
         self.send(data)
 
     def TelnetCommand(self, command, option):
-        print "TELNET COMMAND", command, option
+        # print "TELNET COMMAND", command, option
         if command == "DO":
             if option == "ECHO":
                 self.echo = True
@@ -84,6 +84,9 @@ class TelnetConnection(Connection):
             input = self.readline()
         else:
             input = self.read(65536)
+            # We may recieve an empty string if there was only negotiation.
+            if input == "":
+                return True
 
         if input is None:
             return False
@@ -113,7 +116,7 @@ class TelnetConnection(Connection):
             for data in dataQueue:
                 if data is None:
                     return
-                print "RECEIVED AFTER", slept, "DATA", data
+                # print "RECEIVED AFTER", slept, "DATA", data
             del dataQueue[:]
 
             uthread.Sleep(0.01)
@@ -135,6 +138,7 @@ class TelnetConnection(Connection):
         buf = ""
         for s in self.telneg.feed(s):
             buf += s
+        # print "INPUT-CHARS", [ ord(c) for c in buf ], buf
         return buf
 
     # -----------------------------------------------------------------------
@@ -169,13 +173,13 @@ class TelnetConnection(Connection):
                         ret = ret[:i-1] + ret[i+1:]
                     i = ret.find('\x08', i)
 
-                #print "INPUT-LINE", [ ord(c) for c in ret ]
+                # print "INPUT-LINE", [ ord(c) for c in ret ], ret
                 return ret
 
             s = self.recv(65536)
             if s == "":
                 return None
-            #print "INPUT-RECEIVED", [ ord(c) for c in s ]
+            # print "INPUT-RECEIVED", [ ord(c) for c in s ]
             #if s[0] == "\x1b":
             #    print "ESCAPE-SEQUENCE-PENDING", s
 
@@ -193,7 +197,10 @@ class TelnetConnection(Connection):
                     buf += c
 
 # ---- TELNET NEGOTIATION ----
-import StringIO
+import StringIO, logging
+
+logger = logging.getLogger("telopt")
+logger.setLevel(logging.INFO)
 
 negotiation_tokens = {
     chr(255):    "IAC",      # "Interpret As Command"
@@ -249,10 +256,6 @@ negotiation_options = {
     NEW_ENVIRON:    "NEW-ENVIRON",
 }
 
-import logging
-logger = logging.getLogger("telopt")
-logger.setLevel(logging.INFO)
-
 
 class TelnetNegotiation:
     def __init__(self, send_cb, subnegotiation_cb=None, command_cb=None):
@@ -277,9 +280,8 @@ class TelnetNegotiation:
     def wont_echo(self):
         self._send(WONT, ECHO)
 
-    def do_ttype(self, preferred_terminal_type=None):
-        self.preferred_terminal_type = preferred_terminal_type
-        self._send(DO, TTYPE)
+    def do_linemode(self):
+        self._send(DO, LINEMODE)
 
     def do_naws(self):
         self._send(DO, NAWS)
@@ -289,6 +291,10 @@ class TelnetNegotiation:
 
     def do_mxp(self):
         self._send(DO, MCP)
+
+    def do_ttype(self, preferred_terminal_type=None):
+        self.preferred_terminal_type = preferred_terminal_type
+        self._send(DO, TTYPE)
 
     def _send(self, command, option):
         self.send_cb(IAC + command + option)
@@ -380,7 +386,7 @@ class TelnetNegotiation:
                 self._send_subnegotiation(TTYPE, SEND)
             elif option == NEW_ENVIRON:
                 variables = (
-                    #VAR, "USER",           # Crashes Windows Telnet.
+                    # VAR, "USER",           # Crashes Windows Telnet.
                     VAR, "SYSTEMTYPE",
                     VAR, "ACCT",
                     VAR, "JOB",

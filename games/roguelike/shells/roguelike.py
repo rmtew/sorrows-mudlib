@@ -6,6 +6,8 @@ from mudlib import Shell, InputHandler
 
 # Escape codes.
 
+ESC = chr(27)
+
 ESC_CLEAR_LINE        = "\x1b[2K"
 ESC_CLEAR_SCREEN      = "\x1b[2J"
 ESC_HOME_CURSOR       = "\x1b[1;1H"
@@ -20,6 +22,19 @@ ESC_ERASE_DOWN        = "\x1b[J"    # WARNING: Does not respect scrolling region
 ESC_ERASE_UP          = "\x1b[1J"   # WARNING: Does not respect scrolling regions.
 ESC_GFX_BLUE_FG       = "\x1b[34m"
 ESC_GFX_OFF           = "\x1b[0m"
+
+# Escape termination characters.
+#
+# The rule for detecting a full escape sequence is to keep reading characters
+# after escape until any character from 'a'-'z', '{', '|', '@', 'A'-'Z' is
+# encountered.
+#
+
+ESC_TERMINATORS = set()
+for v in range(97, 124+1):
+    ESC_TERMINATORS.add(chr(v))
+for v in range(64, 90+1):
+    ESC_TERMINATORS.add(chr(v))
 
 # Control codes.
 
@@ -129,6 +144,8 @@ class RoguelikeShell(Shell):
         self.keyboard = None
         self.menuOptions = []
         self.menuSelection = 0
+        self.inputBuffer = ""
+        self.escapeTasklet = None
 
         self.status = "-"
         self.lastStatusBar = "-"
@@ -206,7 +223,68 @@ class RoguelikeShell(Shell):
         if redraw:
             self.DisplayScreen()
 
-    def ReceiveInput(self, s):
+    def ReceiveInput(self, s, flush=False):
+        # print "** ReceiveInput", [ ord(c) for c in s ]
+ 
+        if len(self.inputBuffer):
+            s = self.inputBuffer + s
+            self.inputBuffer = ""
+
+        escapeTasklet = self.escapeTasklet
+        self.escapeTasklet = None
+
+        if not flush:
+            if escapeTasklet:
+                escapeTasklet.kill()
+
+            if s[0] == ESC:
+                if len(s) == 1:
+                    self.inputBuffer = s
+
+                    # A lone escape can be one of two things:
+                    # - An actual press of the escape key.
+                    # - The start of an escape sequence.
+                    # The way to differentiate is to use a timeout to wait for
+                    # the rest of the escape sequence, and if nothing arrives 
+                    # to assume it is a keypress.
+                    self.escapeTasklet = uthread.new(self.ReceiveInput_EscapeTimeout)
+                    return
+
+                if s[1] != '[':
+                    idx = s.find(ESC, 1)
+                    if idx == -1:
+                        self.DispatchInputSequence(s)
+                        return
+                    self.DispatchInputSequence(s[:idx])
+                    self.ReceiveInput(s[idx:])
+                    return
+
+                for i, c in enumerate(s):
+                    if c in ESC_TERMINATORS:
+                        self.DispatchInputSequence(s[:i+1])
+                        remainingInput = s[i+1:]
+                        if remainingInput:
+                            self.ReceiveInput(remainingInput)
+                        return
+
+                self.inputBuffer = s
+                return
+
+        idx = s.find(ESC)
+        if idx == -1 or idx == 0:
+            self.DispatchInputSequence(s)
+        else:
+            self.DispatchInputSequence(s[:idx])
+            self.ReceiveInput(s[idx:])
+        # print "** ReceiveInput - DONE"
+
+    def ReceiveInput_EscapeTimeout(self):
+        uthread.Sleep(0.1)
+        self.ReceiveInput("", flush=True)
+
+    def DispatchInputSequence(self, s):
+        # print "** DispatchInputSequence", [ ord(c) for c in s ]
+
         if self.mode == MODE_GAMEPLAY:
             self.ReceiveInput_Gameplay(s)
         elif MODE_FIRST_MENU <= self.mode <= MODE_LAST_MENU:
