@@ -17,6 +17,12 @@ class Object(mudlib.Object):
         if shortDescription is not None:
             self.SetShortDescription(shortDescription)
 
+    def Release(self):
+        if self.container:
+            self.container.RemoveObject(self)
+            self.container = None
+        mudlib.Object.Release(self)
+
     def IdentifiedBy(self, noun):
         return noun in self.nouns or noun in self.plurals
 
