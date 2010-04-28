@@ -8,7 +8,7 @@ class Move(GameCommand):
     def syntax_(context):
         direction = util.ResolveDirection(context.verb)
 
-        if body.MoveDirection(direction):
+        if context.body.MoveDirection(direction):
             context.user.Tell(context.room.LookString(context.body))
         else:
             context.user.Tell("You can't go %s." % direction)
