@@ -39,8 +39,8 @@ class LoginShell(Shell):
 
         telneg = self.user.connection.telneg
         #telneg.request_will_echo()
-        telneg.request_naws()
-        telneg.request_do_echo()
+        telneg.do_naws()
+        telneg.will_echo()
         #telneg.request_terminal_type()
 
         self.userName = None
