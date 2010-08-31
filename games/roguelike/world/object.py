@@ -6,6 +6,7 @@ class Object(mudlib.Object):
 
     shortDescription = "UNDESCRIBED"
     longDescription = "THIS OBJECT IS UNDESCRIBED"
+    position = None
 
     def __init__(self, shortDescription=None):
         if shortDescription is not None:
@@ -27,6 +28,12 @@ class Object(mudlib.Object):
         return self.longDescription
 
     # ------------------------------------------------------------------------
+
+    def SetPosition(self, position):
+        self.position = position
+
+    def GetPosition(self):
+        return self.position
 
     def MoveTo(self, dest):
         if self.container:

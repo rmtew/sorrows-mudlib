@@ -1,3 +1,7 @@
+# TODO: When observing the movement of another object, it should only
+#       update if the tile the object moves to is currently in the FoV.
+# TODO: Should not be able to move into the same tile as other players.
+
 import random, array, math, StringIO, time
 import uthread, fov
 from mudlib import Shell, InputHandler
@@ -40,70 +44,19 @@ for v in range(64, 90+1):
 
 CTRL_E                = chr(5)  # ENQ
 
-# MAP -------------------------------------------------------------------------
-
-# D - Door
-# @ - Player starting location
-# X - Solid rock
-
-levelMap = """
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXX                      D XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXX X XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXDXDXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXX D    XXXXXXXXXX             XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXX    X                      XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXX D    X XXXXXXXX             XXXXXXXXXXXXXXXX XXXXX     X     XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXX    D XXXXXXXX             XXXXXXXXXXXXXXXX XXXXX     X     XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-X     D    X XXXXXXXX             XXXXXXXXXXXXXXXX XXXXX     X     XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXX    X                      XXXXXXXXXXXXXX     XXXXXDXXXXXDXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
-XXXXX D    XXXXXXXXXX             XXXXXXXX           D              D XXXXXXXXXXXXXXXXXXXXXXXX X
-XXXXXXXXDXDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXX     XXXXXDXXXXXDXXXX XXXXXXXXXXXXXXXXXXXXXXXX X
-XXXXXXXX X XXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXX XXXXX     X     X  X   XXXXXXXXXXXXXXXXXXXX X
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX  @  XXXXX XXXXX     X     X XX   XXXXXXXXXXXXXXXXXXXX X
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXX XXXXX     X     X X    XXXXXXXXXXXXXXXXXXXX X
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXX XXXXDXXXXXXXXXXXXXXXXXXXX X
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXX                           X
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-"""
-
 CHAR_TILE = "@"
 WALL_TILE = "X"
 FLOOR_TILE = " "
 DOOR_TILE = "D"
 
 displayTiles = {
-    CHAR_TILE: chr(250),
-    WALL_TILE: chr(219),
+    # CHAR_TILE: chr(250),
+    WALL_TILE: chr(178), # chr(219),
     FLOOR_TILE: chr(250),
     DOOR_TILE: "D",
 }
 
-TILE_VISIBLE = 1
+TILE_SEEN = 1
 TILE_OPEN = 2
 
 VIEW_RADIUS = 4
@@ -156,9 +109,6 @@ class RoguelikeShell(Shell):
         self.QueryClientName()
 
         self.mapArray = array.array('B', (0 for i in xrange(sorrows.world.mapHeight * sorrows.world.mapWidth)))
-
-        self.playerX = sorrows.world.playerStartX
-        self.playerY = sorrows.world.playerStartY
 
         rows = self.user.connection.consoleRows
         cols = self.user.connection.consoleColumns
@@ -352,14 +302,16 @@ class RoguelikeShell(Shell):
             self.EnterEscapeMenu()
             return
 
+        playerX, playerY = self.user.body.GetPosition()
+
         if s == chr(5):
-            windowUpperDistance = self.playerY - self.worldViewY
+            windowUpperDistance = playerY - self.worldViewY
             worldViewLowerY = self.worldViewY + self.windowHeight
-            windowLowerDistance = worldViewLowerY - self.playerY
+            windowLowerDistance = worldViewLowerY - playerY
 
             sio = StringIO.StringIO()
             self.SaveCursorPosition(sio=sio)
-            args = self.playerX, self.playerY, self.worldViewX, self.worldViewY, worldViewLowerY
+            args = playerX, playerY, self.worldViewX, self.worldViewY, worldViewLowerY
             self.UpdateStatusBar(" [%03d %03d] [%03d %03d-%03d]" % args, sio=sio)
             self.RestoreCursorPosition(sio=sio)
             self.user.Write(sio.getvalue())
@@ -369,18 +321,10 @@ class RoguelikeShell(Shell):
             self.DisplayScreen()
             return
 
-        movementShift = self.movementKeys.get(s, None)            
-        if movementShift is not None:            
-            newX = self.playerX + movementShift[0]
-            newY = self.playerY + movementShift[1]
-
-            # For now, can only move into empty spaces.
-            tile = sorrows.world.GetTile(newX, newY)
-            flags = self.mapArray[sorrows.world.mapWidth * newY + newX]
-            passableTile = tile in (" ", "@")
-            passableTile = passableTile or tile == "D" and (True or flags & TILE_OPEN)
-            if passableTile:
-                self.GameActionMove(newX, newY)
+        offset = self.movementKeys.get(s, None)            
+        if offset is not None:
+            newPosition = playerX + offset[0], playerY + offset[1]
+            sorrows.world.MoveObject(self.user.body, newPosition)
             return
 
         # Fallthrough.
@@ -394,10 +338,13 @@ class RoguelikeShell(Shell):
     def RecalculateWorldView(self):
         halfWidth = self.user.connection.consoleColumns / 2
         halfHeight = self.windowHeight / 2
+        
+        if self.user.body:
+            playerX, playerY = self.user.body.GetPosition()
 
-        # World view offsets and sizes.
-        self.worldViewX = self.playerX - halfWidth
-        self.worldViewY = self.playerY - halfHeight
+            # World view offsets and sizes.
+            self.worldViewX = playerX - halfWidth
+            self.worldViewY = playerY - halfHeight
 
     # Display ----------------------------------------------------------------
 
@@ -417,7 +364,7 @@ class RoguelikeShell(Shell):
         self.drawRanges = {}
 
         def fVisited(x, y):
-            self.mapArray[y * sorrows.world.mapWidth + x] |= TILE_VISIBLE
+            self.AddTileBits(x, y, TILE_SEEN)
 
             if x < self.worldViewX or x > self.worldViewX + self.windowWidth:
                 return
@@ -430,16 +377,11 @@ class RoguelikeShell(Shell):
             else:
                 self.drawRanges[y] = [ x, x ]
 
-        def fBlocked(x, y):
-            tile = sorrows.world.GetTile(x, y)
-            return tile not in (CHAR_TILE, " ")
+        playerX, playerY = self.user.body.GetPosition()
+        fBlocked = sorrows.world.IsOpaque
+        fov.fieldOfView(playerX, playerY, sorrows.world.mapWidth, sorrows.world.mapHeight, VIEW_RADIUS, fVisited, fBlocked)
 
-        fov.fieldOfView(self.playerX, self.playerY, sorrows.world.mapWidth, sorrows.world.mapHeight, VIEW_RADIUS, fVisited, fBlocked)
-
-        if sio is None:
-            sio_ = StringIO.StringIO()
-        else:
-            sio_ = sio
+        sio_ = StringIO.StringIO() if sio is None else sio
 
         for y, (minX, maxX) in self.drawRanges.iteritems():            
             vMinX = (minX - self.worldViewX) + 1
@@ -478,8 +420,6 @@ class RoguelikeShell(Shell):
             yi = (yStart + 1) + i
 
             if yi < 0 or yi >= sorrows.world.mapHeight:
-                #self.MoveCursor(self.windowXStartOffset + self.windowWidth/2 - 1, screenY + i, sio=sio)
-                #sio.write("&&&")                
                 continue
 
             xStart = _xStart
@@ -497,19 +437,15 @@ class RoguelikeShell(Shell):
             rowOffset = yi * sorrows.world.mapWidth
             for x in range(xStart, xEnd + 1):
                 flags = self.mapArray[rowOffset + x]
-                if flags & TILE_VISIBLE:
+                if flags & TILE_SEEN:
                     xStart = x
                     break
 
             for x in range(xEnd, xStart - 1, -1):
                 flags = self.mapArray[rowOffset + x]
-                if flags & TILE_VISIBLE:
+                if flags & TILE_SEEN:
                     xEnd = x
                     break
-            else:
-                #self.MoveCursor(self.windowXStartOffset + self.windowWidth/2 - 1, screenY + i, sio=sio)
-                #sio.write("$$$")                
-                continue
 
             screenX = (xStart - self.worldViewX) + self.windowXStartOffset
             self.MoveCursor(screenX, screenY + i, sio=sio)
@@ -518,10 +454,7 @@ class RoguelikeShell(Shell):
             s = arr.tostring()
             if highlight:
                 s = ESC_GFX_BLUE_FG + s + ESC_GFX_OFF
-            if sio is None:
-                self.user.Write(s)
-            else:
-                sio.write(s)
+            self.user.Write(s) if sio is None else sio.write(s)
 
     def UpdateViewByWorldPosition(self, x, y, c, sio=None):
         vx = (x - self.worldViewX) + 1
@@ -533,7 +466,8 @@ class RoguelikeShell(Shell):
             sio.write(c)
 
     def UpdatePlayer(self, sio=None):
-        self.UpdateViewByWorldPosition(self.playerX, self.playerY, "@", sio=sio)
+        playerX, playerY = self.user.body.GetPosition()
+        self.UpdateViewByWorldPosition(playerX, playerY, CHAR_TILE, sio=sio)
 
     def UpdateTitle(self, newStatus=None):
         pre = ESC_HOME_CURSOR
@@ -566,27 +500,42 @@ class RoguelikeShell(Shell):
 
     # Map Support ------------------------------------------------------------
 
-    def ViewedTile(self, x, y):
-        flags = self.mapArray[y * sorrows.world.mapWidth + x]
-        if flags & TILE_VISIBLE:
-            return self.GetDisplayTile(x, y)
-        return " "
+    def _SetTileBits(self, x, y, bits):
+        self.mapArray[y * sorrows.world.mapWidth + x] = bits
 
-    def TranslateTileForDisplay(self, tile):
-        dtile = displayTiles.get(tile, None)
-        if dtile is not None:
-            return dtile
-        return tile
-        
-    def GetDisplayTile(self, x, y):
-        if y < 0 or y >= sorrows.world.mapHeight:
-            print "TILE ERROR/y", x, y
-            return "?"
-        if x < 0 or x >= sorrows.world.mapWidth:
-            print "TILE ERROR/x", x, y
-            return "?"
-        tile = sorrows.world.GetTile(x, y)
-        return self.TranslateTileForDisplay(tile)
+    def _GetTileBits(self, x, y):
+        return self.mapArray[y * sorrows.world.mapWidth + x]
+
+    def SetTileBits(self, x, y, bits):
+        sorrows.world.CheckBoundaries(x, y)
+        self._SetTileBits(x, y, bits)
+
+    def GetTileBits(self, x, y, mask=None):
+        sorrows.world.CheckBoundaries(x, y)
+        if mask is None:
+            return self._GetTileBits(x, y)
+        return self._GetTileBits(x, y) & mask
+
+    def AddTileBits(self, x, y, bits):
+        sorrows.world.CheckBoundaries(x, y)
+        bits |= self._GetTileBits(x, y)
+        self._SetTileBits(x, y, bits)
+        return bits
+
+    def RemoveTileBits(self, x, y, mask):
+        sorrows.world.CheckBoundaries(x, y)
+        bits = self._GetTileBits(x, y)
+        bits &= ~mask
+        self._SetTileBits(x, y, bits)
+        return bits
+
+    # Map display support ----------------------------------------------------
+
+    def ViewedTile(self, x, y):
+        if self.GetTileBits(x, y, TILE_SEEN):
+            tile = sorrows.world.GetTile(x, y)
+            return displayTiles.get(tile, tile)
+        return " "
 
     # ANSI Cursor ------------------------------------------------------------
 
@@ -682,18 +631,36 @@ class RoguelikeShell(Shell):
 
     # Gameplay Support --------------------------------------------------------
 
-    def GameActionMove(self, x, y):
+    def OnObjectMoved(self, object_, oldPosition, newPosition):
+        if not self.enteredGame:
+            return
+
+        if object_ is self.user.body:
+            print id(self), "I MOVED TO", newPosition
+            self.OnMovement(*newPosition)
+            return
+
+        print object_, "MOVED TO", newPosition
+        def InView(x, y):
+            if x < self.worldViewX or x > self.worldViewX + self.windowWidth:
+                return False
+            if y < self.worldViewY or y > self.worldViewY + self.windowHeight+1:
+                return False
+            return True
+        sio = StringIO.StringIO()
+        if oldPosition is not None and InView(*oldPosition):
+            tile = self.ViewedTile(*oldPosition)
+            self.UpdateViewByWorldPosition(oldPosition[0], oldPosition[1], tile, sio)
+        if newPosition is not None and InView(*newPosition):
+            tile = self.ViewedTile(*newPosition)
+            self.UpdateViewByWorldPosition(newPosition[0], newPosition[1], tile, sio)
+        if sio.tell() > 0:
+            self.user.Write(sio.getvalue())
+
+    def OnMovement(self, playerX, playerY):
         sio = StringIO.StringIO()
 
-        if False: # Obsoleted by FoV.
-            # Restore the tile under the player's old position.
-            tile = self.GetDisplayTile(self.playerX, self.playerY)
-            self.UpdateViewByWorldPosition(self.playerX, self.playerY, tile, sio=sio)
-
-        self.playerX = x
-        self.playerY = y
-
-        windowLeftDistance = self.playerX - self.worldViewX
+        windowLeftDistance = playerX - self.worldViewX
         halfWidth = self.windowWidth / 2
 
         xShift = 0
@@ -703,13 +670,13 @@ class RoguelikeShell(Shell):
             # self.ScrollWindowRight(xShift, sio=sio)
             xShift = -xShift # Indicate negative movement on the horizontal axis.
         else:
-            windowRightDistance = (self.worldViewX + self.windowWidth) - self.playerX
+            windowRightDistance = (self.worldViewX + self.windowWidth) - playerX
             
             if windowRightDistance <= VIEW_RADIUS:
                 xShift = halfWidth - windowRightDistance - 1
                 self.worldViewX += xShift
 
-        windowUpperDistance = self.playerY - self.worldViewY
+        windowUpperDistance = playerY - self.worldViewY
         halfHeight = self.windowHeight / 2
 
         # Has the player moved so their view falls outside the screen?
@@ -722,7 +689,7 @@ class RoguelikeShell(Shell):
             self.worldViewY -= yShift
             yShift = -yShift # Indicate negative movement on the vertical axis.
         else:
-            windowLowerDistance = (self.worldViewY + self.windowHeight) - self.playerY
+            windowLowerDistance = (self.worldViewY + self.windowHeight) - playerY
 
             # Has the player moved so their view falls outside the screen?
             # The player's line is not counted in this calculation.
@@ -739,12 +706,12 @@ class RoguelikeShell(Shell):
             # Redraw the area that moved on screen.
             if yShift < 0:
                 # Account for the remaining viewed distance (less the line the player is on).
-                numLinesRedrawn = (self.playerY - self.worldViewY) - 1
+                numLinesRedrawn = (playerY - self.worldViewY) - 1
                 self.UpdateLineByWorldPosition(yStart=self.worldViewY, yCount=numLinesRedrawn, sio=sio)
             else:
                 # Account for the view range and the line the player is on.
                 numLinesRedrawn = yShift + VIEW_RADIUS - 1
-                self.UpdateLineByWorldPosition(yStart=self.playerY, yCount=numLinesRedrawn, sio=sio)
+                self.UpdateLineByWorldPosition(yStart=playerY, yCount=numLinesRedrawn, sio=sio)
 
         if xShift:
             self.ScrollWindowHorizontally(xShift, sio=sio)
@@ -860,6 +827,8 @@ class RoguelikeShell(Shell):
     def EnterGame(self):
         if not self.enteredGame:
             self.lastStatusBar = "Press the Escape key to get the options menu."
+            sorrows.world.OnUserEntersGame(self.user, self.user.body)
+            self.RecalculateWorldView()
             self.enteredGame = True
 
         self.SetMode(MODE_GAMEPLAY, "In-game")

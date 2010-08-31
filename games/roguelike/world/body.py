@@ -8,6 +8,9 @@ class Body(Container):
         self.service = service
         self.user = user
 
+    def OnObjectMoved(self, object_, oldPosition, newPosition):
+        self.user.shell.OnObjectMoved(object_, oldPosition, newPosition)
+
     if False:
         Container.__init__(self, service, user)
 

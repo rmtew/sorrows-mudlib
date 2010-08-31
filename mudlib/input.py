@@ -48,6 +48,11 @@ class InputStack:
                 handler.OnRemovalFromStack()
                 return handler
 
+    def GetHandler(self, bottomlevel=False):
+        if bottomlevel:
+            return self.stack[0]
+        return self.stack[-1]
+
     def SetShell(self, handler):
         if isinstance(handler, InputHandler):
             if len(self.stack):
@@ -60,17 +65,17 @@ class InputStack:
         else:
             pass
 
+    def GetShell(self):
+        return self.GetHandler().shell
+
     def WritePrompt(self):
         prompt = self.stack[-1].prompt
         if type(prompt) is MethodType:
             prompt = apply(prompt,())
             self.user.Write(prompt)
 
-    def ReceiveInput(self, input, bottomlevel = 0):
-        if bottomlevel:
-            handler = self.stack[0]
-        else:
-            handler = self.stack[-1]
+    def ReceiveInput(self, input, bottomlevel=False):
+        handler = self.GetHandler(bottomlevel)
         apply(handler.function, (input,))
         if self.user:
             self.WritePrompt()

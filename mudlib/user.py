@@ -37,5 +37,9 @@ class User:
     def GetBody(self):
         return self.body
 
+    @property
+    def shell(self):
+        return self.inputstack.GetShell()
+
     def ManualDisconnection(self):
         self.connection.close()
