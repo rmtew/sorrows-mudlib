@@ -1,6 +1,5 @@
-# TODO: When observing the movement of another object, it should only
-#       update if the tile the object moves to is currently in the FoV.
-# TODO: Should not be able to move into the same tile as other players.
+# TODO: When updating the FoV, the emphasis places on the current FoV area
+#   should be done for the whole range, not on a per-tile basis.
 
 import random, array, math, StringIO, time
 import uthread, fov
@@ -24,8 +23,9 @@ ESC_SCROLL_DOWN       = "\x1bD"
 ESC_ERASE_LINE        = "\x1b[K"
 ESC_ERASE_DOWN        = "\x1b[J"    # WARNING: Does not respect scrolling regions.
 ESC_ERASE_UP          = "\x1b[1J"   # WARNING: Does not respect scrolling regions.
+ESC_BOLD              = "\x1b[1m"
 ESC_GFX_BLUE_FG       = "\x1b[34m"
-ESC_GFX_OFF           = "\x1b[0m"
+ESC_RESET_ATTRS       = "\x1b[0m"
 
 # Escape termination characters.
 #
@@ -50,10 +50,11 @@ FLOOR_TILE = " "
 DOOR_TILE = "D"
 
 displayTiles = {
-    # CHAR_TILE: chr(250),
-    WALL_TILE: chr(178), # chr(219),
-    FLOOR_TILE: chr(250),
-    DOOR_TILE: "D",
+    # Option to display different types if in or out of field of view.
+    CHAR_TILE:  (CHAR_TILE, " "),
+    WALL_TILE:  (chr(178),  chr(178)), # chr(219),
+    FLOOR_TILE: (chr(250),  chr(250)),
+    DOOR_TILE:  ("D",       "D"),
 }
 
 TILE_SEEN = 1
@@ -85,6 +86,13 @@ MSG_PRESS_ANY_KEY_TO_RETURN = "Press any key to return to the previous menu.."
 MSG_PRESS_ESCAPE_FOR_OPTIONS = "Press the Escape key to get the options menu."
 
 
+def GenerateTileCharacters(self, minX, maxX, y):
+    for x in range(minX, maxX+1):
+        for c in self.ViewedTile(x, y):
+            yield c
+
+
+
 class RoguelikeShell(Shell):
     def Setup(self, stack):
         Shell.Setup(self, stack)
@@ -112,6 +120,8 @@ class RoguelikeShell(Shell):
         self.QueryClientName()
 
         self.mapArray = array.array('B', (0 for i in xrange(sorrows.world.mapHeight * sorrows.world.mapWidth)))
+        self.drawRangesNew = {}
+        self.drawRangesOld = {}
 
         rows = self.user.connection.consoleRows
         cols = self.user.connection.consoleColumns
@@ -364,7 +374,8 @@ class RoguelikeShell(Shell):
         self.UpdatePlayer(sio)
 
     def UpdateFoV(self, sio=None):
-        self.drawRanges = {}
+        self.drawRangesOld = self.drawRangesNew
+        self.drawRangesNew = {}
 
         def fVisited(x, y):
             self.AddTileBits(x, y, TILE_SEEN)
@@ -374,19 +385,31 @@ class RoguelikeShell(Shell):
             if y < self.worldViewY or y > self.worldViewY + self.windowHeight+1:
                 return
             
-            if y in self.drawRanges:
-                minX, maxX = self.drawRanges[y]
-                self.drawRanges[y] = [ min(x, minX), max(x, maxX) ]
+            if y in self.drawRangesNew:
+                minX, maxX = self.drawRangesNew[y]
+                self.drawRangesNew[y] = [ min(x, minX), max(x, maxX) ]
             else:
-                self.drawRanges[y] = [ x, x ]
+                self.drawRangesNew[y] = [ x, x ]
 
         playerX, playerY = self.user.body.GetPosition()
         fBlocked = sorrows.world.IsOpaque
         fov.fieldOfView(playerX, playerY, sorrows.world.mapWidth, sorrows.world.mapHeight, VIEW_RADIUS, fVisited, fBlocked)
 
+        # The update ranges should cover the old and the new field of views.
+        # Tiles outside the new field of view (and in the old) will get
+        # deemphasised.  And tiles within the new FoV will get the opposite.
+        drawRanges = self.drawRangesOld.copy()
+        for y, t1 in self.drawRangesNew.iteritems():
+            if y not in drawRanges:
+                drawRanges[y] = t1
+            else:
+                t0 = drawRanges[y]
+                if t0 != t1:
+                    drawRanges[y] = [ min(t0[0], t1[0]), max(t0[1], t1[1]) ]
+
         sio_ = StringIO.StringIO() if sio is None else sio
 
-        for y, (minX, maxX) in self.drawRanges.iteritems():            
+        for y, (minX, maxX) in drawRanges.iteritems():
             vMinX = (minX - self.worldViewX) + 1
             vMaxX = (maxX - self.worldViewX) + 1
             if vMinX < 1 or vMaxX > self.windowWidth:
@@ -397,7 +420,7 @@ class RoguelikeShell(Shell):
                 continue
 
             self.MoveCursor(vMinX, vy, sio=sio_)
-            arr = array.array('c', (self.ViewedTile(x, y) for x in range(minX, maxX+1)))
+            arr = array.array('c', (c for c in GenerateTileCharacters(self, minX, maxX, y)))
             sio_.write(arr.tostring())
 
         self.UpdatePlayer(sio=sio_)
@@ -453,10 +476,11 @@ class RoguelikeShell(Shell):
             screenX = (xStart - self.worldViewX) + self.windowXStartOffset
             self.MoveCursor(screenX, screenY + i, sio=sio)
 
-            arr = array.array('c', (self.ViewedTile(x, yi) for x in xrange(xStart, xEnd + 1)))
+            # arr = array.array('c', (self.ViewedTile(x, yi) for x in xrange(xStart, xEnd + 1)))
+            arr = array.array('c', (c for c in GenerateTileCharacters(self, xStart, xEnd, yi)))
             s = arr.tostring()
             if highlight:
-                s = ESC_GFX_BLUE_FG + s + ESC_GFX_OFF
+                s = ESC_GFX_BLUE_FG + s + ESC_RESET_ATTRS
             self.user.Write(s) if sio is None else sio.write(s)
 
     def UpdateViewByWorldPosition(self, x, y, c, sio=None):
@@ -537,7 +561,19 @@ class RoguelikeShell(Shell):
     def ViewedTile(self, x, y):
         if self.GetTileBits(x, y, TILE_SEEN):
             tile = sorrows.world.GetTile(x, y)
-            return displayTiles.get(tile, tile)
+            # Translate the map tile to what should actually be displayed.
+            tiles = displayTiles.get(tile, (tile, tile))
+            # If a tile is in the current field of view, make that obvious.
+            if y in self.drawRangesNew:
+                minX, maxX = self.drawRangesNew[y]
+                if x >= minX and x <= maxX:
+                    return ESC_BOLD + tiles[0] + ESC_RESET_ATTRS
+            # Debug information for field of view emphasis changes.
+            #    else:
+            #        tile = "X"
+            #else:
+            #    tile = "Y"
+            return tiles[1]
         return " "
 
     # ANSI Cursor ------------------------------------------------------------
@@ -645,11 +681,11 @@ class RoguelikeShell(Shell):
 
         # print object_, "MOVED TO", newPosition
         def InView(x, y):
-            if x < self.worldViewX or x > self.worldViewX + self.windowWidth:
-                return False
-            if y < self.worldViewY or y > self.worldViewY + self.windowHeight+1:
-                return False
-            return True
+            if y in self.drawRangesNew:
+                minX, maxX = self.drawRangesNew[y]
+                if x >= minX and x <= maxX:
+                    return True
+            return False
         sio = StringIO.StringIO()
         if oldPosition is not None and InView(*oldPosition):
             tile = self.ViewedTile(*oldPosition)
@@ -773,7 +809,7 @@ class RoguelikeShell(Shell):
             sio.write(chr(218))
             sio.write(chr(196) * optionWidth)
             sio.write(chr(191))
-            sio.write(ESC_GFX_OFF)
+            sio.write(ESC_RESET_ATTRS)
 
         screenY += 1
 
@@ -787,13 +823,13 @@ class RoguelikeShell(Shell):
                 sio.write(chr(179))
                 sio.write(" " * optionWidth)
                 sio.write(chr(179))
-                sio.write(ESC_GFX_OFF)
+                sio.write(ESC_RESET_ATTRS)
 
             screenY += 1
             self.MoveCursor(screenXStart, screenY, sio=sio)
             sio.write(ESC_GFX_BLUE_FG)
             sio.write(chr(179))
-            sio.write(ESC_GFX_OFF)
+            sio.write(ESC_RESET_ATTRS)
             sio.write(" ")
             if i == selected:
                 sio.write(ESC_REVERSE_VIDEO_ON)
@@ -803,7 +839,7 @@ class RoguelikeShell(Shell):
             sio.write(" ")
             sio.write(ESC_GFX_BLUE_FG)
             sio.write(chr(179))
-            sio.write(ESC_GFX_OFF)
+            sio.write(ESC_RESET_ATTRS)
             screenY += 1
 
         if redraw:
@@ -813,7 +849,7 @@ class RoguelikeShell(Shell):
             sio.write(chr(179))
             sio.write(" " * optionWidth)
             sio.write(chr(179))
-            sio.write(ESC_GFX_OFF)
+            sio.write(ESC_RESET_ATTRS)
             screenY += 1
 
             # Menu bottom border.
@@ -822,7 +858,7 @@ class RoguelikeShell(Shell):
             sio.write(chr(192))
             sio.write(chr(196) * optionWidth)
             sio.write(chr(217))
-            sio.write(ESC_GFX_OFF)
+            sio.write(ESC_RESET_ATTRS)
             screenY += 1
 
         self.user.Write(sio.getvalue())
