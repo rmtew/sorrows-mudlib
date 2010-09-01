@@ -81,6 +81,9 @@ MODE_NAMES = {
     MODE_TELNETCLIENT_MENU:     "Telnet Client Menu",
 }
 
+MSG_PRESS_ANY_KEY_TO_RETURN = "Press any key to return to the previous menu.."
+MSG_PRESS_ESCAPE_FOR_OPTIONS = "Press the Escape key to get the options menu."
+
 
 class RoguelikeShell(Shell):
     def Setup(self, stack):
@@ -825,8 +828,9 @@ class RoguelikeShell(Shell):
         self.user.Write(sio.getvalue())
 
     def EnterGame(self):
+        self.lastStatusBar = MSG_PRESS_ESCAPE_FOR_OPTIONS
+
         if not self.enteredGame:
-            self.lastStatusBar = "Press the Escape key to get the options menu."
             sorrows.world.OnUserEntersGame(self.user, self.user.body)
             self.RecalculateWorldView()
             self.enteredGame = True
@@ -932,7 +936,7 @@ class RoguelikeShell(Shell):
 
     def MenuAction256Colours(self):
         self.SetMode(MODE_DEBUG_DISPLAY, "xterm's 256 color extension")
-        self.UpdateStatusBar("Press any key to return to the previous menu..")
+        self.UpdateStatusBar(MSG_PRESS_ANY_KEY_TO_RETURN)
 
         sio = StringIO.StringIO()
         self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset, sio=sio)
@@ -951,7 +955,7 @@ class RoguelikeShell(Shell):
             state = "CP437"
         self.SetMode(MODE_DEBUG_DISPLAY, "Characters (%s)" % state)
 
-        self.UpdateStatusBar("Press any key to return to the previous menu..")
+        self.UpdateStatusBar(MSG_PRESS_ANY_KEY_TO_RETURN)
 
         cellWidth = 6
         rowCount = self.windowHeight - 2
@@ -1023,7 +1027,7 @@ class RoguelikeShell(Shell):
 
     def MenuActionCharsets(self):
         self.SetMode(MODE_DEBUG_DISPLAY, "Character Sets")
-        self.UpdateStatusBar("Press any key to return to the previous menu..")
+        self.UpdateStatusBar(MSG_PRESS_ANY_KEY_TO_RETURN)
 
         sio = StringIO.StringIO()
         self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset, sio=sio)
