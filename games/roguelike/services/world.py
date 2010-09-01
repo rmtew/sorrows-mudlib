@@ -96,13 +96,13 @@ class WorldService(Service):
         self.mapHeight = len(self.mapRows)
 
     def OnUserEntersGame(self, user, body):
-        print "OnUserEntersGame", user, body
         body.SetShortDescription(user.name.capitalize())
         self.bodies.append(body)
         self._MoveObject(body, self.GetPlayerStartPosition(), force=True)
 
     def OnUserLeavesGame(self, user, body):
-        print "OnUserLeavesGame", user, body
+        if body not in self.bodies:
+            return
         self.bodies.remove(body)
         self._MoveObject(body, None)
 
@@ -123,12 +123,8 @@ class WorldService(Service):
             raise RuntimeError("User", user.name, "not present")
 
         body = self.bodiesByUsername[user.name]
-        
-        position = body.GetPosition()
-        if position is not None:
-            self.objectsByPosition[position].remove(body)
-        self.bodies.remove(body)
-        
+        sorrows.world.OnUserLeavesGame(user, body)
+
         del self.bodiesByUsername[user.name]
         user.SetBody(None)
         body.Release()
@@ -170,7 +166,6 @@ class WorldService(Service):
             self._AddObject(object_, newPosition)
             
             # Inform all the bodies in the world.
-            print self.bodies
             for body in self.bodies:
                 body.OnObjectMoved(object_, oldPosition, newPosition)
 

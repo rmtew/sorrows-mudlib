@@ -639,11 +639,11 @@ class RoguelikeShell(Shell):
             return
 
         if object_ is self.user.body:
-            print id(self), "I MOVED TO", newPosition
+            # print id(self), "I MOVED TO", newPosition
             self.OnMovement(*newPosition)
             return
 
-        print object_, "MOVED TO", newPosition
+        # print object_, "MOVED TO", newPosition
         def InView(x, y):
             if x < self.worldViewX or x > self.worldViewX + self.windowWidth:
                 return False
