@@ -1,5 +1,18 @@
-# TODO: When updating the FoV, the emphasis places on the current FoV area
-#   should be done for the whole range, not on a per-tile basis.
+## COMMODITY TASKS
+#
+# - ADD ONE
+#
+
+## LUXURY TASKS
+#
+# - It should be possible to move a cursor around the map and select a tile
+#   has been visited.  This might be used for an automove mode, where the
+#   player then automatically paths to the selected tile.
+#
+# - Door logic.  Open.  Closed.  Locked.  Closed but not visited, and no
+#   visual indication of lock status.  Closed and visited, and visual
+#   indication of lock status.
+#
 
 import random, array, math, StringIO, time
 import uthread, fov
@@ -84,12 +97,6 @@ MODE_NAMES = {
 
 MSG_PRESS_ANY_KEY_TO_RETURN = "Press any key to return to the previous menu.."
 MSG_PRESS_ESCAPE_FOR_OPTIONS = "Press the Escape key to get the options menu."
-
-
-def GenerateTileCharacters(self, minX, maxX, y):
-    for x in range(minX, maxX+1):
-        for c in self.ViewedTile(x, y):
-            yield c
 
 
 
@@ -420,7 +427,7 @@ class RoguelikeShell(Shell):
                 continue
 
             self.MoveCursor(vMinX, vy, sio=sio_)
-            arr = array.array('c', (c for c in GenerateTileCharacters(self, minX, maxX, y)))
+            arr = array.array('c', (c for c in self.ViewedTileRange(minX, maxX, y)))
             sio_.write(arr.tostring())
 
         self.UpdatePlayer(sio=sio_)
@@ -477,7 +484,7 @@ class RoguelikeShell(Shell):
             self.MoveCursor(screenX, screenY + i, sio=sio)
 
             # arr = array.array('c', (self.ViewedTile(x, yi) for x in xrange(xStart, xEnd + 1)))
-            arr = array.array('c', (c for c in GenerateTileCharacters(self, xStart, xEnd, yi)))
+            arr = array.array('c', (c for c in self.ViewedTileRange(xStart, xEnd, yi)))
             s = arr.tostring()
             if highlight:
                 s = ESC_GFX_BLUE_FG + s + ESC_RESET_ATTRS
@@ -502,11 +509,16 @@ class RoguelikeShell(Shell):
         if newStatus is not None:
             self.status = newStatus
         
-        left = "  "+ sorrows.data.config.identity.name
-        right = self.status +"  "
+        leftText = "  "+ sorrows.data.config.identity.name
+        rightText = self.status +"  "
+        centerText = self.user.name
+        
+        numUnusedChars = self.user.connection.consoleColumns - len(leftText) - len(centerText) - len(rightText)
+        leftFiller = " " * (numUnusedChars / 2)
+        rightFiller = " " * (numUnusedChars - len(leftFiller))
 
         self.user.Write(pre)
-        self.user.Write(ESC_REVERSE_VIDEO_ON + left + (" " * (self.user.connection.consoleColumns - len(left) - len(right))) + right + ESC_REVERSE_VIDEO_OFF)
+        self.user.Write(ESC_REVERSE_VIDEO_ON + leftText + leftFiller + centerText + rightFiller + rightText + ESC_REVERSE_VIDEO_OFF)
 
     def UpdateStatusBar(self, s, sio=None):
         self.lastStatusBar = s
@@ -558,23 +570,75 @@ class RoguelikeShell(Shell):
 
     # Map display support ----------------------------------------------------
 
+    def IsTileInFoV(self, x, y):
+        if y in self.drawRangesNew:
+            minX, maxX = self.drawRangesNew[y]
+            if x >= minX and x <= maxX:
+                return True
+        return False
+
+    def ViewedTileRange(self, minX, maxX, y):
+        l = []
+        if y in self.drawRangesNew:
+            minFovX, maxFovX = self.drawRangesNew[y]
+            while True:
+                # Handle the LHS of FoV case.
+                if minX < minFovX:
+                    r = min(maxX, minFovX-1)
+                    l.append((False, minX, r))
+                    if r == maxX:
+                        break
+                    minX = r+1
+
+                # Handle the inside FoV case.
+                if minX <= maxFovX:
+                    r = min(maxX, maxFovX)
+                    l.append((True, minX, r))
+                    if r == maxX:
+                        break
+                    minX = r+1
+
+                # Handle the RHS of FoV case.
+                l.append((False, minX, maxX))
+                break            
+        else:
+            l.append((False, minX, maxX))
+
+        # Draw all unemphasised, them emphasised.
+        for emphasis, minX, maxX in l:
+            if emphasis:
+                for c in ESC_BOLD:
+                    yield c
+
+            x = minX
+            while x <= maxX:
+                tileInfo = self.GetDisplayTileInfo(x, y)
+                if tileInfo is not None:
+                    if emphasis:
+                        yield tileInfo[0]
+                    else:
+                        yield tileInfo[1]
+                else:
+                    yield " "
+                x += 1
+            
+            if emphasis:
+                for c in ESC_RESET_ATTRS:
+                    yield c
+
     def ViewedTile(self, x, y):
-        if self.GetTileBits(x, y, TILE_SEEN):
-            tile = sorrows.world.GetTile(x, y)
-            # Translate the map tile to what should actually be displayed.
-            tiles = displayTiles.get(tile, (tile, tile))
-            # If a tile is in the current field of view, make that obvious.
-            if y in self.drawRangesNew:
-                minX, maxX = self.drawRangesNew[y]
-                if x >= minX and x <= maxX:
-                    return ESC_BOLD + tiles[0] + ESC_RESET_ATTRS
-            # Debug information for field of view emphasis changes.
-            #    else:
-            #        tile = "X"
-            #else:
-            #    tile = "Y"
-            return tiles[1]
+        tileInfo = self.GetDisplayTileInfo(x, y)
+        if tileInfo is not None:
+            if self.IsTileInFoV(x, y):
+                return ESC_BOLD + tileInfo[0] + ESC_RESET_ATTRS
+            return tileInfo[1]
         return " "
+
+    def GetDisplayTileInfo(self, x, y):        
+        if self.GetTileBits(x, y, TILE_SEEN):
+            # Translate the map tile to what should actually be displayed.
+            rawTile = sorrows.world.GetTile(x, y)
+            return displayTiles.get(rawTile, (rawTile, rawTile))
 
     # ANSI Cursor ------------------------------------------------------------
 
@@ -680,17 +744,11 @@ class RoguelikeShell(Shell):
             return
 
         # print object_, "MOVED TO", newPosition
-        def InView(x, y):
-            if y in self.drawRangesNew:
-                minX, maxX = self.drawRangesNew[y]
-                if x >= minX and x <= maxX:
-                    return True
-            return False
         sio = StringIO.StringIO()
-        if oldPosition is not None and InView(*oldPosition):
+        if oldPosition is not None and self.IsTileInFoV(*oldPosition):
             tile = self.ViewedTile(*oldPosition)
             self.UpdateViewByWorldPosition(oldPosition[0], oldPosition[1], tile, sio)
-        if newPosition is not None and InView(*newPosition):
+        if newPosition is not None and self.IsTileInFoV(*newPosition):
             tile = self.ViewedTile(*newPosition)
             self.UpdateViewByWorldPosition(newPosition[0], newPosition[1], tile, sio)
         if sio.tell() > 0:
