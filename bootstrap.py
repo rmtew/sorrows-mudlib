@@ -144,7 +144,7 @@ def Run():
         for timestamp, channel in uthread.sleepingTasklets:
             if channel.queue:
                 print "Sleep channel (%d) tasklets:" % id(channel)
-                uthread2.PrintChannel(channel.queue)
+                uthread2.PrintTaskletChain(channel.queue)
                 print
 
         manualShutdown = True

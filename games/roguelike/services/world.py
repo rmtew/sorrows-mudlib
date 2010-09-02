@@ -1,27 +1,31 @@
 # Encapsulate a world.
 
-import os, random, time, collections
+import os, random, time, collections, uthread
 
 from mudlib import Service
 from game.world import Body
 from game.shells import RoguelikeShell
 
 START_TILE = "x"
+SPAWN_TILE = "s"
 WALL_TILE =  "X"
+WALL_TILE1 = "1"
+WALL_TILE2 = "2"
 DOOR_TILE =  "D"
 FLOOR_TILE = " "
 
-PASSABLE_TILES = (DOOR_TILE, START_TILE, FLOOR_TILE)
-OPAQUE_TILES = (WALL_TILE,)
+PASSABLE_TILES = (DOOR_TILE, START_TILE, FLOOR_TILE, SPAWN_TILE)
+OPAQUE_TILES = (WALL_TILE, WALL_TILE1, WALL_TILE2)
 
 TILE_MAP = {
     START_TILE: FLOOR_TILE,
+    SPAWN_TILE: FLOOR_TILE,
 }
 
 levelMap = """
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX212XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXsXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -81,30 +85,27 @@ class WorldService(Service):
             for line in levelMap.split("\n")
             if len(line) and line[0] == WALL_TILE
         ]
-        for yOffset, line in enumerate(self.mapRows):
-            xOffset = line.find(START_TILE)
-            if xOffset != -1:
-               self.playerStartX = xOffset
-               self.playerStartY = yOffset
-               break
-        else:
-            raise Exception("Map did not provide a player starting position")
+
+        self.playerStartX, self.playerStartY = random.choice(self.FindTilePositions(START_TILE))
+        self.npcStartX, self.npcStartY = random.choice(self.FindTilePositions(SPAWN_TILE))
 
         self.objectsByPosition = collections.defaultdict(lambda: [])
 
         self.mapWidth = len(self.mapRows[0])
         self.mapHeight = len(self.mapRows)
 
+        uthread.new(self.ManageFloraAndFauna)
+
+    # Events -----------------------------------------------------------------
+
     def OnUserEntersGame(self, user, body):
         body.SetShortDescription(user.name.capitalize())
-        self.bodies.append(body)
-        self._MoveObject(body, self.GetPlayerStartPosition(), force=True)
+        self.AddBody(body, self.GetPlayerStartPosition())
 
     def OnUserLeavesGame(self, user, body):
-        if body not in self.bodies:
-            return
-        self.bodies.remove(body)
-        self._MoveObject(body, None)
+        self.RemoveBody(body)
+
+    # API -----------------------------------------------------------------
 
     def AddUser(self, user):
         if self.bodiesByUsername.has_key(user.name):
@@ -132,7 +133,26 @@ class WorldService(Service):
     def GetBody(self, user):
         return self.bodiesByUsername[user.name]
 
+    def AddBody(self, body, position):
+        self.bodies.append(body)
+        self._MoveObject(body, position, force=True)
+
+    def RemoveBody(self, body):
+        if body not in self.bodies:
+            return
+        self.bodies.remove(body)
+        self._MoveObject(body, None)
+
     # ------------------------------------------------------------------------
+
+    def FindTilePositions(self, tile):
+        l = []
+        for yOffset, line in enumerate(self.mapRows):
+            xOffset = line.find(tile)
+            while xOffset != -1:
+                l.append((xOffset, yOffset))
+                xOffset = line.find(tile, xOffset+1)
+        return l
 
     def _AddObject(self, object_, position):
         object_.SetPosition(position)
@@ -147,6 +167,9 @@ class WorldService(Service):
 
     def GetPlayerStartPosition(self):
         return self.playerStartX, self.playerStartY
+
+    def GetNPCStartPosition(self):
+        return self.npcStartX, self.npcStartY
 
     def MoveObject(self, object_, position):
         self.CheckBoundaries(*position)
@@ -192,3 +215,60 @@ class WorldService(Service):
             raise RuntimeError("TILE ERROR/y", x, y)
         if x < 0 or x >= self.mapWidth:
             raise RuntimeError("TILE ERROR/x", x, y)
+
+    # Flora and fauna --------------------------------------------------------
+
+    # - NPC presence.  For now, define a spawning tile, and have that add
+    #   three NPCs to the game as time passes.  These NPCs should wander around
+    #   the dungeon freely.  Two second tick for movement.
+
+    def ManageFloraAndFauna(self):
+        uthread.new(self.RunNPC)
+        uthread.Sleep(10.0)
+        uthread.new(self.RunNPC)
+        uthread.Sleep(10.0)
+        uthread.new(self.RunNPC)
+
+    relativeOffsets = [
+        (-1, -1),
+        ( 0, -1),
+        ( 1, -1),
+        (-1,  0),
+        ( 1,  0),
+        (-1,  1),
+        ( 0,  1),
+        ( 1,  1),
+    ]
+
+    def FindMovementDirections(self, npc):            
+        matches = []
+        for xi, yi in self.relativeOffsets:
+            x, y = npc.GetPosition()
+            x += xi
+            y += yi
+            if y < 0 or y >= self.mapHeight:
+                continue
+            if x < 0 or x >= self.mapWidth:
+                continue
+            tile = self.GetTile(x, y)
+            if tile in PASSABLE_TILES:
+                matches.append((x, y))
+        return matches
+
+    def RunNPC(self):
+        body = Body(self, None)
+        self.AddBody(body, self.GetNPCStartPosition())
+        
+        lastPosition = body.position
+        while self.IsRunning():
+            currentPosition = body.position
+            matches = self.FindMovementDirections(body)
+            if len(matches) > 1 and lastPosition in matches:
+                matches.remove(lastPosition)
+            if len(matches):
+                lastPosition = currentPosition
+                self._MoveObject(body, random.choice(matches))
+            uthread.Sleep(2.0)
+
+
+

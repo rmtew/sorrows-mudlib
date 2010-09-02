@@ -1,6 +1,9 @@
 ## COMMODITY TASKS
 #
-# - ADD ONE
+# - Tile colouring.  At the moment, there is the limited tile differentiation
+#   done on the basis of whether it is emphasised or not.  But there should
+#   be further differentiation, it should be possible to have coloured tiles
+#   depending on which tiles they are.
 #
 
 ## LUXURY TASKS
@@ -66,14 +69,18 @@ for v in range(64, 90+1):
 
 CTRL_E                = chr(5)  # ENQ
 
-CHAR_TILE = "@"
-WALL_TILE = "X"
+CHAR_TILE =  "@"
+WALL_TILE =  "X"
+WALL_TILE1 = "1"
+WALL_TILE2 = "2"
 FLOOR_TILE = " "
-DOOR_TILE = "D"
+DOOR_TILE =  "D"
 
 displayTiles = {
     # Option to display different types if in or out of field of view.
     CHAR_TILE:  (CHAR_TILE, " "),
+    WALL_TILE1: (chr(176),  chr(176)), # chr(219),
+    WALL_TILE2: (chr(177),  chr(177)), # chr(219),
     WALL_TILE:  (chr(178),  chr(178)), # chr(219),
     FLOOR_TILE: (chr(250),  chr(250)),
     DOOR_TILE:  ("D",       "D"),
@@ -546,6 +553,103 @@ class RoguelikeShell(Shell):
             sio.write(s)
         self.MoveCursor(0, self.statusOffset, clear=False, sio=sio)
 
+    # Gameplay Support --------------------------------------------------------
+
+    def OnObjectMoved(self, object_, oldPosition, newPosition):
+        if not self.enteredGame:
+            return
+
+        if object_ is self.user.body:
+            # print id(self), "I MOVED TO", newPosition
+            self.OnMovement(*newPosition)
+            return
+
+        # print object_, "MOVED TO", newPosition
+        sio = StringIO.StringIO()
+        if oldPosition is not None and self.IsTileInFoV(*oldPosition):
+            tile = self.ViewedTile(*oldPosition)
+            self.UpdateViewByWorldPosition(oldPosition[0], oldPosition[1], tile, sio)
+        if newPosition is not None and self.IsTileInFoV(*newPosition):
+            tile = self.ViewedTile(*newPosition)
+            self.UpdateViewByWorldPosition(newPosition[0], newPosition[1], tile, sio)
+        if sio.tell() > 0:
+            self.user.Write(sio.getvalue())
+
+    def OnMovement(self, playerX, playerY):
+        sio = StringIO.StringIO()
+
+        windowLeftDistance = playerX - self.worldViewX
+        halfWidth = self.windowWidth / 2
+
+        xShift = 0
+        if windowLeftDistance < VIEW_RADIUS:
+            xShift = halfWidth - windowLeftDistance + 1
+            self.worldViewX -= xShift
+            # self.ScrollWindowRight(xShift, sio=sio)
+            xShift = -xShift # Indicate negative movement on the horizontal axis.
+        else:
+            windowRightDistance = (self.worldViewX + self.windowWidth) - playerX
+            
+            if windowRightDistance <= VIEW_RADIUS:
+                xShift = halfWidth - windowRightDistance - 1
+                self.worldViewX += xShift
+
+        windowUpperDistance = playerY - self.worldViewY
+        halfHeight = self.windowHeight / 2
+
+        # Has the player moved so their view falls outside the screen?
+        # The player's line is counted in this calculation.
+        yShift = 0
+        if windowUpperDistance <= VIEW_RADIUS:
+            # Distance needed to shift the player to the window center.
+            # +1 to put them further from the side they are moving towards.
+            yShift = halfHeight - windowUpperDistance + 1
+            self.worldViewY -= yShift
+            yShift = -yShift # Indicate negative movement on the vertical axis.
+        else:
+            windowLowerDistance = (self.worldViewY + self.windowHeight) - playerY
+
+            # Has the player moved so their view falls outside the screen?
+            # The player's line is not counted in this calculation.
+            if windowLowerDistance < VIEW_RADIUS:
+                # Distance needed to shift the player to the window center.
+                # -1 to put them further from the side they are moving towards.
+                yShift = halfHeight - windowLowerDistance - 1
+                self.worldViewY += yShift
+
+        numLinesRedrawn = 0
+        if yShift:
+            self.ScrollWindowVertically(yShift, sio=sio)
+
+            # Redraw the area that moved on screen.
+            if yShift < 0:
+                # Account for the remaining viewed distance (less the line the player is on).
+                numLinesRedrawn = (playerY - self.worldViewY) - 1
+                self.UpdateLineByWorldPosition(yStart=self.worldViewY, yCount=numLinesRedrawn, sio=sio)
+            else:
+                # Account for the view range and the line the player is on.
+                numLinesRedrawn = yShift + VIEW_RADIUS - 1
+                self.UpdateLineByWorldPosition(yStart=playerY, yCount=numLinesRedrawn, sio=sio)
+
+        if xShift:
+            self.ScrollWindowHorizontally(xShift, sio=sio)
+            
+            if numLinesRedrawn:
+                pass # TODO: Only refresh what didn't get redrawn vertically.
+
+            # Redraw the area that moved on screen.
+            if xShift < 0:
+                self.UpdateLineByWorldPosition(xStart=self.worldViewX, xCount=-xShift, yStart=self.worldViewY, yCount=self.windowHeight, sio=sio)
+            else:
+                xStart = self.worldViewX + self.windowWidth - xShift
+                self.UpdateLineByWorldPosition(xStart=xStart, xCount=xShift, yStart=self.worldViewY, yCount=self.windowHeight, sio=sio)
+
+        # Add an FoV update over the scrolled and filled in output.
+        self.UpdateFoV(sio=sio)
+
+        # Write the collected output to the player.
+        self.user.Write(sio.getvalue())
+
     # Map Support ------------------------------------------------------------
 
     def _SetTileBits(self, x, y, bits):
@@ -741,103 +845,6 @@ class RoguelikeShell(Shell):
                 self.user.Write(self.charsetResetSequence)
             else:
                 sio.write(self.charsetResetSequence)
-
-    # Gameplay Support --------------------------------------------------------
-
-    def OnObjectMoved(self, object_, oldPosition, newPosition):
-        if not self.enteredGame:
-            return
-
-        if object_ is self.user.body:
-            # print id(self), "I MOVED TO", newPosition
-            self.OnMovement(*newPosition)
-            return
-
-        # print object_, "MOVED TO", newPosition
-        sio = StringIO.StringIO()
-        if oldPosition is not None and self.IsTileInFoV(*oldPosition):
-            tile = self.ViewedTile(*oldPosition)
-            self.UpdateViewByWorldPosition(oldPosition[0], oldPosition[1], tile, sio)
-        if newPosition is not None and self.IsTileInFoV(*newPosition):
-            tile = self.ViewedTile(*newPosition)
-            self.UpdateViewByWorldPosition(newPosition[0], newPosition[1], tile, sio)
-        if sio.tell() > 0:
-            self.user.Write(sio.getvalue())
-
-    def OnMovement(self, playerX, playerY):
-        sio = StringIO.StringIO()
-
-        windowLeftDistance = playerX - self.worldViewX
-        halfWidth = self.windowWidth / 2
-
-        xShift = 0
-        if windowLeftDistance < VIEW_RADIUS:
-            xShift = halfWidth - windowLeftDistance + 1
-            self.worldViewX -= xShift
-            # self.ScrollWindowRight(xShift, sio=sio)
-            xShift = -xShift # Indicate negative movement on the horizontal axis.
-        else:
-            windowRightDistance = (self.worldViewX + self.windowWidth) - playerX
-            
-            if windowRightDistance <= VIEW_RADIUS:
-                xShift = halfWidth - windowRightDistance - 1
-                self.worldViewX += xShift
-
-        windowUpperDistance = playerY - self.worldViewY
-        halfHeight = self.windowHeight / 2
-
-        # Has the player moved so their view falls outside the screen?
-        # The player's line is counted in this calculation.
-        yShift = 0
-        if windowUpperDistance <= VIEW_RADIUS:
-            # Distance needed to shift the player to the window center.
-            # +1 to put them further from the side they are moving towards.
-            yShift = halfHeight - windowUpperDistance + 1
-            self.worldViewY -= yShift
-            yShift = -yShift # Indicate negative movement on the vertical axis.
-        else:
-            windowLowerDistance = (self.worldViewY + self.windowHeight) - playerY
-
-            # Has the player moved so their view falls outside the screen?
-            # The player's line is not counted in this calculation.
-            if windowLowerDistance < VIEW_RADIUS:
-                # Distance needed to shift the player to the window center.
-                # -1 to put them further from the side they are moving towards.
-                yShift = halfHeight - windowLowerDistance - 1
-                self.worldViewY += yShift
-
-        numLinesRedrawn = 0
-        if yShift:
-            self.ScrollWindowVertically(yShift, sio=sio)
-
-            # Redraw the area that moved on screen.
-            if yShift < 0:
-                # Account for the remaining viewed distance (less the line the player is on).
-                numLinesRedrawn = (playerY - self.worldViewY) - 1
-                self.UpdateLineByWorldPosition(yStart=self.worldViewY, yCount=numLinesRedrawn, sio=sio)
-            else:
-                # Account for the view range and the line the player is on.
-                numLinesRedrawn = yShift + VIEW_RADIUS - 1
-                self.UpdateLineByWorldPosition(yStart=playerY, yCount=numLinesRedrawn, sio=sio)
-
-        if xShift:
-            self.ScrollWindowHorizontally(xShift, sio=sio)
-            
-            if numLinesRedrawn:
-                pass # TODO: Only refresh what didn't get redrawn vertically.
-
-            # Redraw the area that moved on screen.
-            if xShift < 0:
-                self.UpdateLineByWorldPosition(xStart=self.worldViewX, xCount=-xShift, yStart=self.worldViewY, yCount=self.windowHeight, sio=sio)
-            else:
-                xStart = self.worldViewX + self.windowWidth - xShift
-                self.UpdateLineByWorldPosition(xStart=xStart, xCount=xShift, yStart=self.worldViewY, yCount=self.windowHeight, sio=sio)
-
-        # Add an FoV update over the scrolled and filled in output.
-        self.UpdateFoV(sio=sio)
-
-        # Write the collected output to the player.
-        self.user.Write(sio.getvalue())
 
     # Menu / Paging Support ---------------------------------------------------
 
