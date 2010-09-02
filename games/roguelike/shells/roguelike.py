@@ -9,9 +9,18 @@
 #   has been visited.  This might be used for an automove mode, where the
 #   player then automatically paths to the selected tile.
 #
+# - Explosion.  Fire should spread out and channel down available routes of
+#   escape, the more avenues of escape, the shorter it takes to spread out.
+#   If blocked by non-permanent barriers (doors for instance), it should if
+#   there is no other route of escape break or remove them from their
+#   hinges.  If no route of escape, should cause damage to ceiling, walls
+#   or floors.  Use of colour.. like red and oranges.
+#
 # - Door logic.  Open.  Closed.  Locked.  Closed but not visited, and no
 #   visual indication of lock status.  Closed and visited, and visual
 #   indication of lock status.
+#
+# - Clean up use of ViewedTileRange() so it can be degeneratorised.
 #
 
 import random, array, math, StringIO, time
@@ -604,7 +613,8 @@ class RoguelikeShell(Shell):
         else:
             l.append((False, minX, maxX))
 
-        # Draw all unemphasised, them emphasised.
+        # Draw row tiles in order, but batched depending on whether they are
+        # emphasised or not.
         for emphasis, minX, maxX in l:
             if emphasis:
                 for c in ESC_BOLD:
@@ -944,7 +954,7 @@ class RoguelikeShell(Shell):
     def EnterEscapeMenu(self):
         options = []
         options.append(("B", "Back",        "Return to the game"))
-        options.append(("B", "Keyboard",    "Keyboard configuration"))
+        options.append(("K", "Keyboard",    "Keyboard configuration"))
         options.append(("D", "Debug",       "Debug options"))
         options.append(("Q", "Quit",        "Disconnect from the game"))
         self.DisplayMenu(MODE_ESCAPE_MENU, options)
@@ -958,10 +968,11 @@ class RoguelikeShell(Shell):
     def EnterTelnetClientMenu(self):
         options = []
         options.append(("B", "Back",         "Return to the previous menu"))
-        options.append(("D", "Characters",   "Display the default character set"))
+        options.append(("C", "Characters",   "Display the default character set"))
         options.append(("U", "Unicode",      "Display the unicode character set"))
-        options.append(("C", "Charsets",     "Display the supported character sets"))
-        options.append(("C", "256Colours",   "Display xterm's 256 colours(if supported)"))
+        options.append(("K", "Charsets",     "Display the supported character sets"))
+        options.append(("X", "256Colours",   "Display xterm's 256 colours (if supported)"))
+        options.append(("D", "Dithering",    "Display colours dithered"))
         self.DisplayMenu(MODE_TELNETCLIENT_MENU, options)
 
     def MenuActionQuit(self):
@@ -1029,7 +1040,7 @@ class RoguelikeShell(Shell):
         self.EnterGame()
 
     def MenuAction256Colours(self):
-        self.SetMode(MODE_DEBUG_DISPLAY, "xterm's 256 color extension")
+        self.SetMode(MODE_DEBUG_DISPLAY, "xterm's 256 colour extension")
         self.UpdateStatusBar(MSG_PRESS_ANY_KEY_TO_RETURN)
 
         sio = StringIO.StringIO()
@@ -1037,6 +1048,42 @@ class RoguelikeShell(Shell):
         sio.write(ESC_SCROLL_UP * self.windowHeight)
 
         sio.write("\nSystem colors:\n\x1b[48;5;0m  \x1b[48;5;1m  \x1b[48;5;2m  \x1b[48;5;3m  \x1b[48;5;4m  \x1b[48;5;5m  \x1b[48;5;6m  \x1b[48;5;7m  \x1b[0m\n\x1b[48;5;8m  \x1b[48;5;9m  \x1b[48;5;10m  \x1b[48;5;11m  \x1b[48;5;12m  \x1b[48;5;13m  \x1b[48;5;14m  \x1b[48;5;15m  \x1b[0m\n\nColor cube, 6x6x6:\n\x1b[48;5;16m  \x1b[48;5;17m  \x1b[48;5;18m  \x1b[48;5;19m  \x1b[48;5;20m  \x1b[48;5;21m  \x1b[0m \x1b[48;5;52m  \x1b[48;5;53m  \x1b[48;5;54m  \x1b[48;5;55m  \x1b[48;5;56m  \x1b[48;5;57m  \x1b[0m \x1b[48;5;88m  \x1b[48;5;89m  \x1b[48;5;90m  \x1b[48;5;91m  \x1b[48;5;92m  \x1b[48;5;93m  \x1b[0m \x1b[48;5;124m  \x1b[48;5;125m  \x1b[48;5;126m  \x1b[48;5;127m  \x1b[48;5;128m  \x1b[48;5;129m  \x1b[0m \x1b[48;5;160m  \x1b[48;5;161m  \x1b[48;5;162m  \x1b[48;5;163m  \x1b[48;5;164m  \x1b[48;5;165m  \x1b[0m \x1b[48;5;196m  \x1b[48;5;197m  \x1b[48;5;198m  \x1b[48;5;199m  \x1b[48;5;200m  \x1b[48;5;201m  \x1b[0m \n\x1b[48;5;22m  \x1b[48;5;23m  \x1b[48;5;24m  \x1b[48;5;25m  \x1b[48;5;26m  \x1b[48;5;27m  \x1b[0m \x1b[48;5;58m  \x1b[48;5;59m  \x1b[48;5;60m  \x1b[48;5;61m  \x1b[48;5;62m  \x1b[48;5;63m  \x1b[0m \x1b[48;5;94m  \x1b[48;5;95m  \x1b[48;5;96m  \x1b[48;5;97m  \x1b[48;5;98m  \x1b[48;5;99m  \x1b[0m \x1b[48;5;130m  \x1b[48;5;131m  \x1b[48;5;132m  \x1b[48;5;133m  \x1b[48;5;134m  \x1b[48;5;135m  \x1b[0m \x1b[48;5;166m  \x1b[48;5;167m  \x1b[48;5;168m  \x1b[48;5;169m  \x1b[48;5;170m  \x1b[48;5;171m  \x1b[0m \x1b[48;5;202m  \x1b[48;5;203m  \x1b[48;5;204m  \x1b[48;5;205m  \x1b[48;5;206m  \x1b[48;5;207m  \x1b[0m \n\x1b[48;5;28m  \x1b[48;5;29m  \x1b[48;5;30m  \x1b[48;5;31m  \x1b[48;5;32m  \x1b[48;5;33m  \x1b[0m \x1b[48;5;64m  \x1b[48;5;65m  \x1b[48;5;66m  \x1b[48;5;67m  \x1b[48;5;68m  \x1b[48;5;69m  \x1b[0m \x1b[48;5;100m  \x1b[48;5;101m  \x1b[48;5;102m  \x1b[48;5;103m  \x1b[48;5;104m  \x1b[48;5;105m  \x1b[0m \x1b[48;5;136m  \x1b[48;5;137m  \x1b[48;5;138m  \x1b[48;5;139m  \x1b[48;5;140m  \x1b[48;5;141m  \x1b[0m \x1b[48;5;172m  \x1b[48;5;173m  \x1b[48;5;174m  \x1b[48;5;175m  \x1b[48;5;176m  \x1b[48;5;177m  \x1b[0m \x1b[48;5;208m  \x1b[48;5;209m  \x1b[48;5;210m  \x1b[48;5;211m  \x1b[48;5;212m  \x1b[48;5;213m  \x1b[0m \n\x1b[48;5;34m  \x1b[48;5;35m  \x1b[48;5;36m  \x1b[48;5;37m  \x1b[48;5;38m  \x1b[48;5;39m  \x1b[0m \x1b[48;5;70m  \x1b[48;5;71m  \x1b[48;5;72m  \x1b[48;5;73m  \x1b[48;5;74m  \x1b[48;5;75m  \x1b[0m \x1b[48;5;106m  \x1b[48;5;107m  \x1b[48;5;108m  \x1b[48;5;109m  \x1b[48;5;110m  \x1b[48;5;111m  \x1b[0m \x1b[48;5;142m  \x1b[48;5;143m  \x1b[48;5;144m  \x1b[48;5;145m  \x1b[48;5;146m  \x1b[48;5;147m  \x1b[0m \x1b[48;5;178m  \x1b[48;5;179m  \x1b[48;5;180m  \x1b[48;5;181m  \x1b[48;5;182m  \x1b[48;5;183m  \x1b[0m \x1b[48;5;214m  \x1b[48;5;215m  \x1b[48;5;216m  \x1b[48;5;217m  \x1b[48;5;218m  \x1b[48;5;219m  \x1b[0m \n\x1b[48;5;40m  \x1b[48;5;41m  \x1b[48;5;42m  \x1b[48;5;43m  \x1b[48;5;44m  \x1b[48;5;45m  \x1b[0m \x1b[48;5;76m  \x1b[48;5;77m  \x1b[48;5;78m  \x1b[48;5;79m  \x1b[48;5;80m  \x1b[48;5;81m  \x1b[0m \x1b[48;5;112m  \x1b[48;5;113m  \x1b[48;5;114m  \x1b[48;5;115m  \x1b[48;5;116m  \x1b[48;5;117m  \x1b[0m \x1b[48;5;148m  \x1b[48;5;149m  \x1b[48;5;150m  \x1b[48;5;151m  \x1b[48;5;152m  \x1b[48;5;153m  \x1b[0m \x1b[48;5;184m  \x1b[48;5;185m  \x1b[48;5;186m  \x1b[48;5;187m  \x1b[48;5;188m  \x1b[48;5;189m  \x1b[0m \x1b[48;5;220m  \x1b[48;5;221m  \x1b[48;5;222m  \x1b[48;5;223m  \x1b[48;5;224m  \x1b[48;5;225m  \x1b[0m \n\x1b[48;5;46m  \x1b[48;5;47m  \x1b[48;5;48m  \x1b[48;5;49m  \x1b[48;5;50m  \x1b[48;5;51m  \x1b[0m \x1b[48;5;82m  \x1b[48;5;83m  \x1b[48;5;84m  \x1b[48;5;85m  \x1b[48;5;86m  \x1b[48;5;87m  \x1b[0m \x1b[48;5;118m  \x1b[48;5;119m  \x1b[48;5;120m  \x1b[48;5;121m  \x1b[48;5;122m  \x1b[48;5;123m  \x1b[0m \x1b[48;5;154m  \x1b[48;5;155m  \x1b[48;5;156m  \x1b[48;5;157m  \x1b[48;5;158m  \x1b[48;5;159m  \x1b[0m \x1b[48;5;190m  \x1b[48;5;191m  \x1b[48;5;192m  \x1b[48;5;193m  \x1b[48;5;194m  \x1b[48;5;195m  \x1b[0m \x1b[48;5;226m  \x1b[48;5;227m  \x1b[48;5;228m  \x1b[48;5;229m  \x1b[48;5;230m  \x1b[48;5;231m  \x1b[0m \n\nGrayscale ramp:\n\x1b[48;5;232m  \x1b[48;5;233m  \x1b[48;5;234m  \x1b[48;5;235m  \x1b[48;5;236m  \x1b[48;5;237m  \x1b[48;5;238m  \x1b[48;5;239m  \x1b[48;5;240m  \x1b[48;5;241m  \x1b[48;5;242m  \x1b[48;5;243m  \x1b[48;5;244m  \x1b[48;5;245m  \x1b[48;5;246m  \x1b[48;5;247m  \x1b[48;5;248m  \x1b[48;5;249m  \x1b[48;5;250m  \x1b[48;5;251m  \x1b[48;5;252m  \x1b[48;5;253m  \x1b[48;5;254m  \x1b[48;5;255m  \x1b[0m\n".replace("\n", "\r\n "))
+        self.user.Write(sio.getvalue())
+
+    def MenuActionDithering(self):
+        self.SetMode(MODE_DEBUG_DISPLAY, "dithered colour experiment")
+        self.UpdateStatusBar(MSG_PRESS_ANY_KEY_TO_RETURN)
+
+        sio = StringIO.StringIO()        
+        self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset, sio=sio)
+        sio.write(ESC_SCROLL_UP * self.windowHeight)
+
+        sio.write("\n")
+        sio.write("           ")
+        for yi in range(8):
+            sio.write("%02d" % (40 + yi))
+            sio.write("  ")
+
+        sio.write("\r\n")
+        sio.write("\r\n")
+
+        for yi in range(8):
+            yc = 30 + yi
+            sio.write("   %02d  " % yc)
+        
+            sio.write("\x1b[%dm" % yc)
+            sio.write(chr(219)+chr(219))
+            sio.write("  ")
+
+            for xi in range(8):
+                xc = 40 + xi
+                sio.write("\x1b[%dm" % yc)
+                sio.write("\x1b[%dm" % xc)
+                sio.write(chr(177)+chr(177))
+                sio.write(ESC_RESET_ATTRS)
+                sio.write("  ")
+
+            sio.write("\r\n")
         self.user.Write(sio.getvalue())
 
     def MenuActionUnicode(self):
