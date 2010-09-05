@@ -64,6 +64,7 @@ def IndexTiles():
 IndexTiles()
 
 CHAR_TILE_TEMPLATE = Tile("@", isPassable=False)
+DRAGON_TILE = Tile("&", isPassable=False)
 
 levelMap = """
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -143,7 +144,7 @@ class WorldService(Service):
 
     def OnUserEntersGame(self, user, body):
         body.SetShortDescription(user.name.capitalize())
-        self.AddBody(body, self.GetPlayerStartPosition())
+        self.AddBody(body, self.GetPlayerStartPosition(), CHAR_TILE_TEMPLATE)
 
     def OnUserLeavesGame(self, user, body):
         self.RemoveBody(body)
@@ -176,7 +177,8 @@ class WorldService(Service):
     def GetBody(self, user):
         return self.bodiesByUsername[user.name]
 
-    def AddBody(self, body, position):
+    def AddBody(self, body, position, tile, fgColour=None, bgColour=None):
+        body.SetTile(tile, fgColour=fgColour, bgColour=bgColour)
         self.bodies.append(body)
         self._MoveObject(body, position, force=True)
 
@@ -243,14 +245,14 @@ class WorldService(Service):
             candidates = []
             for object_ in self.objectsByPosition[position]:
                 if isinstance(object_, Body):
-                    tile = copy.copy(CHAR_TILE_TEMPLATE)
-                    candidates.append((1, tile))
+                    candidates.append((1, object_.tile))
                 elif isinstance(object_, Fire):
                     tile = copy.copy(FLOOR_TILE)
                     tile.bgColour = COLOUR_RED
                     candidates.append((2, " ", ))
                 else:
                     raise RuntimeError("Not implemented", object_)
+
             bgColour = None
             priority = 100
             tile = None
@@ -326,7 +328,7 @@ class WorldService(Service):
 
     def RunNPC(self):
         body = Body(self, None)
-        self.AddBody(body, self.GetNPCStartPosition())
+        self.AddBody(body, self.GetNPCStartPosition(), DRAGON_TILE, fgColour=COLOUR_GREEN)
         
         lastPosition = body.position
         while self.IsRunning():

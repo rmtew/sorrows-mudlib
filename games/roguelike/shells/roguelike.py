@@ -1,15 +1,15 @@
 ## COMMODITY TASKS
 #
-# - Tile colouring.  At the moment, there is the limited tile differentiation
-#   done on the basis of whether it is emphasised or not.  But there should
-#   be further differentiation, it should be possible to have coloured tiles
-#   depending on which tiles they are.
-#
 # - NPC logic.  This is very simple now, but taking this further would be
 #   something to think about.
 #
 
 ## LUXURY TASKS
+#
+# - Optimal rendering system.  At the moment, emphasis is done on a need
+#   basis, rather than a per-tile basis.  Colouring should be done in much
+#   the same way.  In general, rendering updates should be constructed in
+#   a way where it updates are smoothly and as cleanly to the user as possible.
 #
 # - It should be possible to move a cursor around the map and select a tile
 #   has been visited.  This might be used for an automove mode, where the
@@ -54,6 +54,7 @@ ESC_ERASE_UP          = "\x1b[1J"   # WARNING: Does not respect scrolling region
 ESC_BOLD              = "\x1b[1m"
 ESC_GFX_BLUE_FG       = "\x1b[34m"
 ESC_RESET_ATTRS       = "\x1b[0m"
+ESC_NORMAL            = "\x1b[22m"
 
 # Escape termination characters.
 #
@@ -732,31 +733,47 @@ class RoguelikeShell(Shell):
 
             x = minX
             while x <= maxX:
-                tileInfo = self.GetDisplayTileInfo(x, y)
-                if tileInfo is not None:
-                    yield tileInfo
-                else:
+                tile = self.GetDisplayTileInfo(x, y)
+                if tile is None:
                     yield " "
+                else:
+                    yield self.TileColouring(tile)                    
                 x += 1
             
             if emphasis:
-                for c in ESC_RESET_ATTRS:
+                for c in ESC_NORMAL:
                     yield c
 
     def ViewedTile(self, x, y):
-        tileInfo = self.GetDisplayTileInfo(x, y)
-        if tileInfo is not None:
-            if self.IsTileInFoV(x, y):
-                return ESC_BOLD + tileInfo[0] + ESC_RESET_ATTRS
-            return tileInfo
+        tile = self.GetDisplayTileInfo(x, y)
+        if tile is not None:
+            return self.TileColouring(tile, self.IsTileInFoV(x, y))
         return " "
+
+    def TileColouring(self, tile, emphasis=False):
+        s = ""
+        if tile.fgColour:
+            s += "\x1b[3%dm" % tile.fgColour
+        if tile.bgColour:
+            s += "\x1b[4%dm" % tile.bgColour
+        if emphasis:
+            s += ESC_BOLD
+        haveMarkup = len(s) > 0
+        s += displayTiles.get(tile.character, tile.character)
+        if emphasis:
+            s += ESC_NORMAL
+        if tile.fgColour:
+            s += "\x1b[3%dm" % 7    # White text.
+        if tile.bgColour:
+            s += "\x1b[4%dm" % 0    # Black background.
+        return s
 
     def GetDisplayTileInfo(self, x, y):        
         if self.GetTileBits(x, y, TILE_SEEN):
             # Translate the map tile to what should actually be displayed.
             rawTile = sorrows.world.GetTile(x, y)
             if not rawTile.isMarker:
-                return displayTiles.get(rawTile.character, rawTile.character)
+                return rawTile
 
     # ANSI Cursor ------------------------------------------------------------
 

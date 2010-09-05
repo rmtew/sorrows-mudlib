@@ -1,3 +1,4 @@
+import copy
 from game.world import Container
 
 
@@ -7,6 +8,15 @@ class Body(Container):
 
         self.service = service
         self.user = user
+        
+        self.tile = None
+
+    def SetTile(self, tile, fgColour=None, bgColour=None):
+        self.tile = copy.copy(tile)
+        if fgColour is not None:
+            self.tile.fgColour = fgColour
+        if bgColour is not None:
+            self.tile.bgColour = bgColour
 
     def OnObjectMoved(self, object_, oldPosition, newPosition):
         if self.user:
