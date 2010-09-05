@@ -1,26 +1,69 @@
 # Encapsulate a world.
 
-import os, random, time, collections, uthread
+import os, random, time, collections, uthread, copy
 
 from mudlib import Service
-from game.world import Body
+from game.world import Body, Object
 from game.shells import RoguelikeShell
 
-START_TILE = "x"
-SPAWN_TILE = "s"
-WALL_TILE =  "X"
-WALL_TILE1 = "1"
-WALL_TILE2 = "2"
-DOOR_TILE =  "D"
-FLOOR_TILE = " "
+COLOUR_BLACK   = 0
+COLOUR_RED     = 1
+COLOUR_GREEN   = 2
+COLOUR_YELLOW  = 3
+COLOUR_BLUE    = 4
+COLOUR_MAGENTA = 5
+COLOUR_CYAN    = 6
+COLOUR_WHITE   = 7
 
-PASSABLE_TILES = (DOOR_TILE, START_TILE, FLOOR_TILE, SPAWN_TILE)
-OPAQUE_TILES = (WALL_TILE, WALL_TILE1, WALL_TILE2)
+FLAG_PASSABLE = (1 << 0)
+FLAG_OPAQUE   = (1 << 1)
+FLAG_MARKER   = (1 << 2)
 
-TILE_MAP = {
-    START_TILE: FLOOR_TILE,
-    SPAWN_TILE: FLOOR_TILE,
-}
+class Tile(object):
+    __slots__ = [ "character", "fgColour", "bgColour", "flags" ]
+
+    def __init__(self, character=" ", fgColour=None, bgColour=None, isPassable=True, isOpaque=False, isMarker=False):
+        self.character = character
+        self.fgColour = fgColour
+        self.bgColour = bgColour
+        self.flags = 0
+        if isPassable:
+            self.flags |= FLAG_PASSABLE
+        if isOpaque:
+            self.flags |= FLAG_OPAQUE
+        if isMarker:
+            self.flags |= FLAG_MARKER
+
+    @property
+    def isPassable(self):
+        return self.flags & FLAG_PASSABLE
+
+    @property
+    def isOpaque(self):
+        return self.flags & FLAG_OPAQUE
+
+    @property
+    def isMarker(self):
+        return self.flags & FLAG_MARKER
+
+
+
+START_TILE = Tile("x", isMarker=True)
+SPAWN_TILE = Tile("s", isMarker=True)
+WALL_TILE  = Tile("X", isPassable=False, isOpaque=True)
+WALL1_TILE = Tile("1", isPassable=False, isOpaque=True)
+WALL2_TILE = Tile("2", isPassable=False, isOpaque=True)
+DOOR_TILE  = Tile("D")
+FLOOR_TILE = Tile(" ")
+
+mapTilesByCharacter = {}
+def IndexTiles():
+    for k, v in globals().iteritems():
+        if k.endswith("_TILE"):
+            mapTilesByCharacter[v.character] = v
+IndexTiles()
+
+CHAR_TILE_TEMPLATE = Tile("@", isPassable=False)
 
 levelMap = """
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -83,7 +126,7 @@ class WorldService(Service):
         self.mapRows = [
             line.strip()
             for line in levelMap.split("\n")
-            if len(line) and line[0] == WALL_TILE
+            if len(line) and line[0] == WALL_TILE.character
         ]
 
         self.playerStartX, self.playerStartY = random.choice(self.FindTilePositions(START_TILE))
@@ -148,10 +191,10 @@ class WorldService(Service):
     def FindTilePositions(self, tile):
         l = []
         for yOffset, line in enumerate(self.mapRows):
-            xOffset = line.find(tile)
+            xOffset = line.find(tile.character)
             while xOffset != -1:
                 l.append((xOffset, yOffset))
-                xOffset = line.find(tile, xOffset+1)
+                xOffset = line.find(tile.character, xOffset+1)
         return l
 
     def _AddObject(self, object_, position):
@@ -177,21 +220,17 @@ class WorldService(Service):
 
     def _MoveObject(self, object_, newPosition, force=False):
         if newPosition is None:
-            tile = PASSABLE_TILES[0]
+            force = True
         else:
             tile = self._GetTile(newPosition)
 
-        if force or tile in PASSABLE_TILES:
-            # passableTile = passableTile or tile == DOOR_TILE and (True or self.GetTileBits(newX, newY, TILE_OPEN))
+        if force or self.IsTileUnoccupied(tile):
             oldPosition = object_.GetPosition()
-
             self._RemoveObject(object_, oldPosition)
-            self._AddObject(object_, newPosition)
-            
+            self._AddObject(object_, newPosition)            
             # Inform all the bodies in the world.
             for body in self.bodies:
                 body.OnObjectMoved(object_, oldPosition, newPosition)
-
             return True
         return False
 
@@ -200,21 +239,76 @@ class WorldService(Service):
         return self._GetTile((x, y))
 
     def _GetTile(self, position):
-        # TODO: Should sort through this, seeing what is in there.
-        if position in self.objectsByPosition and len(self.objectsByPosition[position]):
-            return "@"
-        tile = self.mapRows[position[1]][position[0]]
-        return TILE_MAP.get(tile, tile)
+        if position in self.objectsByPosition:
+            candidates = []
+            for object_ in self.objectsByPosition[position]:
+                if isinstance(object_, Body):
+                    tile = copy.copy(CHAR_TILE_TEMPLATE)
+                    candidates.append((1, tile))
+                elif isinstance(object_, Fire):
+                    tile = copy.copy(FLOOR_TILE)
+                    tile.bgColour = COLOUR_RED
+                    candidates.append((2, " ", ))
+                else:
+                    raise RuntimeError("Not implemented", object_)
+            bgColour = None
+            priority = 100
+            tile = None
+            for cPriority, cTile in candidates:
+                if cPriority < priority:
+                    tile = cTile
+                elif bgColour is None and cTile.bgColour is not None:
+                    bgColour = cTile.bgColour
+            if tile is not None:
+                if bgColour is not None and tile.bgColour is None:
+                    tile.bgColour = bgColour
+                return tile
 
-    def IsOpaque(self, x, y):
+        # If no objects are visible, fall back on the background map.
+        mapCharacter = self.mapRows[position[1]][position[0]]
+        tile = mapTilesByCharacter[mapCharacter]
+        if tile.isMarker:
+            return FLOOR_TILE
+        return tile
+
+    def IsLocationOpaque(self, x, y):
         tile = self.GetTile(x, y)
-        return tile in OPAQUE_TILES
+        return tile.isOpaque
+
+    def IsTileUnoccupied(self, tile):
+        return tile.isPassable
 
     def CheckBoundaries(self, x, y):
         if y < 0 or y >= self.mapHeight:
             raise RuntimeError("TILE ERROR/y", x, y)
         if x < 0 or x >= self.mapWidth:
             raise RuntimeError("TILE ERROR/x", x, y)
+
+    relativeOffsets = [
+        (-1, -1),
+        ( 0, -1),
+        ( 1, -1),
+        (-1,  0),
+        ( 1,  0),
+        (-1,  1),
+        ( 0,  1),
+        ( 1,  1),
+    ]
+
+    def FindMovementDirections(self, position):
+        matches = []
+        for xi, yi in self.relativeOffsets:
+            x, y = position
+            x += xi
+            y += yi
+            if y < 0 or y >= self.mapHeight:
+                continue
+            if x < 0 or x >= self.mapWidth:
+                continue
+            tile = self.GetTile(x, y)
+            if self.IsTileUnoccupied(tile):
+                matches.append((x, y))
+        return matches
 
     # Flora and fauna --------------------------------------------------------
 
@@ -229,31 +323,6 @@ class WorldService(Service):
         uthread.Sleep(10.0)
         uthread.new(self.RunNPC)
 
-    relativeOffsets = [
-        (-1, -1),
-        ( 0, -1),
-        ( 1, -1),
-        (-1,  0),
-        ( 1,  0),
-        (-1,  1),
-        ( 0,  1),
-        ( 1,  1),
-    ]
-
-    def FindMovementDirections(self, npc):            
-        matches = []
-        for xi, yi in self.relativeOffsets:
-            x, y = npc.GetPosition()
-            x += xi
-            y += yi
-            if y < 0 or y >= self.mapHeight:
-                continue
-            if x < 0 or x >= self.mapWidth:
-                continue
-            tile = self.GetTile(x, y)
-            if tile in PASSABLE_TILES:
-                matches.append((x, y))
-        return matches
 
     def RunNPC(self):
         body = Body(self, None)
@@ -262,7 +331,7 @@ class WorldService(Service):
         lastPosition = body.position
         while self.IsRunning():
             currentPosition = body.position
-            matches = self.FindMovementDirections(body)
+            matches = self.FindMovementDirections(body.position)
             if len(matches) > 1 and lastPosition in matches:
                 matches.remove(lastPosition)
             if len(matches):
@@ -272,3 +341,5 @@ class WorldService(Service):
 
 
 
+class Fire(Object):
+    pass

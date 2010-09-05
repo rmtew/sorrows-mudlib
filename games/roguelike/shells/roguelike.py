@@ -5,6 +5,9 @@
 #   be further differentiation, it should be possible to have coloured tiles
 #   depending on which tiles they are.
 #
+# - NPC logic.  This is very simple now, but taking this further would be
+#   something to think about.
+#
 
 ## LUXURY TASKS
 #
@@ -69,6 +72,7 @@ for v in range(64, 90+1):
 
 CTRL_E                = chr(5)  # ENQ
 
+
 CHAR_TILE =  "@"
 WALL_TILE =  "X"
 WALL_TILE1 = "1"
@@ -78,12 +82,10 @@ DOOR_TILE =  "D"
 
 displayTiles = {
     # Option to display different types if in or out of field of view.
-    CHAR_TILE:  (CHAR_TILE, " "),
-    WALL_TILE1: (chr(176),  chr(176)), # chr(219),
-    WALL_TILE2: (chr(177),  chr(177)), # chr(219),
-    WALL_TILE:  (chr(178),  chr(178)), # chr(219),
-    FLOOR_TILE: (chr(250),  chr(250)),
-    DOOR_TILE:  ("D",       "D"),
+    WALL_TILE1: chr(176), # chr(219),
+    WALL_TILE2: chr(177), # chr(219),
+    WALL_TILE:  chr(178), # chr(219),
+    FLOOR_TILE: chr(250),
 }
 
 TILE_SEEN = 1
@@ -415,7 +417,7 @@ class RoguelikeShell(Shell):
                 self.drawRangesNew[y] = [ x, x ]
 
         playerX, playerY = self.user.body.GetPosition()
-        fBlocked = sorrows.world.IsOpaque
+        fBlocked = sorrows.world.IsLocationOpaque
         fov.fieldOfView(playerX, playerY, sorrows.world.mapWidth, sorrows.world.mapHeight, VIEW_RADIUS, fVisited, fBlocked)
 
         # The update ranges should cover the old and the new field of views.
@@ -443,8 +445,10 @@ class RoguelikeShell(Shell):
                 continue
 
             self.MoveCursor(vMinX, vy, sio=sio_)
-            arr = array.array('c', (c for c in self.ViewedTileRange(minX, maxX, y)))
-            sio_.write(arr.tostring())
+            for s in self.ViewedTileRange(minX, maxX, y):
+                sio_.write(s)
+            # arr = array.array('c', (c for c in self.ViewedTileRange(minX, maxX, y)))
+            #sio_.write(arr.tostring())
 
         self.UpdatePlayer(sio=sio_)
 
@@ -499,9 +503,11 @@ class RoguelikeShell(Shell):
             screenX = (xStart - self.worldViewX) + self.windowXStartOffset
             self.MoveCursor(screenX, screenY + i, sio=sio)
 
-            # arr = array.array('c', (self.ViewedTile(x, yi) for x in xrange(xStart, xEnd + 1)))
-            arr = array.array('c', (c for c in self.ViewedTileRange(xStart, xEnd, yi)))
-            s = arr.tostring()
+            s = ""
+            for t in self.ViewedTileRange(xStart, xEnd, yi):
+                s += t
+            # arr = array.array('c', (c for c in self.ViewedTileRange(xStart, xEnd, yi)))
+            #s = arr.tostring()
             if highlight:
                 s = ESC_GFX_BLUE_FG + s + ESC_RESET_ATTRS
             self.user.Write(s) if sio is None else sio.write(s)
@@ -728,10 +734,7 @@ class RoguelikeShell(Shell):
             while x <= maxX:
                 tileInfo = self.GetDisplayTileInfo(x, y)
                 if tileInfo is not None:
-                    if emphasis:
-                        yield tileInfo[0]
-                    else:
-                        yield tileInfo[1]
+                    yield tileInfo
                 else:
                     yield " "
                 x += 1
@@ -745,14 +748,15 @@ class RoguelikeShell(Shell):
         if tileInfo is not None:
             if self.IsTileInFoV(x, y):
                 return ESC_BOLD + tileInfo[0] + ESC_RESET_ATTRS
-            return tileInfo[1]
+            return tileInfo
         return " "
 
     def GetDisplayTileInfo(self, x, y):        
         if self.GetTileBits(x, y, TILE_SEEN):
             # Translate the map tile to what should actually be displayed.
             rawTile = sorrows.world.GetTile(x, y)
-            return displayTiles.get(rawTile, (rawTile, rawTile))
+            if not rawTile.isMarker:
+                return displayTiles.get(rawTile.character, rawTile.character)
 
     # ANSI Cursor ------------------------------------------------------------
 
