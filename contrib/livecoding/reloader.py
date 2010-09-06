@@ -6,6 +6,7 @@ import logging
 import types
 import weakref
 import time
+import gc
 
 logger = logging.getLogger("reloader")
 # logger.setLevel(logging.DEBUG)
@@ -312,6 +313,8 @@ class CodeReloader:
             elif isinstance(newValue, types.UnboundMethodType) or isinstance(newValue, types.MethodType):
                 logger.debug("Rebound method '%s' to function", attrName)
                 newValue = RebindFunction(newValue.im_func, globals_)
+            else:
+                logger.debug("Updated changed attribute '%s'", attrName)
 
             # Build up the retained original globals with contributions.
             globals_[attrName] = newValue
@@ -325,6 +328,10 @@ class CodeReloader:
     def UpdateClass(self, scriptFile, value, newValue, globals_):
         logger.debug("Updating class %s:%s from %s:%s", value, hex(id(value)), newValue, hex(id(newValue)))
 
+        instances = self.FindClassInstances(newValue)
+        if len(instances): 
+            logger.warn("Found %d instances of the %s class that will be in the wild" % (len(instances), newValue.__name__))
+
         if value is None or value is NonExistentValue:
             authoritativeValue = newValue
         else:
@@ -335,6 +342,15 @@ class CodeReloader:
                 attrValue = RebindFunction(attrValue, globals_)
             elif isinstance(attrValue, types.UnboundMethodType) or isinstance(attrValue, types.MethodType):
                 attrValue = RebindFunction(attrValue.im_func, globals_)
+            elif isinstance(attrValue, property):
+                fget, fset, fdel = attrValue.fget, attrValue.fset, attrValue.fdel
+                if fget:
+                    fget = RebindFunction(fget, globals_)
+                if fset:
+                    fset = RebindFunction(fset, globals_)
+                if fdel:
+                    fdel = RebindFunction(fdel, globals_)
+                attrValue = property(fget, fset, fdel, attrValue.__doc__)
             else:
                 # __doc__: On new-style classes, this cannot be overwritten.
                 # __dict__: This makes no sense to overwrite.
@@ -363,6 +379,13 @@ class CodeReloader:
                     self.classUpdateCallback = None
                 except Exception:
                     logger.exception("Error broadcasting class update")
+
+    def FindClassInstances(self, class_):
+        instances = []
+        for referrer in gc.get_referrers(class_):
+            if type(referrer) is types.InstanceType or type(referrer) is class_:
+                instances.append(referrer)
+        return instances
 
     # ------------------------------------------------------------------------
     # Leaked attribute support
