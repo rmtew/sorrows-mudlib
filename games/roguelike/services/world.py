@@ -20,7 +20,11 @@ FLAG_OPAQUE   = (1 << 1)
 FLAG_MARKER   = (1 << 2)
 
 class Tile(object):
-    __slots__ = [ "character", "fgColour", "bgColour", "flags" ]
+    # __slots__ = [ "character", "fgColour", "bgColour", "flags" ]
+    # Causes reloading problems.
+    # 1. Run game.
+    # 2. Update this file.
+    # 3. Existing instances of this class bomb when used.
 
     def __init__(self, character=" ", fgColour=None, bgColour=None, isPassable=True, isOpaque=False, isMarker=False):
         self.character = character
@@ -45,7 +49,6 @@ class Tile(object):
     @property
     def isMarker(self):
         return self.flags & FLAG_MARKER
-
 
 
 START_TILE = Tile("x", isMarker=True)
@@ -341,7 +344,11 @@ class WorldService(Service):
                 self._MoveObject(body, random.choice(matches))
             uthread.Sleep(2.0)
 
+class Explosion(Object):
+    pass
 
+class FireObject(Object):
+    pass
 
-class Fire(Object):
+class TrapObject(Object):
     pass

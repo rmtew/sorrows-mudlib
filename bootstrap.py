@@ -79,7 +79,8 @@ def Run():
     # Monkey-patch in the stackless-compatible sockets.
     import stacklesssocket
     import uthread, uthread2
-    stacklesssocket._schedule = uthread.BeNice
+    stacklesssocket._schedule_func = uthread.BeNice
+    stacklesssocket._sleep_func = uthread.Sleep
     stacklesssocket.install()
 
     # Install the global event handler.

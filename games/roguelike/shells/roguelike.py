@@ -360,11 +360,18 @@ class RoguelikeShell(Shell):
             self.DisplayScreen()
             return
 
-        offset = self.movementKeys.get(s, None)            
+        offset = self.movementKeys.get(s)
         if offset is not None:
             newPosition = playerX + offset[0], playerY + offset[1]
             sorrows.world.MoveObject(self.user.body, newPosition)
             return
+
+        actionName = self.actionKeys.get(s)
+        if actionName is not None:
+            f = getattr(self, "GameAction"+ actionName, None)
+            if f is not None:
+                f()
+                return
 
         # Fallthrough.
         t = str([ ord(c) for c in s ])
@@ -563,7 +570,7 @@ class RoguelikeShell(Shell):
     # Gameplay Support --------------------------------------------------------
 
     def OnObjectMoved(self, object_, oldPosition, newPosition):
-        if not self.enteredGame:
+        if not self.enteredGame or self.mode != MODE_GAMEPLAY:
             return
 
         if object_ is self.user.body:
@@ -656,6 +663,9 @@ class RoguelikeShell(Shell):
 
         # Write the collected output to the player.
         self.user.Write(sio.getvalue())
+
+    def GameActionExplosion(self):
+        print "BOOM"
 
     # Map Support ------------------------------------------------------------
 
@@ -1037,6 +1047,13 @@ class RoguelikeShell(Shell):
         "\x1b[D": (-1, 0),
     }
 
+    actionKeys = {
+        "a"     : "Explosion",
+        "s"     : "Explosion",
+        "d"     : "Explosion",
+        "f"     : "Explosion",
+    }
+
     def MenuActionLaptop(self):
         self.movementKeys = self.__class__.movementKeys.copy()
         self.movementKeys.update({
@@ -1126,7 +1143,6 @@ class RoguelikeShell(Shell):
 
         self.UpdateStatusBar(MSG_PRESS_ANY_KEY_TO_RETURN)
 
-        cellWidth = 6
         rowCount = self.windowHeight - 2
 
         sio = StringIO.StringIO()
@@ -1166,27 +1182,22 @@ class RoguelikeShell(Shell):
                     s = "     %c%c" % (c1, c2)
                 else:
                     c = self.DisplayCharacter(currentOrd, charset=charsetCode)
-                    s = " %03d %s" % (currentOrd, c)
+                    s = "%03d %s" % (currentOrd, c)
 
                 rows[rowOffset % rowCount].append(s)
                 rowOffset += 1
                 currentOrd += 1
-
-            while rowOffset % rowCount != 0:
-                rows[rowOffset % rowCount].append(" " * 6)
-                rowOffset += 1
  
-        if inUnicode:
-            linePrefix = "  "
-        else:
-            linePrefix = "    "
         self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset + 1, sio=sio)
-        sio.write(linePrefix)
+        
+        n = self.windowWidth - (len(rows[0][0]) + 1) * len(rows[0])
         for row in rows:
-            sio.write("".join(row))
-            if row is not rows[-1]:
+            rn = n / 2
+            ln = n - rn
+            sio.write(" " * ln)
+            sio.write(" ".join(row))
+            if rn > 0:
                 sio.write("\r\n")
-                sio.write(linePrefix)
 
         if inUnicode:
             sio.write("\x1b%@")
