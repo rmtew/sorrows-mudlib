@@ -239,8 +239,10 @@ USERVAR     = chr(3)
 
 BINARY      = chr(0)        # 8-bit data path
 ECHO        = chr(1)        # Echo
+SGA         = chr(3)        # SGA
 TTYPE       = chr(24)       # Terminal type
 NAWS        = chr(31)       # Window size
+TERMINAL_SPEED = chr(32)    # Terminal speed
 LINEMODE    = chr(34)       # Linemode option
 NEW_ENVIRON = chr(39)       # New environment variables
 
@@ -251,8 +253,10 @@ MXP         = chr(91)       # MXP  - Mud eXtension Protocol
 
 negotiation_options = {
     ECHO:           "ECHO",
+    SGA:            "SGA",
     TTYPE:          "TTYPE",
     NAWS:           "NAWS",
+    TERMINAL_SPEED: "TERMINAL-SPEED",
     NEW_ENVIRON:    "NEW-ENVIRON",
 }
 
@@ -272,6 +276,8 @@ class TelnetNegotiation:
         self.terminal_types = []
 
     def will_echo(self):
+        #if self.__received.get(ECHO) == DO:
+        #    return
         self._send(WILL, ECHO)
         # The specification says to behave as if it has been accepted.
         if self.command_cb:
@@ -286,6 +292,9 @@ class TelnetNegotiation:
     def do_naws(self):
         self._send(DO, NAWS)
 
+    def do_sga(self):
+        self._send(DO, SGA)
+
     def do_new_environ(self):
         self._send(DO, NEW_ENVIRON)
 
@@ -297,6 +306,7 @@ class TelnetNegotiation:
         self._send(DO, TTYPE)
 
     def _send(self, command, option):
+        logger.debug("SEND command %s (%d) %s (%d)", negotiation_tokens[command], ord(command), negotiation_options.get(option, "?"), ord(option))
         self.send_cb(IAC + command + option)
         self.__sent[option] = command
 
@@ -370,10 +380,10 @@ class TelnetNegotiation:
         return True
 
     def _negotiation_function(self, command):
-        logger.debug("function %s", ord(command))
+        logger.debug("RECV function %s", ord(command))
 
     def _negotiation_command(self, command, option):
-        logger.debug("command %s %s", ord(command), ord(option))
+        logger.debug("RECV command %s (%d) %s (%d)", negotiation_tokens[command], ord(command), negotiation_options.get(option, "?"), ord(option))
 
         self.__received[option] = command
 
@@ -394,6 +404,9 @@ class TelnetNegotiation:
                     VAR, "DISPLAY",
                 )
                 self._send_subnegotiation(NEW_ENVIRON, SEND, *variables)
+            elif option == SGA:
+                if self.__sent.get(option) is None:
+                    self._send(DO, SGA)
         elif command == WONT:
             pass
 

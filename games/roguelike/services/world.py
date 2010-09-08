@@ -1,3 +1,21 @@
+"""
+Working notes:
+
+** We have object.MoveTo(container) as an object movement API.
+
+  Need to consider making a world object container subclass.  Have the
+  world service use that as a storage location for bodies and objects.
+
+Outstanding problems:
+
+** Code reloading
+
+  * Slots.
+  * Leaked temporary class references.
+
+"""
+
+
 # Encapsulate a world.
 
 import os, random, time, collections, uthread, copy
@@ -232,7 +250,7 @@ class WorldService(Service):
         if force or self.IsTileUnoccupied(tile):
             oldPosition = object_.GetPosition()
             self._RemoveObject(object_, oldPosition)
-            self._AddObject(object_, newPosition)            
+            self._AddObject(object_, newPosition)
             # Inform all the bodies in the world.
             for body in self.bodies:
                 body.OnObjectMoved(object_, oldPosition, newPosition)
@@ -248,11 +266,12 @@ class WorldService(Service):
             candidates = []
             for object_ in self.objectsByPosition[position]:
                 if isinstance(object_, Body):
-                    candidates.append((1, object_.tile))
-                elif isinstance(object_, Fire):
+                    tile = copy.copy(object_.tile)
+                    candidates.append((1, tile))
+                elif isinstance(object_, FireObject):
                     tile = copy.copy(FLOOR_TILE)
                     tile.bgColour = COLOUR_RED
-                    candidates.append((2, " ", ))
+                    candidates.append((2, tile))
                 else:
                     raise RuntimeError("Not implemented", object_)
 
@@ -262,7 +281,8 @@ class WorldService(Service):
             for cPriority, cTile in candidates:
                 if cPriority < priority:
                     tile = cTile
-                elif bgColour is None and cTile.bgColour is not None:
+                    priority = cPriority
+                if bgColour is None and cTile.bgColour is not None:
                     bgColour = cTile.bgColour
             if tile is not None:
                 if bgColour is not None and tile.bgColour is None:
@@ -349,6 +369,10 @@ class Explosion(Object):
 
 class FireObject(Object):
     pass
+
+class FireSource(FireObject):
+    def __init__(self):
+        Object.__init__(self)
 
 class TrapObject(Object):
     pass

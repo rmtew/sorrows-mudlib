@@ -142,6 +142,8 @@ class RoguelikeShell(Shell):
 
         # Send client-side information.
         self.user.connection.telneg.will_echo()
+        # self.user.connection.telneg.do_sga()
+        
         self.ShowCursor(False)
         self.QueryClientName()
 
@@ -188,6 +190,7 @@ class RoguelikeShell(Shell):
         self.user.Write(ESC_RESET_TERMINAL)
         self.ScrollWindowVertically(-1)
         self.MoveCursor(0, self.statusOffset)
+        Shell.OnRemovalFromStack(self)
 
     def OnTerminalSizeChanged(self, columns, rows, redraw=True):
         # Window partitioning offsets and sizes.
@@ -213,7 +216,10 @@ class RoguelikeShell(Shell):
             self.DisplayScreen()
 
     def ReceiveInput(self, s, flush=False):
-        # print "** ReceiveInput", [ ord(c) for c in s ]
+        if False:
+            cnt = getattr(self, "xxx", 1)
+            self.xxx = cnt + 1
+            print cnt, "** ReceiveInput", [ ord(c) for c in s ], flush
  
         if len(self.inputBuffer):
             s = self.inputBuffer + s
@@ -531,7 +537,9 @@ class RoguelikeShell(Shell):
 
     def UpdatePlayer(self, sio=None):
         playerX, playerY = self.user.body.GetPosition()
-        self.UpdateViewByWorldPosition(playerX, playerY, CHAR_TILE, sio=sio)
+        tile = sorrows.world.GetTile(playerX, playerY)
+        s = self.TileColouring(tile, emphasis=True)
+        self.UpdateViewByWorldPosition(playerX, playerY, s, sio=sio)
 
     def UpdateTitle(self, newStatus=None):
         pre = ESC_HOME_CURSOR
@@ -578,7 +586,6 @@ class RoguelikeShell(Shell):
             self.OnMovement(*newPosition)
             return
 
-        # print object_, "MOVED TO", newPosition
         sio = StringIO.StringIO()
         if oldPosition is not None and self.IsTileInFoV(*oldPosition):
             tile = self.ViewedTile(*oldPosition)
@@ -665,7 +672,16 @@ class RoguelikeShell(Shell):
         self.user.Write(sio.getvalue())
 
     def GameActionExplosion(self):
-        print "BOOM"
+        if getattr(self, "fireSource", None) is None:
+            import game.services
+            ob = self.fireSource = game.services.FireSource()
+            sorrows.world._MoveObject(ob, self.user.body.GetPosition(), force=True)
+            print "ADDED", ob
+        else:
+            ob = self.fireSource
+            self.fireSource = None
+            sorrows.world._MoveObject(ob, None)
+            print "REMOVED", ob
 
     # Map Support ------------------------------------------------------------
 
@@ -768,7 +784,6 @@ class RoguelikeShell(Shell):
             s += "\x1b[4%dm" % tile.bgColour
         if emphasis:
             s += ESC_BOLD
-        haveMarkup = len(s) > 0
         s += displayTiles.get(tile.character, tile.character)
         if emphasis:
             s += ESC_NORMAL
