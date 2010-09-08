@@ -264,7 +264,7 @@ class CodeReloader:
         # Collect entries for the attributes imported or defined by the new script file.
         for k, v, valueType, exportable in newScriptFile.GetExportableAttributes():
             if exportable:
-                if hasattr(namespace, k) and k not in overwritableAttributes:
+                if hasattr(namespace, k) and k not in overwritableAttributes and k != "__doc__":
                     logger.error("Duplicate namespace contribution for '%s.%s' from '%s', our class = %s", moduleName, k, scriptFile.filePath, v.__file__ == scriptFile.filePath)
                     continue
 
