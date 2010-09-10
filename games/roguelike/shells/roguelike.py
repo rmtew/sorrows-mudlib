@@ -676,12 +676,10 @@ class RoguelikeShell(Shell):
             import game.services
             ob = self.fireSource = game.services.FireSource()
             sorrows.world._MoveObject(ob, self.user.body.GetPosition(), force=True)
-            print "ADDED", ob
         else:
             ob = self.fireSource
             self.fireSource = None
             sorrows.world._MoveObject(ob, None)
-            print "REMOVED", ob
 
     # Map Support ------------------------------------------------------------
 
@@ -759,7 +757,7 @@ class RoguelikeShell(Shell):
 
             x = minX
             while x <= maxX:
-                tile = self.GetDisplayTileInfo(x, y)
+                tile = self.GetDisplayTileInfo(x, y, not emphasis)
                 if tile is None:
                     yield " "
                 else:
@@ -771,9 +769,10 @@ class RoguelikeShell(Shell):
                     yield c
 
     def ViewedTile(self, x, y):
-        tile = self.GetDisplayTileInfo(x, y)
+        emphasis = self.IsTileInFoV(x, y)
+        tile = self.GetDisplayTileInfo(x, y, not emphasis)
         if tile is not None:
-            return self.TileColouring(tile, self.IsTileInFoV(x, y))
+            return self.TileColouring(tile, emphasis)
         return " "
 
     def TileColouring(self, tile, emphasis=False):
@@ -793,10 +792,13 @@ class RoguelikeShell(Shell):
             s += "\x1b[4%dm" % 0    # Black background.
         return s
 
-    def GetDisplayTileInfo(self, x, y):        
+    def GetDisplayTileInfo(self, x, y, mapOnly=True):
         if self.GetTileBits(x, y, TILE_SEEN):
             # Translate the map tile to what should actually be displayed.
-            rawTile = sorrows.world.GetTile(x, y)
+            if mapOnly:
+                rawTile = sorrows.world.GetMapTile((x, y))
+            else:
+                rawTile = sorrows.world.GetTile(x, y)
             if not rawTile.isMarker:
                 return rawTile
 
@@ -1111,20 +1113,29 @@ class RoguelikeShell(Shell):
         self.user.Write(sio.getvalue())
 
     def MenuActionDithering(self):
-        self.SetMode(MODE_DEBUG_DISPLAY, "dithered colour experiment")
+        self.SetMode(MODE_DEBUG_DISPLAY, "Dithered colour experiment")
         self.UpdateStatusBar(MSG_PRESS_ANY_KEY_TO_RETURN)
 
         sio = StringIO.StringIO()        
         self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset, sio=sio)
         sio.write(ESC_SCROLL_UP * self.windowHeight)
 
-        sio.write("\n")
-        sio.write("           ")
-        for yi in range(8):
-            sio.write("%02d" % (40 + yi))
-            sio.write("  ")
-
         sio.write("\r\n")
+
+        sio.write("         ")
+        for i, yi in enumerate((40, 42, 44, 46, 40, 42, 44, 46)):
+            sio.write("%02d  " % yi)
+            if i == 3:
+                sio.write(ESC_BOLD)
+        sio.write(ESC_RESET_ATTRS)
+        sio.write("\r\n")
+
+        sio.write("           ")
+        for i, yi in enumerate((41, 43, 45, 47, 41, 43, 45, 47)):
+            sio.write("%02d  " % yi)
+            if i == 3:
+                sio.write(ESC_BOLD)
+        sio.write(ESC_RESET_ATTRS)
         sio.write("\r\n")
 
         for yi in range(8):
@@ -1133,15 +1144,15 @@ class RoguelikeShell(Shell):
         
             sio.write("\x1b[%dm" % yc)
             sio.write(chr(219)+chr(219))
-            sio.write("  ")
 
-            for xi in range(8):
-                xc = 40 + xi
-                sio.write("\x1b[%dm" % yc)
-                sio.write("\x1b[%dm" % xc)
-                sio.write(chr(177)+chr(177))
-                sio.write(ESC_RESET_ATTRS)
-                sio.write("  ")
+            for s in ("", ESC_BOLD):
+                for xi in range(8):
+                    xc = 40 + xi
+                    sio.write("\x1b[%dm" % yc)
+                    sio.write("\x1b[%dm" % xc)
+                    sio.write(s)
+                    sio.write(chr(177)+chr(177))
+                    sio.write(ESC_RESET_ATTRS)
 
             sio.write("\r\n")
         self.user.Write(sio.getvalue())
