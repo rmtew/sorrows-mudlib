@@ -18,7 +18,7 @@ Outstanding problems:
 
 # Encapsulate a world.
 
-import os, random, time, collections, uthread, copy
+import os, random, time, collections, uthread, copy, weakref
 
 from mudlib import Service
 from game.world import Body, Object
@@ -257,6 +257,9 @@ class WorldService(Service):
             return True
         return False
 
+    def GetObjectsAtPosition(self, position):
+        return self.objectsByPosition.get(position, [])
+
     def GetTile(self, x, y):
         self.CheckBoundaries(x, y)
         return self._GetTile((x, y))
@@ -272,8 +275,8 @@ class WorldService(Service):
                     tile = copy.copy(FLOOR_TILE)
                     tile.bgColour = COLOUR_RED
                     candidates.append((2, tile))
-                else:
-                    raise RuntimeError("Not implemented", object_)
+                #else:    
+                #    raise RuntimeError("Not implemented", object_)
 
             bgColour = None
             priority = 100
@@ -290,6 +293,13 @@ class WorldService(Service):
                 return tile
 
         # If no objects are visible, fall back on the background map.
+        mapCharacter = self.mapRows[position[1]][position[0]]
+        tile = mapTilesByCharacter[mapCharacter]
+        if tile.isMarker:
+            return FLOOR_TILE
+        return tile
+
+    def GetMapTile(self, position):
         mapCharacter = self.mapRows[position[1]][position[0]]
         tile = mapTilesByCharacter[mapCharacter]
         if tile.isMarker:
@@ -320,7 +330,7 @@ class WorldService(Service):
         ( 1,  1),
     ]
 
-    def FindMovementDirections(self, position):
+    def FindMovementDirections(self, position, mapOnly=False):
         matches = []
         for xi, yi in self.relativeOffsets:
             x, y = position
@@ -330,7 +340,10 @@ class WorldService(Service):
                 continue
             if x < 0 or x >= self.mapWidth:
                 continue
-            tile = self.GetTile(x, y)
+            if mapOnly:
+                tile = self.GetMapTile((x, y))
+            else:
+                tile = self.GetTile(x, y)
             if self.IsTileUnoccupied(tile):
                 matches.append((x, y))
         return matches
@@ -362,7 +375,8 @@ class WorldService(Service):
             if len(matches):
                 lastPosition = currentPosition
                 self._MoveObject(body, random.choice(matches))
-            uthread.Sleep(2.0)
+            
+            uthread.Sleep(2.5 + -random.random())
 
 class Explosion(Object):
     pass
@@ -370,9 +384,72 @@ class Explosion(Object):
 class FireObject(Object):
     pass
 
-class FireSource(FireObject):
+class FireSource(Object):
     def __init__(self):
         Object.__init__(self)
+
+        self.components = []
+        self.componentsByPosition = {}
+
+        uthread.new(self.ManageFire)
+
+    def ManageFire(self):
+        fireObject = FireObject()
+        fireObject.generation = 0
+        sorrows.world._MoveObject(fireObject, self.position, force=True)
+        
+        self.components.append(fireObject)
+        self.componentsByPosition[self.position] = fireObject
+        self.idx = -1
+
+        uthread.Sleep(1.0)
+        while sorrows.world.IsRunning() and len(self.components):
+            if self.position is None:
+                self.DieOut()
+            else:
+                self.Spread()
+
+            uthread.Sleep(1.0 + -random.random() * 0.5)
+
+    def Spread(self):
+        lowWatermark = self.idx
+        idx = lowWatermark + 1
+        highWatermark = len(self.components)
+        while idx < highWatermark:
+            fireObject = self.components[idx]
+            positions = sorrows.world.FindMovementDirections(fireObject.position, mapOnly=True)
+            for position in positions[:]:
+                if position in self.componentsByPosition:
+                    positions.remove(position)
+                    continue
+
+            if len(positions):
+                fireObject = FireObject()
+                fireObject.generation = highWatermark
+                position = random.choice(positions)
+                sorrows.world._MoveObject(fireObject, position, force=True)
+
+                self.components.append(fireObject)
+                self.componentsByPosition[position] = fireObject
+            else:
+                if idx == lowWatermark + 1:
+                    lowWatermark = idx
+
+            idx += 1
+
+        self.idx = lowWatermark
+
+    def DieOut(self):
+        generation = self.components[-1].generation
+        while len(self.components) and self.components[-1].generation == generation:
+            fireObject = self.components.pop()
+
+            position = fireObject.position
+            sorrows.world._MoveObject(fireObject, None, force=True)
+
+            del self.componentsByPosition[position]        
+
+
 
 class TrapObject(Object):
     pass
