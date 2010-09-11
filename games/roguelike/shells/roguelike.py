@@ -83,10 +83,11 @@ DOOR_TILE =  "D"
 
 displayTiles = {
     # Option to display different types if in or out of field of view.
-    WALL_TILE1: chr(176), # chr(219),
-    WALL_TILE2: chr(177), # chr(219),
-    WALL_TILE:  chr(178), # chr(219),
+    WALL_TILE1: chr(176),
+    WALL_TILE2: chr(177),
+    WALL_TILE:  chr(178),
     FLOOR_TILE: chr(250),
+    DOOR_TILE:  chr(254), # 239
 }
 
 TILE_SEEN = 1
@@ -141,7 +142,7 @@ class RoguelikeShell(Shell):
         self.lastStatusBar = "-"
 
         # Send client-side information.
-        self.user.connection.telneg.will_echo()
+        # self.user.connection.telneg.will_echo()
         # self.user.connection.telneg.do_sga()
         
         self.ShowCursor(False)
@@ -417,12 +418,12 @@ class RoguelikeShell(Shell):
         self.drawRangesNew = {}
 
         def fVisited(x, y):
-            self.AddTileBits(x, y, TILE_SEEN)
-
             if x < self.worldViewX or x > self.worldViewX + self.windowWidth:
                 return
             if y < self.worldViewY or y > self.worldViewY + self.windowHeight+1:
                 return
+
+            self.AddTileBits(x, y, TILE_SEEN)
             
             if y in self.drawRangesNew:
                 minX, maxX = self.drawRangesNew[y]
@@ -430,8 +431,14 @@ class RoguelikeShell(Shell):
             else:
                 self.drawRangesNew[y] = [ x, x ]
 
+        def fBlocked(x, y):
+            return sorrows.world.IsLocationOpaque(x, y):
+            #    if self._GetTileBits(x, y) & TILE_OPEN:
+            #        return False
+            #    return True
+            #return False
+
         playerX, playerY = self.user.body.GetPosition()
-        fBlocked = sorrows.world.IsLocationOpaque
         fov.fieldOfView(playerX, playerY, sorrows.world.mapWidth, sorrows.world.mapHeight, VIEW_RADIUS, fVisited, fBlocked)
 
         # The update ranges should cover the old and the new field of views.

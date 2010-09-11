@@ -132,13 +132,13 @@ class TelnetConnection(Connection):
 
     def read(self, bytes):
         s = self.recv(65536)
+        # print "INPUT-CHARS", [ ord(c) for c in s ], s
         if s == "":
             return None
 
         buf = ""
         for s in self.telneg.feed(s):
             buf += s
-        # print "INPUT-CHARS", [ ord(c) for c in buf ], buf
         return buf
 
     # -----------------------------------------------------------------------
@@ -187,6 +187,7 @@ class TelnetConnection(Connection):
                 # This is so not optimal yet, but it is correct which is good for now.
                 for i, c in enumerate(s2):
                     if self.echo and not self.suppressEcho:
+                        # print "ECHO", c
                         if c == '\x08':
                             self.send(c +" ")
                         elif c == '\r' and i == len(s2)-1:
@@ -294,6 +295,9 @@ class TelnetNegotiation:
 
     def do_sga(self):
         self._send(DO, SGA)
+
+    def will_sga(self):
+        self._send(WILL, SGA)
 
     def do_new_environ(self):
         self._send(DO, NEW_ENVIRON)
