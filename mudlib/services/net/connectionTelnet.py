@@ -171,7 +171,7 @@ class TelnetConnection(Connection):
                         ret = ret[1:]
                     else:
                         ret = ret[:i-1] + ret[i+1:]
-                    i = ret.find('\x08', i)
+                    i = ret.find('\x08')
 
                 # print "INPUT-LINE", [ ord(c) for c in ret ], ret
                 return ret
