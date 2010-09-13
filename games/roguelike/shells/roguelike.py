@@ -80,6 +80,7 @@ WALL_TILE1 = "1"
 WALL_TILE2 = "2"
 FLOOR_TILE = " "
 DOOR_TILE =  "D"
+CUBE_TILE = "C"
 
 displayTiles = {
     # Option to display different types if in or out of field of view.
@@ -88,6 +89,7 @@ displayTiles = {
     WALL_TILE:  chr(178),
     FLOOR_TILE: chr(250),
     DOOR_TILE:  chr(254), # 239
+    CUBE_TILE:  chr(177),
 }
 
 TILE_SEEN = 1
@@ -121,6 +123,8 @@ MSG_PRESS_ESCAPE_FOR_OPTIONS = "Press the Escape key to get the options menu."
 
 
 class RoguelikeShell(Shell):
+    gameKeyMap = None
+
     def Setup(self, stack):
         Shell.Setup(self, stack)
 
@@ -186,6 +190,8 @@ class RoguelikeShell(Shell):
     # Events ------------------------------------------------------------------
 
     def OnRemovalFromStack(self):
+        sorrows.world.RemoveUser(self.user)
+
         self.user.connection.optionLineMode = self.oldOptionLineMode
         self.user.connection.telneg.will_echo()
         self.user.Write(ESC_RESET_TERMINAL)
@@ -348,9 +354,9 @@ class RoguelikeShell(Shell):
             self.EnterEscapeMenu()
             return
 
-        playerX, playerY = self.user.body.GetPosition()
-
         if s == chr(5):
+            playerX, playerY = self.user.body.GetPosition()
+
             windowUpperDistance = playerY - self.worldViewY
             worldViewLowerY = self.worldViewY + self.windowHeight
             windowLowerDistance = worldViewLowerY - playerY
@@ -367,17 +373,12 @@ class RoguelikeShell(Shell):
             self.DisplayScreen()
             return
 
-        offset = self.movementKeys.get(s)
-        if offset is not None:
-            newPosition = playerX + offset[0], playerY + offset[1]
-            sorrows.world.MoveObject(self.user.body, newPosition)
-            return
-
-        actionName = self.actionKeys.get(s)
-        if actionName is not None:
+        actionKey = self.gameKeyMap.get(s)
+        if actionKey is not None:
+            actionName, args = self.actionMap[actionKey]
             f = getattr(self, "GameAction"+ actionName, None)
             if f is not None:
-                f()
+                f(*args)
                 return
 
         # Fallthrough.
@@ -432,7 +433,7 @@ class RoguelikeShell(Shell):
                 self.drawRangesNew[y] = [ x, x ]
 
         def fBlocked(x, y):
-            return sorrows.world.IsLocationOpaque(x, y):
+            return sorrows.world.IsLocationOpaque(x, y)
             #    if self._GetTileBits(x, y) & TILE_OPEN:
             #        return False
             #    return True
@@ -678,6 +679,11 @@ class RoguelikeShell(Shell):
         # Write the collected output to the player.
         self.user.Write(sio.getvalue())
 
+    def GameActionMovement(self, xOffset, yOffset):
+        playerX, playerY = self.user.body.GetPosition()
+        newPosition = playerX + xOffset, playerY + yOffset
+        sorrows.world.MoveObject(self.user.body, newPosition)
+
     def GameActionExplosion(self):
         if getattr(self, "fireSource", None) is None:
             import game.services
@@ -783,6 +789,7 @@ class RoguelikeShell(Shell):
         return " "
 
     def TileColouring(self, tile, emphasis=False):
+        # print "TileColouring", "'%s'" % tile.character, tile.fgColour, tile.bgColour
         s = ""
         if tile.fgColour:
             s += "\x1b[3%dm" % tile.fgColour
@@ -1064,47 +1071,69 @@ class RoguelikeShell(Shell):
         elif self.mode == MODE_DEBUG_DISPLAY:
             self.EnterTelnetClientMenu()
 
-    movementKeys = {
-        "\x1b[A": ( 0,-1),
-        "\x1b[B": ( 0, 1),
-        "\x1b[C": ( 1, 0),
-        "\x1b[D": (-1, 0),
+    actionMap = {
+        "move-nw":      ("Movement", (-1,-1)),
+        "move-n":       ("Movement", ( 0,-1)),
+        "move-ne":      ("Movement", ( 1,-1)),
+        "move-w":       ("Movement", (-1, 0)),
+        "move-e":       ("Movement", ( 1, 0)),
+        "move-sw":      ("Movement", (-1, 1)),
+        "move-s":       ("Movement", ( 0, 1)),
+        "move-se":      ("Movement", ( 1, 1)),
+
+        "explosion":    ("Explosion", ()),
     }
 
-    actionKeys = {
-        "a"     : "Explosion",
-        "s"     : "Explosion",
-        "d"     : "Explosion",
-        "f"     : "Explosion",
+    gameplayKeyset = {
+        "f":            "explosion",
     }
+
+    cursorMovementKeyset = {
+        "\x1b[A": "move-n",
+        "\x1b[B": "move-s",
+        "\x1b[C": "move-e",
+        "\x1b[D": "move-w",
+    }
+
+    numericMovementKeyset = {
+        "9": "move-ne",
+        "8": "move-n",
+        "7": "move-nw",
+        "6": "move-e",
+        "4": "move-w",
+        "3": "move-se",
+        "2": "move-s",
+        "1": "move-sw",
+    }
+
+    laptopMovementKeyset = {
+        "u": "move-ne",
+        "k": "move-n",
+        "y": "move-nw",
+        "l": "move-e",
+        "h": "move-w",
+        "n": "move-se",
+        "j": "move-s",
+        "b": "move-sw",
+    }
+
+    def BuildGameKeyMap(self):
+        self.gameKeyMap = {}
+        self.gameKeyMap.update(self.cursorMovementKeyset)
+        self.gameKeyMap.update(self.gameplayKeyset)
+
+    def ExtendGameKeyMap(self, extendKeyMap):
+        self.gameKeyMap.update(extendKeyMap)
 
     def MenuActionLaptop(self):
-        self.movementKeys = self.__class__.movementKeys.copy()
-        self.movementKeys.update({
-            "u": ( 1,-1),
-            "k": ( 0,-1),
-            "y": (-1,-1),
-            "l": ( 1, 0),
-            "h": (-1, 0),
-            "n": ( 1, 1),
-            "j": ( 0, 1),
-            "b": (-1, 1),
-        })
+        self.BuildGameKeyMap()
+        self.ExtendGameKeyMap(self.laptopMovementKeyset)
         self.keyboard = "laptop"
         self.EnterGame()
 
     def MenuActionComputer(self):
-        self.movementKeys = self.__class__.movementKeys.copy()
-        self.movementKeys.update({
-            "9": ( 1,-1),
-            "8": ( 0,-1),
-            "7": (-1,-1),
-            "6": ( 1, 0),
-            "4": (-1, 0),
-            "3": ( 1, 1),
-            "2": ( 0, 1),
-            "1": (-1, 1),
-        })
+        self.BuildGameKeyMap()
+        self.ExtendGameKeyMap(self.numericMovementKeyset)
         self.keyboard = "computer"
         self.EnterGame()
 
@@ -1184,14 +1213,28 @@ class RoguelikeShell(Shell):
 
         ranges = []
         if inUnicode:
-            firstOrd, lastOrd = 0xC280, 0xC2BF
+            firstOrd, lastOrd = 0x0020, 0x007E
             ranges.append((firstOrd, lastOrd))
 
             firstOrd, lastOrd = 0xC380, 0xC3BF
             ranges.append((firstOrd, lastOrd))
 
-            firstOrd, lastOrd = 0xC480, 0xC4BF
-            ranges.append((firstOrd, lastOrd))
+            if False:
+                firstOrd, lastOrd = 0x02B9, 0x02C0
+                ranges.append((firstOrd, lastOrd))
+
+
+                firstOrd, lastOrd = 0xC480, 0xC4BF
+                ranges.append((firstOrd, lastOrd))
+
+                firstOrd, lastOrd = 0xC580, 0xC5BF
+                ranges.append((firstOrd, lastOrd))
+
+                firstOrd, lastOrd = 0xC680, 0xC6BF
+                ranges.append((firstOrd, lastOrd))
+
+            #firstOrd, lastOrd = 0xD280, 0xD2BF
+            #ranges.append((firstOrd, lastOrd))
 
             sio.write("\x1b%G")
         else:
@@ -1212,7 +1255,7 @@ class RoguelikeShell(Shell):
                 if inUnicode:
                     c1 = (currentOrd >> 8) & 0xFF
                     c2 = (currentOrd >> 0) & 0xFF
-                    s = "     %c%c" % (c1, c2)
+                    s = " %c%c" % (c1, c2)
                 else:
                     c = self.DisplayCharacter(currentOrd, charset=charsetCode)
                     s = "%03d %s" % (currentOrd, c)

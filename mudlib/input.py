@@ -1,4 +1,5 @@
-from types import *
+import types
+
 
 class InputHandler:
     def Setup(self, shell, function, prompt, flags):
@@ -70,7 +71,7 @@ class InputStack:
 
     def WritePrompt(self):
         prompt = self.stack[-1].prompt
-        if type(prompt) is MethodType:
+        if type(prompt) is types.MethodType:
             prompt = apply(prompt,())
             self.user.Write(prompt)
 

@@ -38,7 +38,6 @@ class GameShell(Shell):
             self.user.Tell('You are logged in as "'+ self.user.name +'".')
 
     def OnRemovalFromStack(self):
-        sorrows.world.RemoveUser(self.user)
         Shell.OnRemovalFromStack(self)
 
     def ExecuteCommand(self):

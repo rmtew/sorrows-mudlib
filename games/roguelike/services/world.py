@@ -74,7 +74,7 @@ SPAWN_TILE = Tile("s", isMarker=True)
 WALL_TILE  = Tile("X", isPassable=False, isOpaque=True)
 WALL1_TILE = Tile("1", isPassable=False, isOpaque=True)
 WALL2_TILE = Tile("2", isPassable=False, isOpaque=True)
-DOOR_TILE  = Tile("D")
+DOOR_TILE  = Tile("D", isPassable=False, isOpaque=True)
 FLOOR_TILE = Tile(" ")
 
 mapTilesByCharacter = {}
@@ -86,6 +86,7 @@ IndexTiles()
 
 CHAR_TILE_TEMPLATE = Tile("@", isPassable=False)
 DRAGON_TILE = Tile("&", isPassable=False)
+CUBE_TILE = Tile("C", isPassable=False)
 
 levelMap = """
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -355,34 +356,46 @@ class WorldService(Service):
     #   the dungeon freely.  Two second tick for movement.
 
     def ManageFloraAndFauna(self):
-        uthread.new(self.RunNPC)
+        uthread.new(self.RunNPC, CUBE_TILE, COLOUR_YELLOW, COLOUR_BLUE)
         uthread.Sleep(10.0)
-        uthread.new(self.RunNPC)
+        uthread.new(self.RunNPC, DRAGON_TILE, COLOUR_GREEN)
         uthread.Sleep(10.0)
-        uthread.new(self.RunNPC)
+        uthread.new(self.RunNPC, DRAGON_TILE, COLOUR_GREEN)
+        uthread.Sleep(10.0)
+        uthread.new(self.RunNPC, DRAGON_TILE, COLOUR_GREEN)
 
 
-    def RunNPC(self):
-        body = Body(self, None)
-        self.AddBody(body, self.GetNPCStartPosition(), DRAGON_TILE, fgColour=COLOUR_GREEN)
-        
-        lastPosition = body.position
-        while self.IsRunning():
-            currentPosition = body.position
-            matches = self.FindMovementDirections(body.position)
+    def RunNPC(self, tile, fgColour, bgColour=None):
+        body = NPC(self, None)
+        self.AddBody(body, self.GetNPCStartPosition(), tile, fgColour, bgColour)
+
+
+class NPC(Body):
+    def __init__(self, service, user=None):
+        Body.__init__(self, service, user)
+
+    def OnObjectMoved(self, object_, oldPosition, newPosition):
+        if object_ is self:
+            if oldPosition is None:
+                uthread.new(self.Wander)
+
+    def Wander(self):
+        lastPosition = self.position
+        while hasattr(sorrows, "world") and sorrows.world.IsRunning():
+            currentPosition = self.position
+            matches = sorrows.world.FindMovementDirections(self.position)
             if len(matches) > 1 and lastPosition in matches:
                 matches.remove(lastPosition)
             if len(matches):
                 lastPosition = currentPosition
-                self._MoveObject(body, random.choice(matches))
-            
+                sorrows.world._MoveObject(self, random.choice(matches))
+
             uthread.Sleep(2.5 + -random.random())
 
-class Explosion(Object):
-    pass
 
 class FireObject(Object):
     pass
+
 
 class FireSource(Object):
     def __init__(self):
@@ -403,7 +416,7 @@ class FireSource(Object):
         self.idx = -1
 
         uthread.Sleep(1.0)
-        while sorrows.world.IsRunning() and len(self.components):
+        while hasattr(sorrows, "world") and sorrows.world.IsRunning() and len(self.components):
             if self.position is None:
                 self.DieOut()
             else:
@@ -449,7 +462,3 @@ class FireSource(Object):
 
             del self.componentsByPosition[position]        
 
-
-
-class TrapObject(Object):
-    pass
