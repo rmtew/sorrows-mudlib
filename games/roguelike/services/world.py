@@ -356,7 +356,7 @@ class WorldService(Service):
     #   the dungeon freely.  Two second tick for movement.
 
     def ManageFloraAndFauna(self):
-        uthread.new(self.RunNPC, CUBE_TILE, COLOUR_YELLOW, COLOUR_BLUE)
+        uthread.new(self.RunNPC, CUBE_TILE, COLOUR_YELLOW)
         uthread.Sleep(10.0)
         uthread.new(self.RunNPC, DRAGON_TILE, COLOUR_GREEN)
         uthread.Sleep(10.0)

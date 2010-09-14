@@ -89,7 +89,7 @@ displayTiles = {
     WALL_TILE:  chr(178),
     FLOOR_TILE: chr(250),
     DOOR_TILE:  chr(254), # 239
-    CUBE_TILE:  chr(177),
+    CUBE_TILE:  chr(219),
 }
 
 TILE_SEEN = 1
@@ -1213,28 +1213,41 @@ class RoguelikeShell(Shell):
 
         ranges = []
         if inUnicode:
-            firstOrd, lastOrd = 0x0020, 0x007E
+            firstOrd, lastOrd = 0xc280, 0xc2bf
             ranges.append((firstOrd, lastOrd))
 
-            firstOrd, lastOrd = 0xC380, 0xC3BF
+            firstOrd, lastOrd = 0xc580, 0xc5bf
             ranges.append((firstOrd, lastOrd))
 
-            if False:
-                firstOrd, lastOrd = 0x02B9, 0x02C0
-                ranges.append((firstOrd, lastOrd))
+            firstOrd, lastOrd = 0xc680, 0xc6bf
+            ranges.append((firstOrd, lastOrd))
 
+            firstOrd, lastOrd = 0xc780, 0xc7bf
+            ranges.append((firstOrd, lastOrd))
 
-                firstOrd, lastOrd = 0xC480, 0xC4BF
-                ranges.append((firstOrd, lastOrd))
+            firstOrd, lastOrd = 0xc880, 0xc8bf
+            ranges.append((firstOrd, lastOrd))
 
-                firstOrd, lastOrd = 0xC580, 0xC5BF
-                ranges.append((firstOrd, lastOrd))
+            firstOrd, lastOrd = 0xc980, 0xc9bf
+            ranges.append((firstOrd, lastOrd))
 
-                firstOrd, lastOrd = 0xC680, 0xC6BF
-                ranges.append((firstOrd, lastOrd))
+            firstOrd, lastOrd = 0xca80, 0xcabf
+            ranges.append((firstOrd, lastOrd))
 
-            #firstOrd, lastOrd = 0xD280, 0xD2BF
-            #ranges.append((firstOrd, lastOrd))
+            firstOrd, lastOrd = 0xcb80, 0xcbbf
+            ranges.append((firstOrd, lastOrd))
+
+            firstOrd, lastOrd = 0xce80, 0xcebf
+            ranges.append((firstOrd, lastOrd))
+
+            firstOrd, lastOrd = 0xcf80, 0xcfbf
+            ranges.append((firstOrd, lastOrd))
+
+            firstOrd, lastOrd = 0xe29480, 0xe294BF
+            ranges.append((firstOrd, lastOrd))
+
+            firstOrd, lastOrd = 0xe29580, 0xe295BF
+            ranges.append((firstOrd, lastOrd))
 
             sio.write("\x1b%G")
         else:
@@ -1253,9 +1266,11 @@ class RoguelikeShell(Shell):
             currentOrd = firstOrd
             while currentOrd <= lastOrd:
                 if inUnicode:
-                    c1 = (currentOrd >> 8) & 0xFF
-                    c2 = (currentOrd >> 0) & 0xFF
-                    s = " %c%c" % (c1, c2)
+                    v = currentOrd
+                    s = ""
+                    while v:
+                        s = chr(v & 0xFF) + s
+                        v = v >> 8
                 else:
                     c = self.DisplayCharacter(currentOrd, charset=charsetCode)
                     s = "%03d %s" % (currentOrd, c)
@@ -1265,8 +1280,13 @@ class RoguelikeShell(Shell):
                 currentOrd += 1
  
         self.MoveCursor(self.windowXStartOffset, self.windowYStartOffset + 1, sio=sio)
+
+        if inUnicode:
+            cellWidth = 1
+        else:
+            cellWidth = len(rows[0][0])
         
-        n = self.windowWidth - (len(rows[0][0]) + 1) * len(rows[0])
+        n = self.windowWidth - (cellWidth + 1) * len(rows[0])
         for row in rows:
             rn = n / 2
             ln = n - rn
