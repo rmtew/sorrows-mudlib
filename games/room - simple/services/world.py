@@ -29,6 +29,12 @@ class WorldService(Service):
         ob.SetLongDescription("This is a chest.")
         ob.MoveTo(room)        
 
+        room2 = self.secondRoom = Room()
+        room2.SetShortDescription("A second room")
+        room2.SetLongDescription("This is a second room.")
+        room2.AddExit("north", room)
+        room.AddExit("south", room2)
+
     def AddUser(self, user):
         if self.bodiesByUsername.has_key(user.name):
             raise RuntimeError("User", user.name, "already present")

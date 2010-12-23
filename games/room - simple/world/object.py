@@ -77,4 +77,5 @@ class Object(mudlib.Object):
 
         dest.AddObject(self)
         self.container = dest
+        return dest
 

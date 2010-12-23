@@ -13,7 +13,5 @@ class Body(Container):
     def MoveDirection(self, verb):
         destinationRoom = self.container.GetExitRoom(verb)
         if destinationRoom:    
-            self.MoveTo(destinationRoom)
-            return True
-        return False
+            return self.MoveTo(destinationRoom)
 
