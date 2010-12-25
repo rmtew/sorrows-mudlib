@@ -1,0 +1,14 @@
+transcript
+001. 00:00:00 ob ACTOR1 = spawn human
+002. 00:00:00 ob ACTOR2 = spawn human
+003. 00:00:00 ob SWORD1 = spawn sword in ACTOR1
+004. 00:00:00 ob SWORD2 = spawn sword in ACTOR2
+005. 00:00:00 ACTOR1: wield sword
+006. 00:00:00 ACTOR2: wield sword
+007. 00:00:00 ACTOR1: attack ACTOR2
+008. 00:00:00 ACTOR1.. identify SWORD1 as tool
+009. 00:00:00 ACTOR1.. focus on ACTOR2
+010. 00:00:00 ACTOR1.. use SWORD1 on ACTOR2
+011. 00:00:00 ACTOR2.. defense check
+012. 00:00:00 ACTOR2.. possible damage modification
+repeat from 008.
