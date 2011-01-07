@@ -7,9 +7,10 @@ import types
 import weakref
 import time
 import gc
+import traceback
 
 logger = logging.getLogger("reloader")
-# logger.setLevel(logging.DEBUG)
+#logger.setLevel(logging.DEBUG)
 
 # TODO: rename 'namespace.py' to 'namespaces.py' ... need to think about it...
 import namespace as namespaces
@@ -284,13 +285,23 @@ class CodeReloader:
 
         namespaceContributions = set()
 
-        for attrName, ((oldValue, oldType), (newValue, newType)) in attributeChanges.iteritems():
+        for attrName, ((oldValue, oldType), t2) in attributeChanges.iteritems():
+            newValue, newType = t2
+        
             # No new value -> the old value is being leaked.
             if newValue is NonExistentValue:
                 continue
 
             if newType is types.ClassType or newType is types.TypeType:
                 self.UpdateClass(scriptFile, oldValue, newValue, globals_)
+
+                instances = self.FindClassInstances(newValue)
+                if len(instances):
+                    logger.warn("Found %d instances of the %s class that will be in the wild" % (len(instances), newValue.__name__))
+                    # Try and patch the instances, in a naive way.
+                    # - Should really check that oldValue is suited for use.
+                    for instance in instances:
+                        instance.__class__ = oldValue
 
                 # If there was an old value, it is updated.
                 if oldValue and oldValue is not NonExistentValue:
@@ -308,10 +319,10 @@ class CodeReloader:
                 logger.debug("Skipped unchanged attribute '%s'", attrName)
                 continue
             elif isinstance(newValue, types.FunctionType):
-                logger.debug("Rebound method '%s'", attrName)
+                logger.debug("Updated and rebound function '%s'", attrName)
                 newValue = RebindFunction(newValue, globals_)
             elif isinstance(newValue, types.UnboundMethodType) or isinstance(newValue, types.MethodType):
-                logger.debug("Rebound method '%s' to function", attrName)
+                logger.debug("Updated and rebound method '%s' to function", attrName)
                 newValue = RebindFunction(newValue.im_func, globals_)
             else:
                 logger.debug("Updated changed attribute '%s'", attrName)
@@ -327,10 +338,6 @@ class CodeReloader:
 
     def UpdateClass(self, scriptFile, value, newValue, globals_):
         logger.debug("Updating class %s:%s from %s:%s", value, hex(id(value)), newValue, hex(id(newValue)))
-
-        instances = self.FindClassInstances(newValue)
-        if len(instances): 
-            logger.warn("Found %d instances of the %s class that will be in the wild" % (len(instances), newValue.__name__))
 
         if value is None or value is NonExistentValue:
             authoritativeValue = newValue
@@ -380,11 +387,40 @@ class CodeReloader:
                 except Exception:
                     logger.exception("Error broadcasting class update")
 
-    def FindClassInstances(self, class_):
+    def FindClassInstances(self, class_, *knownReferences):
+        #cGlobals = None
+        #for v in class_.__dict__.itervalues():
+        #    if type(v) is types.FunctionType:
+        #        cGlobals = v.func_globals
+        #        break
+    
         instances = []
-        for referrer in gc.get_referrers(class_):
-            if type(referrer) is types.InstanceType or type(referrer) is class_:
-                instances.append(referrer)
+        referrers1 = gc.get_referrers(class_)
+        for referrer1 in referrers1:
+            if type(referrer1) is types.InstanceType or type(referrer1) is class_:
+                instances.append(referrer1)
+
+                #referrers2 = gc.get_referrers(referrer1)
+                #for referrer2 in referrers2:
+                #    if referrer2 in [ instances, referrers2, sys._getframe(), cGlobals, referrers1 ]:
+                #        continue
+                #    if referrer2 in knownReferences:
+                #        continue
+
+                #    print id(referrer1), "REFERRER2", type(referrer2), hex(id(cGlobals))
+                #    if type(referrer2) is list:
+                #        # print "LIST", self.CountReferences(referrer2, 0, referrers2, *knownReferences), [ x for x in referrer2 ], "LIST_"
+                #        print "LIST", [ x for x in referrer2 ], "LIST_"
+                #    elif type(referrer2) is tuple:
+                #        # print "TUPLE", self.CountReferences(referrer2, 0, referrers2, *knownReferences), [ x for x in referrer2 ], "TUPLE_"
+                #        print "TUPLE", hex(id(referrer2)), [ x for x in referrer2 ], "TUPLE_", [ hex(id(v)) for v in knownReferences ]
+                #    elif type(referrer2) is dict:
+                #        if "__file__" in referrer2:
+                #            print "MODULE-DICT", referrer2["__file__"]
+                #        else:
+                #            print "DICT", hex(id(referrer2)), referrer2.keys()
+                #    else:
+                #        print "????", type(referrer2)
         return instances
 
     # ------------------------------------------------------------------------

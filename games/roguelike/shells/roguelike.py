@@ -29,8 +29,9 @@
 # - Clean up use of ViewedTileRange() so it can be degeneratorised.
 #
 
-import random, array, math, StringIO, time
-import uthread, fov
+import random, array, math, StringIO, time, stackless
+from stacklesslib.main import sleep as tasklet_sleep
+import fov
 from mudlib import Shell, InputHandler
 
 # ASCII CODES -----------------------------------------------------------------
@@ -249,7 +250,7 @@ class RoguelikeShell(Shell):
                     # The way to differentiate is to use a timeout to wait for
                     # the rest of the escape sequence, and if nothing arrives 
                     # to assume it is a keypress.
-                    self.escapeTasklet = uthread.new(self.ReceiveInput_EscapeTimeout)
+                    self.escapeTasklet = stackless.tasklet(self.ReceiveInput_EscapeTimeout)()
                     return
 
                 if s[1] != '[':
@@ -281,7 +282,7 @@ class RoguelikeShell(Shell):
         # print "** ReceiveInput - DONE"
 
     def ReceiveInput_EscapeTimeout(self):
-        uthread.Sleep(0.1)
+        tasklet_sleep(0.1)
         self.ReceiveInput("", flush=True)
 
     def DispatchInputSequence(self, s):

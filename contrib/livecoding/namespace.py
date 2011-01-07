@@ -150,7 +150,10 @@ class ScriptFile(object):
                 # Skip actual builtin objects.
                 elif v in builtinValues or issubclass(v, unittest.TestCase):
                     exportable = False
-
+            elif valueType is types.FunctionType:
+                funcFile = v.func_globals.get("__file__")
+                if funcFile:
+                    exportable = funcFile.startswith(self.filePath)
             yield k, v, valueType, exportable
 
 

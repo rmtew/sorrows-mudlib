@@ -3,6 +3,7 @@
 # Can only have one terrain.
 
 import math, random, weakref, stackless
+from stacklesslib.main import sleep as tasklet_sleep
 from mudlib import Service
 
 class WorldService(Service):
@@ -36,7 +37,7 @@ class WorldService(Service):
 
             return (vec[0] *height, vec[1]*height, vec[2] * height) + color
 #            return x,y,self.example.GetSurfaceHeight(vec)-self.example.radius
-        uthread.new(renderer.Render, getV)
+        stackless.tasklet(renderer.Render, getV)()
 
 
 # Planet representation..

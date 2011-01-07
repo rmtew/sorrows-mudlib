@@ -1,5 +1,5 @@
-import logging
-import uthread
+import logging, stackless
+from stacklesslib.main import sleep as tasklet_sleep
 from mudlib import InputHandler, Shell
 import mudlib.shells
 
@@ -51,7 +51,7 @@ class LoginShell(Shell):
         handler.Setup(self, self.ReceiveInput, self.WritePrompt, 0)
         self.stack.SetShell(handler)
 
-        uthread.new(self.StartTelnetNegotiation)
+        stackless.tasklet(self.StartTelnetNegotiation)()
 
     def StartTelnetNegotiation(self):
         telneg = self.user.connection.telneg

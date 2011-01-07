@@ -1,4 +1,5 @@
-import stackless, uthread
+import stackless
+from stacklesslib.main import sleep as tasklet_sleep
 from mudlib.services.net import Connection
 from mudlib import User
 
@@ -23,12 +24,12 @@ class TelnetConnection(Connection):
         if False:
             self.user = None
             self.preLoginBuffer = StringIO.StringIO()
-            uthread.new(self._ManageConnectionPreLogin)
+            stackless.tasklet(self._ManageConnectionPreLogin)()
 
         self.user = User(self, "login")
         self.user.SetupInputStack()
         
-        uthread.new(self.ManageConnection)
+        stackless.tasklet(self.ManageConnection)()
 
     def SetPasswordMode(self, flag):
         if flag:
@@ -119,7 +120,7 @@ class TelnetConnection(Connection):
                 # print "RECEIVED AFTER", slept, "DATA", data
             del dataQueue[:]
 
-            uthread.Sleep(0.01)
+            tasklet_sleep(0.01)
             slept += 0.01
 
     def OnDisconnection(self):

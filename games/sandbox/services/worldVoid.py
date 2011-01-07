@@ -2,6 +2,7 @@
 
 import os, random, time
 
+from stacklesslib.main import sleep as tasklet_sleep
 from mudlib import Service
 from game.worldVoid import Body
 
@@ -54,7 +55,7 @@ class WorldVoidService(Service):
         print "Simulation: Start", startTime, "period (s)", seconds
         sorrows.entityVoid.StartSimulation(startTime)
         endTime = startTime + seconds
-        uthread.Sleep(seconds)
+        tasklet_sleep(seconds)
         self.simulationStartTime = None
         print "Simulation: End", endTime, "period (s)", seconds
 

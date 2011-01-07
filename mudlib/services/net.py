@@ -3,7 +3,8 @@
 #       get the external intermud service working on it seems a bit hodgepodge.
 #       ?
 
-import uthread, asyncore, socket
+import stackless
+import asyncore, socket
 from mudlib.services.net import TelnetConnection, MudConnection, Connection
 from mudlib import User
 from mudlib import Service
@@ -25,7 +26,7 @@ class NetworkService(Service):
         listenSocket.bind((host, port))
         listenSocket.listen(5)
         self.LogInfo("Listening on address %s:%s", host, port)
-        uthread.new(self.AcceptTelnetConnections, listenSocket)
+        stackless.tasklet(self.AcceptTelnetConnections)(listenSocket)
 
     def AcceptTelnetConnections(self, listenSocket):
         acceptNonLocal = int(sorrows.data.config.net.acceptnonlocal)

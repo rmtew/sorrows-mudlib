@@ -42,7 +42,7 @@ if False: # not skip:
             self.LogInfo("Connected.")
             self.connection = connection
 
-            uthread.new(self.ManageConnection)
+            stackless.tasklet(self.ManageConnection)()
 
         # -----------------------------------------------------------------------
         # OnDisconnection - A socket disconnected.

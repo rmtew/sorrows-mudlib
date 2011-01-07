@@ -19,7 +19,7 @@ class EntityVoidService(Service):
 
     def StartSimulation(self, startTime):
         for entity in self.entities:
-            uthread.new(entity.Run, startTime)
+            stackless.tasklet(entity.Run, startTime)()
 
     def EndSimulation(self, startTime):
         for entity in self.entities:

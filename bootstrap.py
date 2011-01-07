@@ -78,9 +78,10 @@ def Run():
 
     # Monkey-patch in the stackless-compatible sockets.
     import stacklesssocket
-    import uthread, uthread2
-    stacklesssocket._schedule_func = uthread.BeNice
-    stacklesssocket._sleep_func = uthread.Sleep
+    import uthread2
+    import stacklesslib.main as stacklesslibmain
+    stacklesssocket._schedule_func = lambda delay=0: stacklesslibmain.sleep(delay)
+    stacklesssocket._sleep_func = stacklesslibmain.sleep
     stacklesssocket.install()
 
     # Install the global event handler.
@@ -96,8 +97,8 @@ def Run():
     # Register the mudlib and game script directories with the livecoding
     # module.  This will compile and execute them all.
     import reloader
-    #gamePath = os.path.join("games", "room - simple")
-    gamePath = os.path.join("games", "roguelike")
+    gamePath = os.path.join("games", "room - simple")
+    #gamePath = os.path.join("games", "roguelike")
     gameScriptPath = os.path.join(dirPath, gamePath)
     mudlibScriptPath = os.path.join(dirPath, "mudlib")
 
@@ -120,13 +121,13 @@ def Run():
     svcSvc.Register()
     svcSvc.Start()
     del svcSvc
-    
+
     stackless.getcurrent().block_trap = False
     bootstrapState = STATE_RUNNING
 
     manualShutdown = False
     try:
-        uthread.Run()
+        stacklesslibmain.mainloop.run()
     except KeyboardInterrupt:
         print
         print '** EXITING: Server manually stopping.'
@@ -137,16 +138,17 @@ def Run():
             uthread2.PrintTaskletChain(stackless.current)
             print
 
-        if uthread.yieldChannel.queue:
-            print "Yielded tasklets:"
-            uthread2.PrintTaskletChain(uthread.yieldChannel.queue)
-            print
-
-        for timestamp, channel in uthread.sleepingTasklets:
-            if channel.queue:
-                print "Sleep channel (%d) tasklets:" % id(channel)
-                uthread2.PrintTaskletChain(channel.queue)
+        if False:
+            for entry in stacklesslibmain.event_queue.queue_a:
+                print "Sleeping tasklets:"
+                uthread2.PrintTaskletChain(uthread.yieldChannel.queue)
                 print
+
+            for timestamp, channel in uthread.sleepingTasklets:
+                if channel.queue:
+                    print "Sleep channel (%d) tasklets:" % id(channel)
+                    uthread2.PrintTaskletChain(channel.queue)
+                    print
 
         manualShutdown = True
     finally:
@@ -157,15 +159,16 @@ def Run():
     if manualShutdown:
         class HelperClass:
             def ShutdownComplete(self):
+                stacklesslibmain.mainloop.stop()
                 managerTasklet.kill()
 
         helper = HelperClass()
         events.ShutdownComplete.Register(helper.ShutdownComplete)
 
-        uthread.new(sorrows.services.Stop)
+        stackless.tasklet(sorrows.services.Stop)()
         # We have most likely killed the stacklesssocket tasklet.
         managerTasklet = stacklesssocket.StartManager()
-        uthread.Run()
+        stacklesslibmain.mainloop.run()
 
     logging.info("Shutdown complete")
 

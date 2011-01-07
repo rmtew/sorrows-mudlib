@@ -1,4 +1,4 @@
-import uthread
+from stacklesslib.main import sleep as tasklet_sleep
 
 class Entity:
     def __init__(self, service):
@@ -12,4 +12,4 @@ class Entity:
         #  At mid-afternoon, have the entity head back home.
         #    That requires some sort of time service.
         while self.service.IsRunning():
-            uthread.Sleep(10)
+            tasklet_sleep(10)

@@ -1,7 +1,7 @@
 from mudlib import Service
 import types, random, weakref
 import stackless
-import uthread
+from stacklesslib.main import sleep as tasklet_sleep
 
 
 class ServiceService(Service):
@@ -101,7 +101,7 @@ class ServiceService(Service):
                 # Give tasklets that are no longer valid due to the stopping of their
                 # service a chance to exit before further services in the dependency
                 # order are stopped next.
-                uthread.BeNice()
+                tasklet_sleep(0)
             cnt -= 1
         if not cnt:
             self.LogError("Unable to stop services: %s", self.runningServices.keys())

@@ -1,4 +1,5 @@
-import socket, stackless, uthread
+import socket, stackless
+from stacklesslib.main import sleep as tasklet_sleep
 
 from mudlib import Service
 from mudlib.services import intermud3
@@ -31,7 +32,7 @@ class Intermud3Service(Service):
         self.desiredListenChannels = [ "imud_gossip", "discworld-chat" ]
 
         self.connection = None
-        uthread.new(self.ConnectToRouter)
+        stackless.tasklet(self.ConnectToRouter)()
 
     # -----------------------------------------------------------------------
     # OnStop - Event indicating the service is being stopped
@@ -60,7 +61,7 @@ class Intermud3Service(Service):
         try:
             currentSocket.connect((config.host, config.getint("port")))
         except socket.error:
-            uthread.new(self.ReconnectToRouter)
+            stackless.tasklet(self.ReconnectToRouter)()
             return
 
         self.LogInfo("Connected")
@@ -75,7 +76,7 @@ class Intermud3Service(Service):
         delay = float(sorrows.data.config.intermud3.reconnectiondelay)
 
         self.LogInfo("Retrying router connection in %d seconds", delay)
-        uthread.Sleep(delay)
+        tasklet_sleep(delay)
 
         self.LogInfo("Reconnecting")
         self.ConnectToRouter()
@@ -115,7 +116,7 @@ class Intermud3Service(Service):
         self.connection.Release()
         self.connection = None
         
-        uthread.new(self.ReconnectToRouter)
+        stackless.tasklet(self.ReconnectToRouter)()
 
     def HandlePacket(self, config):        
         rawPacket = self.connection.ReadPacket()
@@ -145,7 +146,7 @@ class Intermud3Service(Service):
                 self.routerName = packet.mudfrom
 
                 # Tell the router we want to listen to specific channels.
-                uthread.new(self.SendChannelListenPackets, self.desiredListenChannels)
+                stackless.tasklet(self.SendChannelListenPackets)(self.desiredListenChannels)
 
             elif packet.__class__ is intermud3.MudlistPacket:
                 #if len(packet.infoByName) < 10:

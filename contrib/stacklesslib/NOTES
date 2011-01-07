@@ -1,6 +1,12 @@
 ##
 # 2011-01-07 - Richard
 # 
-#   Entries in the event queue are abstracted away behind a wakeup function
-#   so it is not possible enumerate all the blocked tasklets directly.
+#   - Entries in the event queue are abstracted away behind a wakeup function
+#     so it is not possible enumerate all the blocked tasklets directly.
+#
+#   - Tasklets are created via stackless.tasklet(), might be a good idea to
+#     provide a centralised location through which tasklets can be created.
+#     Perhaps also allow a tasklet class to be registered.
+#     - Top level exception catching in tasklets to prevent them from being
+#       raised out.
 #

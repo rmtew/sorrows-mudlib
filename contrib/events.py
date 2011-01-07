@@ -27,7 +27,7 @@ This module supports three different event subscription scenarios.
 """
 
 import unittest, traceback, types, weakref, logging
-import uthread
+import stackless
 
 logger = logging.getLogger("events")
 
@@ -73,7 +73,7 @@ class BlockingEvent(Event):
 
 class NonBlockingEvent(Event):
     def __call__(self, *args, **kwargs):
-        uthread.new(self.Broadcast, *args, **kwargs)
+        stackless.tasklet(self.Broadcast)(*args, **kwargs)
         return self
 
 # EVENT HANDLER:

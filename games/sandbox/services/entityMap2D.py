@@ -15,4 +15,4 @@ class Entity2Service(Service):
     def CreateEntity(self):
         entity = game.worldMap2D.Entity(self)
         self.entities.append(entity)
-        uthread.new(entity.Run)
+        stackless.tasklet(entity.Run)()

@@ -1,7 +1,7 @@
 # processing action has to take an amount of time.
 # movement action has to take an amount of time.
 
-import uthread
+from stacklesslib.main import sleep as tasklet_sleep
 import math
 import game
 
@@ -129,7 +129,7 @@ class Entity(game.Object):
                     self.Debug("bake", flourCount, "bread")
                 else:
                     self.Debug("wait for customer")
-            uthread.Sleep(sleepDelay)
+            tasklet_sleep(sleepDelay)
         self.Debug("done")
 
     def FindEntitiesByProfession(self, profession):

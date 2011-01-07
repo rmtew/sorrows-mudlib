@@ -18,7 +18,9 @@ Outstanding problems:
 
 # Encapsulate a world.
 
-import os, random, time, collections, uthread, copy, weakref
+import os, random, time, collections, copy, weakref
+import stackless
+from stacklesslib.main import sleep as tasklet_sleep
 
 from mudlib import Service
 from game.world import Body, Object
@@ -160,7 +162,7 @@ class WorldService(Service):
         self.mapWidth = len(self.mapRows[0])
         self.mapHeight = len(self.mapRows)
 
-        uthread.new(self.ManageFloraAndFauna)
+        stackless.tasklet(self.ManageFloraAndFauna)()
 
     # Events -----------------------------------------------------------------
 
@@ -356,13 +358,13 @@ class WorldService(Service):
     #   the dungeon freely.  Two second tick for movement.
 
     def ManageFloraAndFauna(self):
-        uthread.new(self.RunNPC, CUBE_TILE, COLOUR_YELLOW)
-        uthread.Sleep(10.0)
-        uthread.new(self.RunNPC, DRAGON_TILE, COLOUR_GREEN)
-        uthread.Sleep(10.0)
-        uthread.new(self.RunNPC, DRAGON_TILE, COLOUR_GREEN)
-        uthread.Sleep(10.0)
-        uthread.new(self.RunNPC, DRAGON_TILE, COLOUR_GREEN)
+        stackless.tasklet(self.RunNPC, CUBE_TILE, COLOUR_YELLOW)()
+        tasklet_sleep(10.0)
+        stackless.tasklet(self.RunNPC, DRAGON_TILE, COLOUR_GREEN)()
+        tasklet_sleep(10.0)
+        stackless.tasklet(self.RunNPC, DRAGON_TILE, COLOUR_GREEN)()
+        tasklet_sleep(10.0)
+        stackless.tasklet(self.RunNPC, DRAGON_TILE, COLOUR_GREEN)()
 
 
     def RunNPC(self, tile, fgColour, bgColour=None):
@@ -377,7 +379,7 @@ class NPC(Body):
     def OnObjectMoved(self, object_, oldPosition, newPosition):
         if object_ is self:
             if oldPosition is None:
-                uthread.new(self.Wander)
+                stackless.tasklet(self.Wander)()
 
     def Wander(self):
         lastPosition = self.position
@@ -390,7 +392,7 @@ class NPC(Body):
                 lastPosition = currentPosition
                 sorrows.world._MoveObject(self, random.choice(matches))
 
-            uthread.Sleep(2.5 + -random.random())
+            tasklet_sleep(2.5 + -random.random())
 
 
 class FireObject(Object):
@@ -404,7 +406,7 @@ class FireSource(Object):
         self.components = []
         self.componentsByPosition = {}
 
-        uthread.new(self.ManageFire)
+        stackless.tasklet(self.ManageFire)()
 
     def ManageFire(self):
         fireObject = FireObject()
@@ -415,14 +417,14 @@ class FireSource(Object):
         self.componentsByPosition[self.position] = fireObject
         self.idx = -1
 
-        uthread.Sleep(1.0)
+        tasklet_sleep(1.0)
         while hasattr(sorrows, "world") and sorrows.world.IsRunning() and len(self.components):
             if self.position is None:
                 self.DieOut()
             else:
                 self.Spread()
 
-            uthread.Sleep(1.0 + -random.random() * 0.5)
+            tasklet_sleep(1.0 + -random.random() * 0.5)
 
     def Spread(self):
         lowWatermark = self.idx
