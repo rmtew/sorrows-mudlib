@@ -1,0 +1,6 @@
+##
+# 2011-01-07 - Richard
+# 
+#   Entries in the event queue are abstracted away behind a wakeup function
+#   so it is not possible enumerate all the blocked tasklets directly.
+#
