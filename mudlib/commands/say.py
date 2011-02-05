@@ -5,4 +5,4 @@ class Say(GameCommand):
 
     @staticmethod
     def syntax_STRING(context, string):
-        context.room.Message("{0.S} {0.v}: {1}.", (context.body, context.verb), string)
+        context.room.Message(context, "{0.S} {0.v}: {1}.", (context.body, context.verb), string)

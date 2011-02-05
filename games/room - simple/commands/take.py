@@ -9,7 +9,7 @@ class Take(GameCommand):
     def syntax_SUBJECTR(context, matches):
         for ob in matches:
             ob.MoveTo(context.body)
-            context.room.Message("{0.S} {0.v} {1.s}.", (context.body, context.verb), ob)
+            context.room.Message(context, "{0.S} {0.v} {1.s}.", (context.body, context.verb), ob)
 
     # CMD MILESTONE 2: GET ITEM FROM CONTAINER
 
@@ -18,7 +18,7 @@ class Take(GameCommand):
         for ob in smatches:
             container = ob.container
             ob.MoveTo(context.body)
-            context.room.Message("{0.S} {0.v} {1.s} from {2.s}.", (context.body, context.verb), ob, container)
+            context.room.Message(context, "{0.S} {0.v} {1.s} from {2.s}.", (context.body, context.verb), ob, container)
     
     # CMD MILESTONE 3: GET ITEM FROM PERSON
     # CMD MILESTONE 3: TAKE ITEM FROM PERSON

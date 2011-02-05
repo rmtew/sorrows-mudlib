@@ -9,4 +9,4 @@ class Drop(GameCommand):
     def syntax_SUBJECTB(context, matches):
         for ob in matches:
             ob.MoveTo(context.room)
-            context.room.Message("{0.S} {0.v} {1.s}.", (context.body, context.verb), ob)
+            context.room.Message(context, "{0.S} {0.v} {1.s}.", (context.body, context.verb), ob)
