@@ -10,7 +10,8 @@ cardinalNumberDeterminers = set([
     "seventeen", "eighteen", "nineteen", "twenty", "thirty", "fourty", "fifty",
     "sixty", "seventy", "eighty", "ninety", "hundred", "thousand",
 ])
-determiners = distributiveDeterminers | cardinalNumberDeterminers
+articleDeterminers = set([ "a", "an", "the" ])
+determiners = distributiveDeterminers | cardinalNumberDeterminers | articleDeterminers
 
 
 class ParserService(Service):
