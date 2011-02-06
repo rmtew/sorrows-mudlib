@@ -1,53 +1,9 @@
 import weakref
 
 from mudlib import util
+from game.world import ViewedObject
 from game.world import Container, Body, Object
 
-class ViewedObject(object):
-    """
-    Helper class that can be used as a formatting argument.
-    
-    This object when passed into a formatting string, can be referred to in
-    different ways through the use of attributes on it.
-    """
-
-    def __init__(self, actor, viewer, object_, verb=None):
-        self._actor = actor
-        self._viewer = viewer
-        self._object = object_
-        self._verb = verb
-
-    def __getattr__(self, attrName):
-        """
-        s - Short description.
-        S - Short description (capitalised).
-        v - Verb.
-        """
-
-        if attrName in ("s", "S"):
-            if self._object is self._viewer:
-                if attrName == "S":
-                    return "You"
-                return "you"
-
-                #   If the object is a body, use their short description directly.
-            text = self._object.shortDescription
-            if isinstance(self._object, Body):
-                return text
-            #   If the viewer is the actor, use the description with "the" article.
-            if self._viewer is self._actor:
-                return "the "+ text
-            #   If the viewer is not the actor, use the description with "a"/"an" article.
-            if text[0] in ("a", "e", "i", "o", "u"):
-                return "an "+ text
-            return "a "+ text
-
-        if attrName == "v":
-            if self._object is self._viewer:
-                return self._verb
-            return self._verb +"s"
-
-        raise AttributeError("%s instance has no attribute '%s'" % (self.__class__.__name__, attrName))
 
 class Room(Container):
     def __init__(self):
@@ -82,9 +38,9 @@ class Room(Container):
             for i, arg in enumerate(args):
                 if type(arg) is tuple:
                     object, verb = arg
-                    l[i] = ViewedObject(context.body, viewer, object, verb)
+                    l[i] = ViewedObject(actor=context.body, viewer=viewer, object=object, verb=verb)
                 elif isinstance(arg, Object):
-                    l[i] = ViewedObject(context.body, viewer, arg)
+                    l[i] = ViewedObject(actor=context.body, viewer=viewer, object=arg)
                 else:
                     l[i] = arg
             return l
@@ -112,20 +68,20 @@ class ViewedObjectTest(unittest.TestCase):
         self.anArticleObject = Object("apple")
 
         # ViewedObject(ACTOR, VIEWER, OBJECT)
-        self.bodyIndirectPerspective = ViewedObject(self.viewingBody, self.viewingBody, self.viewedBody, "verb")
-        self.bodyDirectPerspective = ViewedObject(self.viewingBody, self.viewingBody, self.viewingBody, "verb")
+        self.bodyIndirectPerspective = ViewedObject(actor=self.viewingBody, viewer=self.viewingBody, object=self.viewedBody, verb="verb")
+        self.bodyDirectPerspective = ViewedObject(actor=self.viewingBody, viewer=self.viewingBody, object=self.viewingBody, verb="verb")
 
     def testObjectArticle(self):
         # Watching someone 'take a sword' should result in display of "a sword".
-        aPerspective = ViewedObject(self.viewedBody, self.viewingBody, self.aArticleObject, "verb")
+        aPerspective = ViewedObject(actor=self.viewedBody, viewer=self.viewingBody, object=self.aArticleObject, verb="verb")
         self.assertEqual(aPerspective.s, "a sword")
 
         # Watching someone 'take an apple' should result in display of "an apple".
-        anPerspective = ViewedObject(self.viewedBody, self.viewingBody, self.anArticleObject, "verb")
+        anPerspective = ViewedObject(actor=self.viewedBody, viewer=self.viewingBody, object=self.anArticleObject, verb="verb")
         self.assertEqual(anPerspective.s, "an apple")
 
         # Seeing yourself 'take an apple' should result in display of "the apple".
-        thePerspective = ViewedObject(self.viewedBody, self.viewedBody, self.anArticleObject, "verb")
+        thePerspective = ViewedObject(actor=self.viewedBody, viewer=self.viewedBody, object=self.anArticleObject, verb="verb")
         self.assertEqual(thePerspective.s, "the apple")
         
     def testActorName(self):

@@ -95,13 +95,17 @@ class ParserService(Service):
 
         from game.world import Container
 
-        commandName = context.commandClass.__name__
         argString = context.argString
         failures = []
+        
+        # Check each of the syntaxes that the command supports.
+        commandName = context.commandClass.__name__
         for funcName, tokens in self.syntaxByCommand[commandName]:
-            args = [ context ]
+            args = []
 
-            if len(tokens) == 1:
+            if len(tokens) == 1 or len(tokens) == 2:
+                # verb OBJECT / verb preposition OBJECT
+
                 # Incorrect arguments automatically generates a usage string.
                 if argString == "":
                     failures.append((tokens, ""))
@@ -130,6 +134,7 @@ class ParserService(Service):
                 elif token == "STRING":
                     args.append(argString)
             elif len(tokens) == 3:
+                # OBJECT preposition CONTAINER
                 preposition = tokens[1]
                 if preposition.lower() != preposition:
                     continue
@@ -178,7 +183,7 @@ class ParserService(Service):
                 context.user.Tell("Case %d: no handling for %s" % (len(tokens), funcName))
                 continue
 
-            getattr(context.commandClass, funcName)(*args)
+            getattr(context.commandClass, funcName)(context, *args)
             break
         else:
             if len(failures):

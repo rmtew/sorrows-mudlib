@@ -11,3 +11,7 @@ class Look(GameCommand):
     @staticmethod
     def syntax_SUBJECT(context, smatches):
         context.user.Tell(smatches[0].LookString(context.body))
+
+    @staticmethod
+    def syntax_at_SUBJECT(context, smatches):
+        context.user.Tell(smatches[0].LookString(context.body))
