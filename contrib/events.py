@@ -580,11 +580,8 @@ class BroadcastTests(unittest.TestCase):
     def setUp(self):
         self.event = EventHandler()
 
-        self.uthread_new = uthread.new
-        uthread.new = lambda *args, **kwargs: None
-
     def tearDown(self):
-        uthread.new = self.uthread_new
+        pass
 
     def testBlockingEventCreation(self):
         event = self.event.ServicesStarted()
