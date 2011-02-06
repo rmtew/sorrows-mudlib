@@ -86,6 +86,9 @@ class ParserService(Service):
                 
         self.syntaxByCommand[commandName] = patterns
 
+    # TODO: For now this is constructed of special casing.  With a few more
+    # use cases driving the fleshing out of its needs, it should be ready
+    # to do a more generic rewrite.
     def ExecuteGameCommand(self, context):
         """
         Called by the GameCommand class to handle parsing the arguments that
@@ -105,6 +108,17 @@ class ParserService(Service):
 
             if len(tokens) == 1 or len(tokens) == 2:
                 # verb OBJECT / verb preposition OBJECT
+                if len(tokens) == 2:
+                    # Convert "verb preposition OBJECT" -> "verb OBJECT"
+                    preposition = tokens[0]
+                    if preposition.lower() != preposition:
+                        continue
+
+                    tokens = tokens[1:]
+                    idx = argString.find(preposition)
+                    if idx == -1:
+                        continue
+                    argString = argString[idx+len(preposition):].lstrip()
 
                 # Incorrect arguments automatically generates a usage string.
                 if argString == "":
