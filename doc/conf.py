@@ -9,6 +9,8 @@ version = release = "3.0"
 exclude_trees = [ "Sphinx-0.6.4", "build" ]
 highlight_language = "python"
 
+templates_path = [ "templates" ]
+
 # -- Options for HTML output ---------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  Major themes that come with
@@ -57,10 +59,12 @@ html_theme = 'default'
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.
-#html_additional_pages = {}
+html_additional_pages = {
+    "index": "index.html",
+}
 
 # If false, no module index is generated.
-#html_use_modindex = True
+html_use_modindex = False
 
 # If false, no index is generated.
 html_use_index = False

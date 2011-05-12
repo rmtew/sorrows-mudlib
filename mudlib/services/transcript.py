@@ -11,7 +11,8 @@ class TranscriptService(Service):
         # Locate and verify the files existence.
         transcriptPath = os.path.join(sorrows.services.gameScriptPath, "transcripts")
         if not os.path.exists(transcriptPath):
-            raise RuntimeError("Failed to locate transcript path")
+            self.LogError("Failed to locate transcript path: %s", transcriptPath) 
+            return
         self.transcriptPath = transcriptPath
 
     def Load(self, transcriptName):

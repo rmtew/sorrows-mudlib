@@ -74,6 +74,12 @@ for v in range(64, 90+1):
 
 CTRL_E                = chr(5)  # ENQ
 
+# Escape codes.
+
+ESC_UTF8_CHARSET = "\x1b%G"
+ESC_DEFAULT_CHARSET = "\x1b%@"
+ESC_SCO_CHARSET = "\x1b(U"
+
 
 CHAR_TILE =  "@"
 WALL_TILE =  "X"
@@ -83,16 +89,40 @@ FLOOR_TILE = " "
 DOOR_TILE =  "D"
 CUBE_TILE = "C"
 
-displayTiles = {
-    # Option to display different types if in or out of field of view.
-    WALL_TILE1: chr(176),
-    WALL_TILE2: chr(177),
-    WALL_TILE:  chr(178),
-    FLOOR_TILE: chr(250),
-    DOOR_TILE:  chr(254), # 239
-    CUBE_TILE:  chr(219),
+charMap = {    
+    "unicode" : {
+        # Map character mappings.
+        WALL_TILE1: u"\u2591", # Light shade.
+        WALL_TILE2: u"\u2592", # Medium shade.
+        WALL_TILE:  u"\u2593", # Dark shade.
+        FLOOR_TILE: u"\xB7",   # Middle dot.
+        DOOR_TILE:  u"\u25A0", # Black square.
+        CUBE_TILE:  u"\u2588", # Full block.
+        CHAR_TILE:  u"@",
+
+        # Line-drawing characters.
+        "light-horizontal":         u"\u2500",
+        "light-vertical":           u"\u2502",
+        "light-down-and-right":     u"\u250C",
+        "light-down-and-left":      u"\u2510",
+        "light-up-and-right":       u"\u2514",
+        "light-up-and-left":        u"\u2518",
+        "full-block":               u"\u2588",
+        "medium-shade":             u"\u2592",
+    }
 }
 
+def CHARACTERS(key, encoding):
+    encodingCharMap = charMap.get(encoding)
+    # Cache the characters in the given encoding, if they already are not.
+    if not encodingCharMap:
+        encodingCharMap = {}
+        for key_, value_ in charMap["unicode"].iteritems():
+            encodingCharMap[key_] = value_.encode(encoding)
+        charMap[encoding] = encodingCharMap
+    return encodingCharMap[key]
+
+        
 TILE_SEEN = 1
 TILE_OPEN = 2
 
@@ -163,6 +193,7 @@ class RoguelikeShell(Shell):
         self.RecalculateWorldView()
 
         self.charsetResetSequence = None
+        self.charsetEncoding = "cp437"
 
         self.UpdateTitle()
         self.UpdateStatusBar("Use the up and down cursor keys to choose an option, and enter to select it.")
@@ -178,7 +209,8 @@ class RoguelikeShell(Shell):
         self.clientName = clientName.lower()
 
         if self.clientName == "putty":
-            self.charsetResetSequence = "\x1b(U"
+            self.charsetEncoding = "utf8"
+            self.charsetResetSequence = ESC_UTF8_CHARSET # ESC_SCO_CHARSET
             self.ResetCharset()
 
     def SetMode(self, mode, status=None):
@@ -775,7 +807,7 @@ class RoguelikeShell(Shell):
                 if tile is None:
                     yield " "
                 else:
-                    yield self.TileColouring(tile)                    
+                    yield self.TileColouring(tile)
                 x += 1
             
             if emphasis:
@@ -798,7 +830,7 @@ class RoguelikeShell(Shell):
             s += "\x1b[4%dm" % tile.bgColour
         if emphasis:
             s += ESC_BOLD
-        s += displayTiles.get(tile.character, tile.character)
+        s += CHARACTERS(tile.character, self.charsetEncoding)
         if emphasis:
             s += ESC_NORMAL
         if tile.fgColour:
@@ -944,9 +976,9 @@ class RoguelikeShell(Shell):
             # Menu top border.
             self.MoveCursor(screenXStart, screenY, sio=sio)
             sio.write(ESC_GFX_BLUE_FG)
-            sio.write(chr(218))
-            sio.write(chr(196) * optionWidth)
-            sio.write(chr(191))
+            sio.write(CHARACTERS("light-down-and-right", self.charsetEncoding))
+            sio.write(CHARACTERS("light-horizontal", self.charsetEncoding) * optionWidth)
+            sio.write(CHARACTERS("light-down-and-left", self.charsetEncoding))
             sio.write(ESC_RESET_ATTRS)
 
         screenY += 1
@@ -958,15 +990,15 @@ class RoguelikeShell(Shell):
                 # Menu top space.
                 self.MoveCursor(screenXStart, screenY, sio=sio)
                 sio.write(ESC_GFX_BLUE_FG)
-                sio.write(chr(179))
+                sio.write(CHARACTERS("light-vertical", self.charsetEncoding))
                 sio.write(" " * optionWidth)
-                sio.write(chr(179))
+                sio.write(CHARACTERS("light-vertical", self.charsetEncoding))
                 sio.write(ESC_RESET_ATTRS)
 
             screenY += 1
             self.MoveCursor(screenXStart, screenY, sio=sio)
             sio.write(ESC_GFX_BLUE_FG)
-            sio.write(chr(179))
+            sio.write(CHARACTERS("light-vertical", self.charsetEncoding))
             sio.write(ESC_RESET_ATTRS)
             sio.write(" ")
             if i == selected:
@@ -976,7 +1008,7 @@ class RoguelikeShell(Shell):
                 sio.write(ESC_REVERSE_VIDEO_OFF)
             sio.write(" ")
             sio.write(ESC_GFX_BLUE_FG)
-            sio.write(chr(179))
+            sio.write(CHARACTERS("light-vertical", self.charsetEncoding))
             sio.write(ESC_RESET_ATTRS)
             screenY += 1
 
@@ -984,18 +1016,18 @@ class RoguelikeShell(Shell):
             # Menu bottom space.
             self.MoveCursor(screenXStart, screenY, sio=sio)
             sio.write(ESC_GFX_BLUE_FG)
-            sio.write(chr(179))
+            sio.write(CHARACTERS("light-vertical", self.charsetEncoding))
             sio.write(" " * optionWidth)
-            sio.write(chr(179))
+            sio.write(CHARACTERS("light-vertical", self.charsetEncoding))
             sio.write(ESC_RESET_ATTRS)
             screenY += 1
 
             # Menu bottom border.
             self.MoveCursor(screenXStart, screenY, sio=sio)
             sio.write(ESC_GFX_BLUE_FG)
-            sio.write(chr(192))
-            sio.write(chr(196) * optionWidth)
-            sio.write(chr(217))
+            sio.write(CHARACTERS("light-up-and-right", self.charsetEncoding))
+            sio.write(CHARACTERS("light-horizontal", self.charsetEncoding) * optionWidth)
+            sio.write(CHARACTERS("light-up-and-left", self.charsetEncoding))
             sio.write(ESC_RESET_ATTRS)
             screenY += 1
 
@@ -1180,7 +1212,7 @@ class RoguelikeShell(Shell):
             sio.write("   %02d  " % yc)
         
             sio.write("\x1b[%dm" % yc)
-            sio.write(chr(219)+chr(219))
+            sio.write(CHARACTERS("full-block", self.charsetEncoding) + CHARACTERS("full-block", self.charsetEncoding))
 
             for s in ("", ESC_BOLD):
                 for xi in range(8):
@@ -1188,7 +1220,7 @@ class RoguelikeShell(Shell):
                     sio.write("\x1b[%dm" % yc)
                     sio.write("\x1b[%dm" % xc)
                     sio.write(s)
-                    sio.write(chr(177)+chr(177))
+                    sio.write(CHARACTERS("medium-shade", self.charsetEncoding) + CHARACTERS("medium-shade", self.charsetEncoding))
                     sio.write(ESC_RESET_ATTRS)
 
             sio.write("\r\n")
@@ -1199,7 +1231,7 @@ class RoguelikeShell(Shell):
 
     def MenuActionCharacters(self, charsetCode=None, inUnicode=False):
         if inUnicode:
-            state = "UTF-8"
+            state = "UTF8"
         else:
             state = "CP437"
         self.SetMode(MODE_DEBUG_DISPLAY, "Characters (%s)" % state)
@@ -1214,43 +1246,22 @@ class RoguelikeShell(Shell):
 
         ranges = []
         if inUnicode:
-            firstOrd, lastOrd = 0xc280, 0xc2bf
+            firstOrd, lastOrd = 0x2500, 0x257F
             ranges.append((firstOrd, lastOrd))
 
-            firstOrd, lastOrd = 0xc580, 0xc5bf
+            firstOrd, lastOrd = 0x25A0, 0x25CF
             ranges.append((firstOrd, lastOrd))
 
-            firstOrd, lastOrd = 0xc680, 0xc6bf
+            firstOrd, lastOrd = 0x25D0, 0x25FF
+            ranges.append((firstOrd, lastOrd))
+            
+            firstOrd, lastOrd = 0x2600, 0x267F
             ranges.append((firstOrd, lastOrd))
 
-            firstOrd, lastOrd = 0xc780, 0xc7bf
+            firstOrd, lastOrd = 0x2190, 0x21ff
             ranges.append((firstOrd, lastOrd))
-
-            firstOrd, lastOrd = 0xc880, 0xc8bf
-            ranges.append((firstOrd, lastOrd))
-
-            firstOrd, lastOrd = 0xc980, 0xc9bf
-            ranges.append((firstOrd, lastOrd))
-
-            firstOrd, lastOrd = 0xca80, 0xcabf
-            ranges.append((firstOrd, lastOrd))
-
-            firstOrd, lastOrd = 0xcb80, 0xcbbf
-            ranges.append((firstOrd, lastOrd))
-
-            firstOrd, lastOrd = 0xce80, 0xcebf
-            ranges.append((firstOrd, lastOrd))
-
-            firstOrd, lastOrd = 0xcf80, 0xcfbf
-            ranges.append((firstOrd, lastOrd))
-
-            firstOrd, lastOrd = 0xe29480, 0xe294BF
-            ranges.append((firstOrd, lastOrd))
-
-            firstOrd, lastOrd = 0xe29580, 0xe295BF
-            ranges.append((firstOrd, lastOrd))
-
-            sio.write("\x1b%G")
+            
+            sio.write(ESC_UTF8_CHARSET)
         else:
             firstOrd, lastOrd = 32, 255
             ranges.append((firstOrd, lastOrd))
@@ -1267,11 +1278,7 @@ class RoguelikeShell(Shell):
             currentOrd = firstOrd
             while currentOrd <= lastOrd:
                 if inUnicode:
-                    v = currentOrd
-                    s = ""
-                    while v:
-                        s = chr(v & 0xFF) + s
-                        v = v >> 8
+                    s = eval("u'\\u%x'" % currentOrd).encode("utf8")
                 else:
                     c = self.DisplayCharacter(currentOrd, charset=charsetCode)
                     s = "%03d %s" % (currentOrd, c)
@@ -1297,7 +1304,7 @@ class RoguelikeShell(Shell):
                 sio.write("\r\n")
 
         if inUnicode:
-            sio.write("\x1b%@")
+            sio.write(ESC_DEFAULT_CHARSET)
 
         self.ResetCharset(sio=sio)
         self.user.Write(sio.getvalue())

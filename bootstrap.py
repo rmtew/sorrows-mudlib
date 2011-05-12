@@ -97,8 +97,8 @@ def Run():
     # Register the mudlib and game script directories with the livecoding
     # module.  This will compile and execute them all.
     import reloader
-    gamePath = os.path.join("games", "room - simple")
-    #gamePath = os.path.join("games", "roguelike")
+    #gamePath = os.path.join("games", "room - simple")
+    gamePath = os.path.join("games", "roguelike")
     gameScriptPath = os.path.join(dirPath, gamePath)
     mudlibScriptPath = os.path.join(dirPath, "mudlib")
 
