@@ -3,6 +3,15 @@
 # - NPC logic.  This is very simple now, but taking this further would be
 #   something to think about.
 #
+# - Connection level changes:
+#   - Ability to set a per-packet delay before sending to user.
+#   - Ability to set a per-character delay before sending to user.
+#
+# - Windows Telnet:
+#   - Why are escape characters not working.
+#   - What characters should be displayed when unicode characters cannot
+#     be encoded as CP437.
+# ** Putty is currently the preferrred and working client.
 
 ## LUXURY TASKS
 #
@@ -76,9 +85,9 @@ CTRL_E                = chr(5)  # ENQ
 
 # Escape codes.
 
-ESC_UTF8_CHARSET = "\x1b%G"
-ESC_DEFAULT_CHARSET = "\x1b%@"
-ESC_SCO_CHARSET = "\x1b(U"
+ESC_UTF8_CHARSET =      "\x1b%G"
+ESC_DEFAULT_CHARSET =   "\x1b%@"
+ESC_SCO_CHARSET =       "\x1b(U"
 
 
 CHAR_TILE =  "@"
@@ -87,7 +96,7 @@ WALL_TILE1 = "1"
 WALL_TILE2 = "2"
 FLOOR_TILE = " "
 DOOR_TILE =  "D"
-CUBE_TILE = "C"
+CUBE_TILE =  "C"
 
 charMap = {    
     "unicode" : {
@@ -109,6 +118,8 @@ charMap = {
         "light-up-and-left":        u"\u2518",
         "full-block":               u"\u2588",
         "medium-shade":             u"\u2592",
+        "black-square":             u"\u25A0",
+        "white-square":             u"\u25A1",
     }
 }
 
@@ -118,10 +129,11 @@ def CHARACTERS(key, encoding):
     if not encodingCharMap:
         encodingCharMap = {}
         for key_, value_ in charMap["unicode"].iteritems():
-            encodingCharMap[key_] = value_.encode(encoding)
+            encodingCharMap[key_] = value_.encode(encoding, "ignore")
         charMap[encoding] = encodingCharMap
-    return encodingCharMap[key]
-
+    if key in encodingCharMap:
+        return encodingCharMap[key]
+    return key
         
 TILE_SEEN = 1
 TILE_OPEN = 2
@@ -223,8 +235,6 @@ class RoguelikeShell(Shell):
     # Events ------------------------------------------------------------------
 
     def OnRemovalFromStack(self):
-        sorrows.world.RemoveUser(self.user)
-
         self.user.connection.optionLineMode = self.oldOptionLineMode
         self.user.connection.telneg.will_echo()
         self.user.Write(ESC_RESET_TERMINAL)

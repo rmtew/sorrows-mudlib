@@ -358,13 +358,13 @@ class WorldService(Service):
     #   the dungeon freely.  Two second tick for movement.
 
     def ManageFloraAndFauna(self):
-        stackless.tasklet(self.RunNPC, CUBE_TILE, COLOUR_YELLOW)()
+        stackless.tasklet(self.RunNPC)(CUBE_TILE, COLOUR_YELLOW)
         tasklet_sleep(10.0)
-        stackless.tasklet(self.RunNPC, DRAGON_TILE, COLOUR_GREEN)()
+        stackless.tasklet(self.RunNPC)(DRAGON_TILE, COLOUR_GREEN)
         tasklet_sleep(10.0)
-        stackless.tasklet(self.RunNPC, DRAGON_TILE, COLOUR_GREEN)()
+        stackless.tasklet(self.RunNPC)(DRAGON_TILE, COLOUR_GREEN)
         tasklet_sleep(10.0)
-        stackless.tasklet(self.RunNPC, DRAGON_TILE, COLOUR_GREEN)()
+        stackless.tasklet(self.RunNPC)(DRAGON_TILE, COLOUR_GREEN)
 
 
     def RunNPC(self, tile, fgColour, bgColour=None):
