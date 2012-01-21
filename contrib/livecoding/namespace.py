@@ -412,7 +412,7 @@ class ScriptDirectory(object):
 
             # By default we never overwrite.  This way we can identify duplicate contributions.
             if hasattr(namespace, k) and k not in overwritableAttributes and k != "__doc__":
-                logger.error("Duplicate namespace contribution for '%s.%s' from '%s', our class = %s", moduleName, k, scriptFile.filePath, v.__file__ == scriptFile.filePath)
+                logger.error("Duplicate namespace contribution for '%s.%s' from '%s', our class = %s", moduleName, k, scriptFile.filePath, getattr(v, "__file__", "???") == scriptFile.filePath)
                 continue
 
             if valueType in (types.ClassType, types.TypeType):
