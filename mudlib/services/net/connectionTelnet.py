@@ -124,6 +124,8 @@ class TelnetConnection(Connection):
             slept += 0.01
 
     def OnDisconnection(self):
+        super(TelnetConnection, self).OnDisconnection()
+    
         # Notify the service of the disconnection.
         if self.user:
             self.user.OnTelnetDisconnection()

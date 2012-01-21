@@ -1,5 +1,7 @@
 import copy
 from game.world import Container
+import game
+import mudlib
 
 
 class Body(Container):
@@ -19,7 +21,7 @@ class Body(Container):
             self.tile.bgColour = bgColour
 
     def OnObjectMoved(self, object_, oldPosition, newPosition):
-        if self.user:
+        if self.user and isinstance(self.user.shell, game.shells.RoguelikeShell):
             self.user.shell.OnObjectMoved(object_, oldPosition, newPosition)
 
     if False:

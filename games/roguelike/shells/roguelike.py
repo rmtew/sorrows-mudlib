@@ -235,11 +235,12 @@ class RoguelikeShell(Shell):
     # Events ------------------------------------------------------------------
 
     def OnRemovalFromStack(self):
-        self.user.connection.optionLineMode = self.oldOptionLineMode
-        self.user.connection.telneg.will_echo()
-        self.user.Write(ESC_RESET_TERMINAL)
-        self.ScrollWindowVertically(-1)
-        self.MoveCursor(0, self.statusOffset)
+        if self.user.connection.connected:
+            self.user.connection.optionLineMode = self.oldOptionLineMode
+            self.user.connection.telneg.will_echo()
+            self.user.Write(ESC_RESET_TERMINAL)
+            self.ScrollWindowVertically(-1)
+            self.MoveCursor(0, self.statusOffset)
         Shell.OnRemovalFromStack(self)
 
     def OnTerminalSizeChanged(self, columns, rows, redraw=True):

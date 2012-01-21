@@ -1,8 +1,9 @@
 import socket
 from errno import EBADF
 
-class Connection:
+class Connection(object):
     released = False
+    connected = True
 
     def __init__(self, _socket):
         self.socket = _socket
@@ -16,7 +17,7 @@ class Connection:
         self.service = None
 
     def OnDisconnection(self):
-        pass
+        self.connected = False
 
     def close(self):
         self.socket.close()
