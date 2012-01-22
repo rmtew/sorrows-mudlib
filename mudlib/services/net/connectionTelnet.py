@@ -156,10 +156,10 @@ class TelnetConnection(Connection):
             ret = ""
             rIdx = buf.find('\r')
             if rIdx == -1:
-                nIdx = buf.find('\n')
-                if nIdx > -1:
-                    ret = buf[:nIdx]
-                    self.readlineBuffer = buf[nIdx+1:]
+                rIdx = buf.find('\n')
+                if rIdx > -1:
+                    ret = buf[:rIdx]
+                    self.readlineBuffer = buf[rIdx+1:]
             else:
                 ret = buf[:rIdx]
                 if len(buf) > rIdx+1 and buf[rIdx+1] == '\n':
@@ -167,7 +167,7 @@ class TelnetConnection(Connection):
                 else:
                     self.readlineBuffer = buf[rIdx+1:]
 
-            if len(ret):
+            if len(ret) or rIdx == 0:
                 i = ret.find('\x08')
                 while i > -1:
                     if i == 0:
