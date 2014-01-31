@@ -38,10 +38,10 @@
 # - Clean up use of ViewedTileRange() so it can be degeneratorised.
 #
 
-import random, array, math, StringIO, time, stackless
-from stacklesslib.main import sleep as tasklet_sleep
+import random, array, math, StringIO, time, stackless, logging
 import fov
-from mudlib import Shell, InputHandler
+from mudlib import InputHandler
+from game import Shell
 
 # ASCII CODES -----------------------------------------------------------------
 
@@ -65,19 +65,6 @@ ESC_BOLD              = "\x1b[1m"
 ESC_GFX_BLUE_FG       = "\x1b[34m"
 ESC_RESET_ATTRS       = "\x1b[0m"
 ESC_NORMAL            = "\x1b[22m"
-
-# Escape termination characters.
-#
-# The rule for detecting a full escape sequence is to keep reading characters
-# after escape until any character from 'a'-'z', '{', '|', '@', 'A'-'Z' is
-# encountered.
-#
-
-ESC_TERMINATORS = set()
-for v in range(97, 124+1):
-    ESC_TERMINATORS.add(chr(v))
-for v in range(64, 90+1):
-    ESC_TERMINATORS.add(chr(v))
 
 # Control codes.
 
@@ -105,7 +92,7 @@ charMap = {
         WALL_TILE2: u"\u2592", # Medium shade.
         WALL_TILE:  u"\u2593", # Dark shade.
         FLOOR_TILE: u"\xB7",   # Middle dot.
-        DOOR_TILE:  u"\u25A0", # Black square.
+        DOOR_TILE:  u"\u25FC", # Black square.
         CUBE_TILE:  u"\u2588", # Full block.
         CHAR_TILE:  u"@",
 
@@ -118,8 +105,30 @@ charMap = {
         "light-up-and-left":        u"\u2518",
         "full-block":               u"\u2588",
         "medium-shade":             u"\u2592",
-        "black-square":             u"\u25A0",
-        "white-square":             u"\u25A1",
+        "black-square":             u"\u25FC",
+        "white-square":             u"\u25FB",
+    },
+    "html" : {
+        # Map character mappings.
+        WALL_TILE1: "&blk14;",
+        WALL_TILE2: "&blk12;",
+        WALL_TILE:  "&blk34;",
+        FLOOR_TILE: "&centerdot;",
+        DOOR_TILE:  "&FilledSmallSquare;",
+        CUBE_TILE:  "&block;",
+        CHAR_TILE:  u"@",
+
+        # Line-drawing characters.
+        "light-horizontal":         "&HorizontalLine;",
+        "light-vertical":           "&boxv;",
+        "light-down-and-right":     "&boxdr;", 
+        "light-down-and-left":      "&boxdl;",
+        "light-up-and-right":       "&boxur;",
+        "light-up-and-left":        "&boxul;", 
+        "full-block":               "&block;",
+        "medium-shade":             "&blk12;",
+        "black-square":             "&FilledSmallSquare;",
+        "white-square":             "&EmptySmallSquare;",
     }
 }
 
@@ -175,15 +184,12 @@ class RoguelikeShell(Shell):
         handler.Setup(self, self.ReceiveInput, None, 0)
         stack.Push(handler)
 
-        self.oldOptionLineMode = self.user.connection.optionLineMode
-        self.user.connection.optionLineMode = False
+        self.oldOptionLineMode = self.user.connection.SetLineMode(False)
 
         # Defaults..
         self.keyboard = None
         self.menuOptions = []
         self.menuSelection = 0
-        self.inputBuffer = ""
-        self.escapeTasklet = None
 
         self.status = "-"
         self.lastStatusBar = "-"
@@ -193,7 +199,6 @@ class RoguelikeShell(Shell):
         # self.user.connection.telneg.do_sga()
         
         self.ShowCursor(False)
-        self.QueryClientName()
 
         self.mapArray = array.array('B', (0 for i in xrange(sorrows.world.mapHeight * sorrows.world.mapWidth)))
         self.drawRangesNew = {}
@@ -204,26 +209,20 @@ class RoguelikeShell(Shell):
         self.OnTerminalSizeChanged(cols, rows, redraw=False)
         self.RecalculateWorldView()
 
-        self.charsetResetSequence = None
-        self.charsetEncoding = "cp437"
-
+        if self.user.connection.clientName.lower() in ("putty", "xterm"):
+            self.charsetEncoding = "utf8"
+            self.charsetResetSequence = ESC_UTF8_CHARSET # ESC_SCO_CHARSET
+            self.ResetCharset()
+        else:
+            self.charsetResetSequence = None
+            self.charsetEncoding = "cp437"
+        
         self.UpdateTitle()
         self.UpdateStatusBar("Use the up and down cursor keys to choose an option, and enter to select it.")
         
         self.enteredGame = False
+        
         self.EnterKeyboardMenu()
-
-    def QueryClientName(self):
-        self.clientName = None
-        self.user.Write(CTRL_E)
-
-    def SetClientName(self, clientName):
-        self.clientName = clientName.lower()
-
-        if self.clientName == "putty":
-            self.charsetEncoding = "utf8"
-            self.charsetResetSequence = ESC_UTF8_CHARSET # ESC_SCO_CHARSET
-            self.ResetCharset()
 
     def SetMode(self, mode, status=None):
         if status is None:
@@ -236,7 +235,7 @@ class RoguelikeShell(Shell):
 
     def OnRemovalFromStack(self):
         if self.user.connection.connected:
-            self.user.connection.optionLineMode = self.oldOptionLineMode
+            self.user.connection.SetLineMode(self.oldOptionLineMode)
             self.user.connection.telneg.will_echo()
             self.user.Write(ESC_RESET_TERMINAL)
             self.ScrollWindowVertically(-1)
@@ -266,68 +265,6 @@ class RoguelikeShell(Shell):
         if redraw:
             self.DisplayScreen()
 
-    def ReceiveInput(self, s, flush=False):
-        if False:
-            cnt = getattr(self, "xxx", 1)
-            self.xxx = cnt + 1
-            print cnt, "** ReceiveInput", [ ord(c) for c in s ], flush
- 
-        if len(self.inputBuffer):
-            s = self.inputBuffer + s
-            self.inputBuffer = ""
-
-        escapeTasklet = self.escapeTasklet
-        self.escapeTasklet = None
-
-        if not flush:
-            if escapeTasklet:
-                escapeTasklet.kill()
-
-            if s[0] == ESC:
-                if len(s) == 1:
-                    self.inputBuffer = s
-
-                    # A lone escape can be one of two things:
-                    # - An actual press of the escape key.
-                    # - The start of an escape sequence.
-                    # The way to differentiate is to use a timeout to wait for
-                    # the rest of the escape sequence, and if nothing arrives 
-                    # to assume it is a keypress.
-                    self.escapeTasklet = stackless.tasklet(self.ReceiveInput_EscapeTimeout)()
-                    return
-
-                if s[1] != '[':
-                    idx = s.find(ESC, 1)
-                    if idx == -1:
-                        self.DispatchInputSequence(s)
-                        return
-                    self.DispatchInputSequence(s[:idx])
-                    self.ReceiveInput(s[idx:])
-                    return
-
-                for i, c in enumerate(s):
-                    if c in ESC_TERMINATORS:
-                        self.DispatchInputSequence(s[:i+1])
-                        remainingInput = s[i+1:]
-                        if remainingInput:
-                            self.ReceiveInput(remainingInput)
-                        return
-
-                self.inputBuffer = s
-                return
-
-        idx = s.find(ESC)
-        if idx == -1 or idx == 0:
-            self.DispatchInputSequence(s)
-        else:
-            self.DispatchInputSequence(s[:idx])
-            self.ReceiveInput(s[idx:])
-        # print "** ReceiveInput - DONE"
-
-    def ReceiveInput_EscapeTimeout(self):
-        tasklet_sleep(0.1)
-        self.ReceiveInput("", flush=True)
-
     def DispatchInputSequence(self, s):
         # print "** DispatchInputSequence", [ ord(c) for c in s ]
 
@@ -335,11 +272,7 @@ class RoguelikeShell(Shell):
             self.ReceiveInput_Gameplay(s)
         elif MODE_FIRST_MENU <= self.mode <= MODE_LAST_MENU:
             if self.mode == MODE_KEYBOARD_MENU:
-                # We've sent <ENQ>, check for Putty's response. 
-                if s == "PuTTY":
-                    self.SetClientName(s)
-                    # Refresh the menu with proper characters.
-                    self.DisplayMenu(self.mode, self.menuOptions, selected=self.menuSelection)
+                pass # self.DisplayMenu(self.mode, self.menuOptions, selected=self.menuSelection)
 
             self.ReceiveInput_Menu(s)
         elif MODE_FIRST_DISPLAY <= self.mode <= MODE_LAST_DISPLAY:
@@ -377,7 +310,7 @@ class RoguelikeShell(Shell):
                 self.menuSelection += shift
 
             return self.DisplayMenu(self.mode, self.menuOptions, selected=self.menuSelection, redraw=False)
-        elif s == "\r\n":
+        elif s == "\r\n" or s == "\r":
             option = self.menuOptions[self.menuSelection]
             return MenuAction(option[1])
         else:

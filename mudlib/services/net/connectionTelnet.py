@@ -1,3 +1,4 @@
+import weakref
 import stackless
 from stacklesslib.main import sleep as tasklet_sleep
 from mudlib.services.net import Connection
@@ -15,11 +16,13 @@ class TelnetConnection(Connection):
         self.terminalType = None
         self.terminalTypes = []
 
+        self.clientName = None
         self.optionEcho = False
         self.optionLineMode = True
         self.readlineBuffer = ""
 
         self.telneg = TelnetNegotiation(self.TelnetNegotiationSend, self.TelnetSubnegotiation, self.TelnetCommand)
+        self.telneg_terminaltype_cb = None
 
         if False:
             self.user = None
@@ -29,7 +32,12 @@ class TelnetConnection(Connection):
         self.user = User(self, "login")
         self.user.SetupInputStack()
         
-        stackless.tasklet(self.ManageConnection)()
+        self.loopTasklet = None
+        self.loopIsReading = True
+        self.RestartLoop()
+        
+    def SetClientName(self, clientName):
+        self.clientName = clientName
 
     def SetPasswordMode(self, flag):
         if flag:
@@ -38,6 +46,13 @@ class TelnetConnection(Connection):
         else:
             self.suppressEcho = False
             # self.telneg.wont_echo()
+            
+    def SetLineMode(self, flag):
+        oldValue = self.user.connection.optionLineMode
+        self.user.connection.optionLineMode = flag
+        if oldValue != flag:
+            self.RestartLoop(onlyIfReading=True)
+        return oldValue
 
     def TelnetNegotiationSend(self, data):
         self.service and self.service.LogDebug("SEND(%s)%s%s", self.user.name, self.clientAddress, [ord(c) for c in data])
@@ -66,6 +81,8 @@ class TelnetConnection(Connection):
             # Select the first one the client offered.
             self.terminalType = result.parameters[0]
             self.telneg.do_ttype(self.terminalType)
+            if self.telneg_terminaltype_cb:
+                self.telneg_terminaltype_cb(self.terminalType)
         elif result.command == NEW_ENVIRON:
             self.service.LogDebug("ENVIRONMENT VARIABLES %s (%s)%s", result.parameters, self.user.name, self.clientAddress)
             for k, v in result.parameters:
@@ -75,19 +92,37 @@ class TelnetConnection(Connection):
         else:
             raise Exception("Unhandled subnegotiation", result)
 
+    def RestartLoop(self, onlyIfReading=False):
+        if onlyIfReading and not self.loopIsReading:
+            return
+        if self.loopTasklet is not None:
+            t = self.loopTasklet()
+            if t is not None:
+                t.kill()
+        t = stackless.tasklet(self.ManageConnection)()
+        self.loopTasklet = weakref.ref(t)
+
     def ManageConnection(self):
         while not self.released:
             if not self._ManageConnection():
                 break
 
     def _ManageConnection(self):
-        if self.optionLineMode:
-            input = self.readline()
-        else:
-            input = self.read(65536)
-            # We may recieve an empty string if there was only negotiation.
-            if input == "":
-                return True
+        self.loopIsReading = True
+        try:
+            if self.optionLineMode:
+                input = self.readline()
+            else:
+                if self.readlineBuffer:
+                    input = self.readlineBuffer
+                    self.readlineBuffer = ""
+                else:
+                    input = self.read(65536)
+                # We may recieve an empty string if there was only negotiation.
+                if input == "":
+                    return True
+        finally:
+            self.loopIsReading = False
 
         if input is None:
             return False
@@ -135,7 +170,7 @@ class TelnetConnection(Connection):
 
     def read(self, bytes):
         s = self.recv(65536)
-        # print "INPUT-CHARS", [ ord(c) for c in s ], s
+        #print "INPUT-CHARS", [ ord(c) for c in s ], s
         if s == "":
             return None
 
@@ -182,7 +217,7 @@ class TelnetConnection(Connection):
             s = self.recv(65536)
             if s == "":
                 return None
-            # print "INPUT-RECEIVED", [ ord(c) for c in s ]
+            #print "INPUT-RECEIVED", [ ord(c) for c in s ]
             #if s[0] == "\x1b":
             #    print "ESCAPE-SEQUENCE-PENDING", s
 

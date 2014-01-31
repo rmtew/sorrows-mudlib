@@ -9,6 +9,8 @@ class Object(mudlib.Object):
     position = None
 
     def __init__(self, shortDescription=None):
+        super(Object, self).__init__()
+        
         if shortDescription is not None:
             self.SetShortDescription(shortDescription)
 

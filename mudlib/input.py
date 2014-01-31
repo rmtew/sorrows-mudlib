@@ -72,12 +72,11 @@ class InputStack:
     def WritePrompt(self):
         prompt = self.stack[-1].prompt
         if type(prompt) is types.MethodType:
-            prompt = apply(prompt,())
-            self.user.Write(prompt)
+            self.user.Write(prompt())
 
     def ReceiveInput(self, input, bottomlevel=False):
         handler = self.GetHandler(bottomlevel)
-        apply(handler.function, (input,))
+        handler.function(input)
         if self.user:
             self.WritePrompt()
 

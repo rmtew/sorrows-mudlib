@@ -1,19 +1,11 @@
+import mudlib
 import game.world
 
-class Container(game.world.Object):
-    def __init__(self):
-        game.world.Object.__init__(self)
-    
-        self.contents = []
-
-    def AddObject(self, ob):
-        self.contents.append(ob)
-
-    def RemoveObject(self, ob):
-        self.contents.remove(ob)
+class Container(mudlib.Container, game.world.Object):
+    verbWord = "contain"
 
     def LookString(self, viewer):
-        s = game.world.Object.LookString(self, viewer)
+        s = super(Container, self).LookString(viewer)
         if len(self.contents):
             contentsString = ""
             for idx, ob in enumerate(self.contents):
@@ -24,5 +16,6 @@ class Container(game.world.Object):
                 contentsString += "{0.s}".format(game.world.ViewedObject(viewer=viewer, object=ob))
         else:
             contentsString = "Nothing"
-        s += "\r\nIt contains: "+ contentsString +"."
+        vo = game.world.ViewedObject(viewer=viewer, object=self, verb=self.verbWord)
+        s += "\r\n{0.Pn} {0.v}: {1}.".format(vo, contentsString)
         return s

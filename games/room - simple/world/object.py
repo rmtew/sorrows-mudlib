@@ -10,6 +10,8 @@ class Object(mudlib.Object):
     longDescription = "THIS OBJECT IS UNDESCRIBED"
 
     def __init__(self, shortDescription=None):
+        super(Object, self).__init__()
+    
         self.nouns = set()
         self.plurals = set()
         self.adjectives = set()
@@ -21,9 +23,9 @@ class Object(mudlib.Object):
         if self.container:
             self.container.RemoveObject(self)
             self.container = None
-        mudlib.Object.Release(self)
+        super(Object, self).Release()
 
-    def IdentifiedBy(self, noun):
+    def IdentifiedBy(self, noun, actor=None):
         return noun in self.nouns or noun in self.plurals
 
     def DescribedBy(self, adjectives):
@@ -65,6 +67,9 @@ class Object(mudlib.Object):
 
     def GetLongDescription(self):
         return self.longDescription
+
+    def GetPronoun(self):
+        return "it"
 
     def LookString(self, viewer):
         return self.longDescription

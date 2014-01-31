@@ -7,7 +7,7 @@ from game.world import Container, Body, Object
 
 class Room(Container):
     def __init__(self):
-        Container.__init__(self)
+        super(Room, self).__init__()
     
         self.exits = weakref.WeakValueDictionary()
 
@@ -20,7 +20,7 @@ class Room(Container):
 
     def LookString(self, viewer):
         s = self.shortDescription +"\r\n"
-        s += Container.LookString(self, viewer)
+        s += super(Room, self).LookString(viewer)
 
         exitNames = self.exits.keys()
         exitNames.sort()
@@ -86,7 +86,7 @@ class ViewedObjectTest(unittest.TestCase):
         
     def testActorName(self):
         self.assertEqual(self.bodyIndirectPerspective.s, "dwarf", "Actor does not see viewed body by the short description")
-        self.assertEqual(self.bodyIndirectPerspective.S, "dwarf", "Actor does not see viewed body by the uncapitalised short description")
+        self.assertEqual(self.bodyIndirectPerspective.S, "Dwarf", "Actor does not see viewed body by the uncapitalised short description")
         
         self.assertEqual(self.bodyDirectPerspective.s, "you", "Actor does not see themselves as the lowercase 'you'")
         self.assertEqual(self.bodyDirectPerspective.S, "You", "Actor does not see themselves as the capitalised 'you'")

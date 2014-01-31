@@ -2,13 +2,13 @@ from mudlib import Object
 
 class Body(Object):
     def __init__(self, service, user):
-        Object.__init__(self, service)
+        super(Body, self).__init__(service)
 
         self.service = service
         self.user = user
 
     def Release(self):
-        Object.Release(self)
+        super(Body, self).Release()
 
     # ------------------------------------------------------------------------
     # Methods body subclasses need to override.

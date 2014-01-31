@@ -23,4 +23,4 @@ class Shell:
         result = self.ExecuteCommand()
 
     def ExecuteCommand(self):
-        raise NameError, 'ExecuteCommand not found in the inheriting shell object'
+        raise NameError('ExecuteCommand not found in the inheriting shell object')

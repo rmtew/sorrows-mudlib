@@ -1,3 +1,4 @@
+import textsupport
 import game.world
 
 class ViewedObject(object):
@@ -16,32 +17,37 @@ class ViewedObject(object):
 
     def __getattr__(self, attrName):
         """
-        s - Short description.
-        S - Short description (capitalised).
-        v - Verb.
+        Capitalised versions of these give the capitalised result.
+        s  - Short description.
+        pn - Pronoun.
+        v  - Verb.
         """
+        attrNameLower = attrName.lower()
 
-        if attrName in ("s", "S"):
-            if self._object is self._viewer:
-                if attrName == "S":
-                    return "You"
-                return "you"
-
+        if self._object is self._viewer:
+            text = "you"
+            if attrNameLower == "v":
+                text = self._verb
+        elif attrNameLower == "s":
             #   If the object is a body, use their short description directly.
             text = self._object.shortDescription
             if isinstance(self._object, game.world.Body):
-                return text
+                pass
             #   If the viewer is the actor, use the description with "the" article.
-            if self._viewer is self._actor:
-                return "the "+ text
+            elif self._viewer is self._actor:
+                text = "the "+ text
             #   If the viewer is not the actor, use the description with "a"/"an" article.
-            if text[0] in ("a", "e", "i", "o", "u"):
-                return "an "+ text
-            return "a "+ text
+            elif text[0] in ("a", "e", "i", "o", "u"):
+                text = "an "+ text
+            else:
+                text = "a "+ text
+        elif attrNameLower == "pn":
+            text = self._object.GetPronoun()
+        elif attrNameLower == "v":
+            text = textsupport.pluralise(self._verb)
+        else:
+            raise AttributeError("%s instance has no attribute '%s'" % (self.__class__.__name__, attrName))
 
-        if attrName == "v":
-            if self._object is self._viewer:
-                return self._verb
-            return self._verb +"s"
-
-        raise AttributeError("%s instance has no attribute '%s'" % (self.__class__.__name__, attrName))
+        if attrName != attrNameLower:
+            return text.capitalize()
+        return text

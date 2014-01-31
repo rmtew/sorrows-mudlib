@@ -17,16 +17,25 @@ class WorldService(Service):
         ob = Object()
         ob.SetShortDescription("brown pants")
         ob.SetLongDescription("This is a pair of brown pants.")
+        ob.SetWeight(0.2)
         ob.MoveTo(room)
 
         ob = Object()
         ob.SetShortDescription("green pants")
         ob.SetLongDescription("This is a pair of green pants.")
+        ob.SetWeight(0.2)
+        ob.MoveTo(room)
+
+        ob = Object()
+        ob.SetShortDescription("big rock")
+        ob.SetLongDescription("This is a big rock.")
+        ob.SetWeight(10.0)
         ob.MoveTo(room)
 
         ob = Container()
         ob.SetShortDescription("chest")
         ob.SetLongDescription("This is a chest.")
+        ob.SetWeight(6.0)
         ob.MoveTo(room)        
 
         room2 = self.secondRoom = Room()
